@@ -26,13 +26,13 @@ export const ServiceTypeStep: React.FC<ServiceTypeStepProps> = ({
     { id: 'city' as ServiceType, name: 'City Ride', icon: 'location-city', iconType: 'MaterialIcons', description: 'Local city transportation' },
     { id: 'outstation' as ServiceType, name: 'Outstation', icon: 'directions-car', iconType: 'MaterialIcons', description: 'Inter-city travel' },
     { id: 'airport' as ServiceType, name: 'Airport Taxi', icon: 'flight', iconType: 'MaterialIcons', description: 'Airport transfers' },
-    { id: 'hourly' as ServiceType, name: 'Ride Later', icon: 'schedule', iconType: 'MaterialIcons', description: 'Schedule for later' },
+    // { id: 'hourly' as ServiceType, name: 'Ride Later', icon: 'schedule', iconType: 'MaterialIcons', description: 'Schedule for later' },
   ];
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Book Your Ride</Text>
+        <Text style={styles.title}>Select Your Service Type</Text>
         <Text style={styles.subtitle}>Enter your trip details and see available options</Text>
       </View>
      
@@ -203,20 +203,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   header: {
-    padding: 16,
-    alignItems: 'center',
-    marginBottom: 8,
+    padding: 4,
   },
   title: {
-    fontSize: 24,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#3ccfa0',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 10,
     color: '#64748b',
-    textAlign: 'center',
   },
   serviceTypeContainer: {
     backgroundColor: '#ffffff',
@@ -236,13 +233,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 4,
   },
   serviceCard: {
-    width: '48%',
+    width: 'auto',
     backgroundColor: '#f8f9fa',
     borderRadius: 12,
-    padding: 16,
+    padding: 8,
     flexDirection: 'column',
     alignItems: 'center',
     borderWidth: 1,
@@ -253,9 +250,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#ecfdf5',
   },
   serviceIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 24,
+    height: 24,
+    borderRadius: 8,
     backgroundColor: '#ecfdf5',
     alignItems: 'center',
     justifyContent: 'center',
@@ -265,7 +262,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#3ccfa0',
   },
   serviceName: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
     color: '#475569',
     textAlign: 'center',
@@ -277,9 +274,9 @@ const styles = StyleSheet.create({
   tripTypeSection: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 16,
+    padding: 8,
+    marginHorizontal: 8,
+    marginBottom: 8,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -292,12 +289,12 @@ const styles = StyleSheet.create({
   tripTypeContainer: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   tripTypeButton: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
     backgroundColor: '#f8f9fa',
     borderRadius: 12,
     borderWidth: 1,

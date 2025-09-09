@@ -229,93 +229,93 @@ export default function AuthFlowScreen() {
         style={styles.scrollView}
       >
         <View style={styles.content}>
-          {/* Logo */}
-          <View style={styles.logoContainer}>
-            <Text style={styles.logoText}>SDM</Text>
-          </View>
-
-          {/* Hero Section */}
+          {/* Hero Image */}
           <View style={styles.heroContainer}>
-            <View style={styles.heroContent}>
-              <Text style={styles.heroTitle}>
-                <Text style={styles.heroTitleDark}>Electric</Text>{'\n'}
-                <Text style={styles.heroTitleGreen}>Mobility</Text>{'\n'}
-                <Text style={styles.heroTitleDark}>Reimagined</Text>
-              </Text>
+            <Image
+              source={require('../../../assets/banner.png')}
+              style={styles.heroImage}
+              resizeMode="cover"
+            />
+            {/* <View style={styles.heroOverlay}>
+              <Text style={styles.heroTitle}>Welcome to SDM</Text>
               <Text style={styles.heroSubtitle}>
-                Experience the future of urban transportation with SDM E-Mobility. Clean, smart, and sustainable rides at your fingertips.
+                Your journey to sustainable mobility starts here
               </Text>
-            </View>
+            </View> */}
           </View>
 
-          {/* Form Card */}
-          <View style={styles.formCard}>
-            <View style={styles.header}>
-              <Text style={styles.title}>Get Started</Text>
-              <Text style={styles.subtitle}>
-                Enter your phone number to access your SDM emobility Services account.
-              </Text>
-            </View>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Welcome to SDM</Text>
+            <Text style={styles.subtitle}>
+               Your journey to sustainable mobility starts here
+            </Text>
+          </View>
 
-            {/* Form */}
-            <View style={styles.form}>
-              {/* Phone Input */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Phone Number</Text>
-                <View style={styles.phoneInputContainer}>
-                  <Text style={styles.countryCode}>+91</Text>
-                  <TextInput
-                    style={styles.phoneInput}
-                    placeholder="Enter 10-digit phone number"
-                    value={phoneNumber}
-                    onChangeText={setPhoneNumber}
-                    keyboardType="phone-pad"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    editable={!isLoading}
-                    maxLength={10}
-                    placeholderTextColor="#64748b"
-                  />
-                </View>
+          {/* Form */}
+          <View style={styles.form}>
+            {/* Phone Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Phone Number</Text>
+              <View style={styles.phoneInputContainer}>
+                <Text style={styles.countryCode}>+91</Text>
+                <TextInput
+                  style={styles.phoneInput}
+                  placeholder="Enter 10-digit phone number"
+                  value={phoneNumber}
+                  onChangeText={setPhoneNumber}
+                  keyboardType="phone-pad"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!isLoading}
+                  maxLength={10}
+                  placeholderTextColor="#64748b"
+                />
               </View>
-
-              {/* Send OTP Button */}
-              <TouchableOpacity
-                onPress={handleSendOTP}
-                style={[styles.button, (isLoading || !canSend) && styles.buttonDisabled]}
-                disabled={isLoading || !canSend}
-              >
-                <Text style={styles.buttonText}>
-                  {isLoading
-                    ? 'Sending OTP...'
-                    : !canSend
-                      ? `Send OTP in ${sendTimer}s`
-                      : 'Send OTP'
-                  }
-                </Text>
-              </TouchableOpacity>
             </View>
+
+            {/* Forgot Password
+            <TouchableOpacity
+              onPress={handleForgotPassword}
+              style={styles.forgotPassword}
+              disabled={isLoading}
+            >
+              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+            </TouchableOpacity> */}
+
+            {/* Send OTP Button */}
+            <TouchableOpacity
+              onPress={handleSendOTP}
+              style={[styles.button, (isLoading || !canSend) && styles.buttonDisabled]}
+              disabled={isLoading || !canSend}
+            >
+              <Text style={styles.buttonText}>
+                {isLoading
+                  ? 'Sending OTP...'
+                  : !canSend
+                    ? `Send OTP in ${sendTimer}s`
+                    : 'Send OTP'
+                }
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Stats Section */}
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>2.5M+</Text>
-              <Text style={styles.statLabel}>Happy Riders</Text>
+          {/* Google Sign In */}
+          {/* <View style={styles.googleSection}>
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
             </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>50K+</Text>
-              <Text style={styles.statLabel}>Drivers</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>100%</Text>
-              <Text style={styles.statLabel}>Electric</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>24/7</Text>
-              <Text style={styles.statLabel}>Available</Text>
-            </View>
-          </View>
+
+            <TouchableOpacity
+              onPress={handleGoogleSignIn}
+              style={[styles.googleButton, isLoading && styles.buttonDisabled]}
+              disabled={isLoading}
+            >
+              <Text style={styles.googleButtonText}>Continue with Google</Text>
+            </TouchableOpacity>
+          </View> */}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -327,81 +327,85 @@ const { width } = Dimensions.get('window');
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#ffffff',
   },
   scrollView: {
     flex: 1,
   },
   content: {
     flex: 1,
+    justifyContent: 'center',
     paddingHorizontal: 24,
-    paddingVertical: 40,
-  },
-  logoContainer: {
-    alignItems: 'flex-start',
-    marginBottom: 20,
-  },
-  logoText: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-    letterSpacing: 1,
+    paddingVertical: 48,
   },
   heroContainer: {
     marginBottom: 32,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 5,
+    backgroundColor: '#f0f4f8',
+    
+
   },
-  heroContent: {
-    marginBottom: 20,
+  heroImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 16,
+  },
+  heroOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(46, 139, 87, 0.85)', // Semi-transparent forest green
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
   },
   heroTitle: {
-    fontSize: 36,
+    fontSize: 24,
     fontWeight: 'bold',
-    lineHeight: 44,
-    marginBottom: 16,
-  },
-  heroTitleDark: {
-    color: '#1e293b',
-  },
-  heroTitleGreen: {
-    color: '#2dd4bf', // Teal color from the web app
+    color: '#ffffff',
+    textAlign: 'center',
+    marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   heroSubtitle: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#64748b',
-    marginBottom: 24,
-    maxWidth: '90%',
-  },
-  formCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 32,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 15,
-    elevation: 4,
+    fontSize: 14,
+    color: '#ffffff',
+    textAlign: 'center',
+    opacity: 0.9,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   header: {
-    marginBottom: 24,
+    alignItems: 'center',
+    marginBottom: 32,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#1e293b',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 16,
     color: '#64748b',
-    lineHeight: 22,
+    textAlign: 'center',
   },
   form: {
-    marginBottom: 8,
+    marginBottom: 16,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   label: {
     fontSize: 14,
@@ -413,44 +417,41 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#d1d5db',
     borderRadius: 8,
     backgroundColor: '#ffffff',
-    overflow: 'hidden',
   },
   countryCode: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     fontSize: 16,
     color: '#374151',
-    backgroundColor: '#f8fafc',
     borderRightWidth: 1,
-    borderRightColor: '#e2e8f0',
+    borderRightColor: '#d1d5db',
   },
   phoneInput: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     fontSize: 16,
-    color: '#1e293b',
   },
   forgotPassword: {
     alignSelf: 'flex-end',
   },
   forgotPasswordText: {
-    color: '#2dd4bf', // Teal color from the web app
+    color: '#2E8B57', // Traditional forest green
     fontSize: 14,
     fontWeight: '500',
   },
   button: {
-    backgroundColor: '#2dd4bf', // Teal color from the web app
+    backgroundColor: '#2E8B57', // Traditional forest green
     borderRadius: 8,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: 'center',
     marginTop: 24,
   },
   buttonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   buttonText: {
     color: '#ffffff',
@@ -468,7 +469,7 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#d1d5db',
   },
   dividerText: {
     paddingHorizontal: 16,
@@ -477,9 +478,9 @@ const styles = StyleSheet.create({
   },
   googleButton: {
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#d1d5db',
     borderRadius: 8,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: 'center',
     backgroundColor: '#ffffff',
   },
@@ -487,34 +488,5 @@ const styles = StyleSheet.create({
     color: '#374151',
     fontSize: 16,
     fontWeight: '500',
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginTop: 16,
-  },
-  statItem: {
-    width: '48%',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#2dd4bf', // Teal color from the web app
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 14,
-    color: '#64748b',
   },
 });

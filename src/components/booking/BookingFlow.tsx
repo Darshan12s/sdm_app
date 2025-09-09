@@ -279,7 +279,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ onBookingComplete }) =
     <View style={styles.container}>
       <View style={styles.contentContainer}>
         {/* Top Navigation Bar */}
-        <View style={styles.topBar}>
+        {/* <View style={styles.topBar}>
           <View style={styles.stepIndicator}>
             {stepLabels.map((label, index) => (
               <View 
@@ -295,14 +295,14 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ onBookingComplete }) =
           <Text style={styles.stepLabel}>
             Step {currentStep} of {totalSteps}: {stepLabels[currentStep - 1]}
           </Text>
-        </View>
+        </View> */}
 
         {/* Map Container */}
         <View style={styles.mapContainer}>
           <GoogleMap
             pickupLocation={pickupCoords}
             dropoffLocation={dropoffCoords}
-            height={300}
+            height={500}
             interactive={currentStep === 2} // Only interactive on location step
             showLocationButtons={true} // Always show location picking buttons
             onPickupChange={(location) => {
@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
     color: '#1e293b',
   },
   mapContainer: {
-    height: 300, // Fixed height for map
+    height: 500, // Fixed height for map
     backgroundColor: '#ffffff',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -412,29 +412,21 @@ const styles = StyleSheet.create({
   formContainer: {
     flex: 1,
     backgroundColor: '#f8f9fa',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    marginTop: -20,
-    paddingTop: 24,
-    paddingHorizontal: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
     elevation: 4,
     zIndex: 10,
   },
   stepContainer: {
     flex: 1,
-    backgroundColor: '#ffffff',
     borderRadius: 16,
-    padding: 24,
-    marginBottom: 20,
+    marginHorizontal:20,
+    padding:8,
+    marginTop: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.2,
     borderWidth: 1,
     borderColor: '#f1f5f9',
   },
