@@ -222,7 +222,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
                 <Switch
                   value={hasPet}
                   onValueChange={setHasPet}
-                  trackColor={{ false: '#cbd5e1', true: '#2563eb' }}
+                  trackColor={{ false: '#cbd5e1', true: '#3ccfa0' }}
                   thumbColor={hasPet ? '#ffffff' : '#f1f5f9'}
                 />
               </View>
@@ -273,7 +273,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f8f9fa',
   },
   header: {
     padding: 8,
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: '#3ccfa0',
     marginBottom: 2,
   },
   subtitle: {
@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
   },
   confirmButton: {
     flex: 2,
-    backgroundColor: '#10b981',
+    backgroundColor: '#3ccfa0',
     paddingVertical: 10,
     borderRadius: 6,
     alignItems: 'center',

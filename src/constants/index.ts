@@ -1,7 +1,8 @@
 // API Configuration
 export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 export const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
-export const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+// Use environment variable with fallback to hardcoded key for physical devices
+export const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyAejqe2t4TAptcLnkpoFTTNMhm0SFHFJgQ';
 export const RAZORPAY_KEY_ID = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || '';
 
 // App Configuration

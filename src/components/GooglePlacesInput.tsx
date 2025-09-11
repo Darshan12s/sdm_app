@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -43,6 +43,16 @@ export const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const inputRef = useRef<TextInput>(null);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const searchPlaces = async (query: string) => {
     if (!query.trim() || query.length < 3) {
@@ -115,16 +125,28 @@ export const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
         };
 
         console.log('Place details fetched successfully:', place);
+        console.log('GooglePlacesInput: Calling onPlaceSelect with:', place);
         onPlaceSelect(place);
+        console.log('GooglePlacesInput: Calling onChange with:', prediction.description);
         onChange(prediction.description);
         setShowPredictions(false);
         inputRef.current?.blur();
+        console.log('GooglePlacesInput: Place selection completed successfully');
       } else {
         console.error('Place details API error:', detailsData.status);
+        // Don't update input or coordinates when API fails
+        // Reset input to previous value to avoid confusion
+        onChange(prediction.description);
+        Alert.alert('Error', 'Unable to load location details. Please try selecting a different location or check your internet connection.');
+        // Keep predictions visible so user can try again
       }
     } catch (error) {
       console.error('Place details error:', error);
-      Alert.alert('Error', 'Failed to get location details');
+      // Don't update input or coordinates when network fails
+      // Reset input to previous value to avoid confusion
+      onChange(prediction.description);
+      Alert.alert('Network Error', 'Failed to get location details. Please check your connection and try again.');
+      // Keep predictions visible so user can try again
     }
   };
 
@@ -191,7 +213,16 @@ export const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
 
   const handleTextChange = (text: string) => {
     onChange(text);
-    searchPlaces(text);
+
+    // Clear previous timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // Set new timeout for debounced search
+    debounceTimeoutRef.current = setTimeout(() => {
+      searchPlaces(text);
+    }, 300); // 300ms debounce
   };
 
   const getIcon = () => {
@@ -233,6 +264,7 @@ export const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
           <TouchableOpacity
             style={styles.clearButton}
             onPress={() => {
+              console.log('GooglePlacesInput: Clear button pressed');
               onChange('');
               setPredictions([]);
               setShowPredictions(false);

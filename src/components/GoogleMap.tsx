@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, Alert, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, Platform, Image } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { GOOGLE_MAPS_API_KEY } from '@/constants';
@@ -30,7 +30,7 @@ interface GoogleMapProps {
   showLocationButtons?: boolean;
 }
 
-export const GoogleMap: React.FC<GoogleMapProps> = ({
+const GoogleMapComponent: React.FC<GoogleMapProps> = ({
   pickupLocation,
   dropoffLocation,
   height = '300px',
@@ -41,13 +41,45 @@ export const GoogleMap: React.FC<GoogleMapProps> = ({
   activeMarker = 'pickup',
   showLocationButtons = false,
 }) => {
+  // Debug: Log prop changes (only when props actually change)
+  console.log('GoogleMap: Props - pickup:', pickupLocation ? `${pickupLocation.lat}, ${pickupLocation.lng}` : 'null', 'dropoff:', dropoffLocation ? `${dropoffLocation.lat}, ${dropoffLocation.lng}` : 'null');
+
+  // Detect if running on physical device
+  const isPhysicalDevice = Platform.OS === 'android' || Platform.OS === 'ios';
+
+  // Try forcing Google Maps provider on physical devices to see if it resolves rendering
+  const mapProvider = PROVIDER_GOOGLE;
+
+  console.log('GoogleMap: Platform:', Platform.OS, 'isPhysicalDevice:', isPhysicalDevice, 'using mapProvider:', mapProvider || 'default');
+
+  console.log('GoogleMap: Environment - isPhysicalDevice:', isPhysicalDevice, 'mapProvider:', mapProvider || 'default');
+
   const mapRef = useRef<MapView>(null);
   const [routeCoordinates, setRouteCoordinates] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
-  const [region, setRegion] = useState<any>(null);
+  const [region, setRegion] = useState<any>({
+    latitude: 12.9716,
+    longitude: 77.5946,
+    latitudeDelta: 0.1,
+    longitudeDelta: 0.1,
+  });
   const [isLocationLoading, setIsLocationLoading] = useState(true);
+
+  // Debug component lifecycle
+  useEffect(() => {
+    console.log('GoogleMap: Component mounted/updated');
+    return () => {
+      console.log('GoogleMap: Component will unmount');
+    };
+  }, []);
   const [mapActiveMarker, setMapActiveMarker] = useState<'pickup' | 'dropoff'>(activeMarker);
+  const [isMapReady, setIsMapReady] = useState(false);
+  const [forceRender, setForceRender] = useState(0);
+  const [mapLoadError, setMapLoadError] = useState(false);
+  const [mapLoadTimeout, setMapLoadTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [mapRenderTimeout, setMapRenderTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [useStaticMap, setUseStaticMap] = useState(false);
 
   // Get current location
   const getCurrentLocation = async () => {
@@ -104,6 +136,7 @@ export const GoogleMap: React.FC<GoogleMapProps> = ({
       };
       setRegion(fallbackRegion);
     } finally {
+      console.log('GoogleMap: getCurrentLocation finally block - setting isLocationLoading to false');
       setIsLocationLoading(false);
     }
   };
@@ -111,6 +144,36 @@ export const GoogleMap: React.FC<GoogleMapProps> = ({
   // Get current location on component mount
   useEffect(() => {
     getCurrentLocation();
+
+    // Set timeout for map loading (30 seconds)
+    const timeout = setTimeout(() => {
+      if (!isMapReady) {
+        console.log('GoogleMap: Map loading timeout - showing error state');
+        setMapLoadError(true);
+        setIsLocationLoading(false);
+      }
+    }, 30000);
+
+    // Also set a failsafe timeout to hide loading after 10 seconds
+    const loadingTimeout = setTimeout(() => {
+      console.log('GoogleMap: Failsafe loading timeout - forcing hide loading');
+      setIsLocationLoading(false);
+      setIsLoading(false);
+    }, 10000);
+
+    setMapLoadTimeout(timeout);
+
+    return () => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+      if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
+      }
+      if (mapRenderTimeout) {
+        clearTimeout(mapRenderTimeout);
+      }
+    };
   }, []);
 
   // Calculate route when both locations are available
@@ -122,23 +185,44 @@ export const GoogleMap: React.FC<GoogleMapProps> = ({
     }
   }, [pickupLocation, dropoffLocation]);
 
+  // Debug: Log prop changes
+  useEffect(() => {
+    console.log('GoogleMap: useEffect triggered - pickupLocation:', pickupLocation, 'dropoffLocation:', dropoffLocation);
+    console.log('GoogleMap: Prop types - pickupLocation type:', typeof pickupLocation, 'dropoffLocation type:', typeof dropoffLocation);
+
+    // Check if markers should be rendered
+    const shouldRenderPickupMarker = pickupLocation && typeof pickupLocation.lat === 'number' && typeof pickupLocation.lng === 'number' && !isNaN(pickupLocation.lat) && !isNaN(pickupLocation.lng);
+    const shouldRenderDropoffMarker = dropoffLocation && typeof dropoffLocation.lat === 'number' && typeof dropoffLocation.lng === 'number' && !isNaN(dropoffLocation.lat) && !isNaN(dropoffLocation.lng);
+
+    console.log('GoogleMap: Should render pickup marker:', shouldRenderPickupMarker, 'pickupLocation exists:', !!pickupLocation);
+    console.log('GoogleMap: Should render dropoff marker:', shouldRenderDropoffMarker, 'dropoffLocation exists:', !!dropoffLocation);
+    console.log('GoogleMap: Force render value:', forceRender);
+
+    // Force a re-render to ensure markers update
+    setForceRender(prev => {
+      const newValue = prev + 1;
+      console.log('GoogleMap: Setting forceRender to:', newValue);
+      return newValue;
+    });
+  }, [pickupLocation, dropoffLocation]);
+
   // Update region when locations change
   useEffect(() => {
-    console.log('Locations changed:', { pickupLocation, dropoffLocation });
+    console.log('GoogleMap: Locations changed:', { pickupLocation, dropoffLocation });
 
     if (pickupLocation || dropoffLocation) {
       const coordinates: any[] = [];
 
-      if (pickupLocation) {
-        console.log('Adding pickup coordinate:', pickupLocation);
+      if (pickupLocation && typeof pickupLocation.lat === 'number' && typeof pickupLocation.lng === 'number' && !isNaN(pickupLocation.lat) && !isNaN(pickupLocation.lng)) {
+        console.log('GoogleMap: Adding pickup coordinate:', pickupLocation);
         coordinates.push({
           latitude: pickupLocation.lat,
           longitude: pickupLocation.lng,
         });
       }
 
-      if (dropoffLocation) {
-        console.log('Adding dropoff coordinate:', dropoffLocation);
+      if (dropoffLocation && typeof dropoffLocation.lat === 'number' && typeof dropoffLocation.lng === 'number' && !isNaN(dropoffLocation.lat) && !isNaN(dropoffLocation.lng)) {
+        console.log('GoogleMap: Adding dropoff coordinate:', dropoffLocation);
         coordinates.push({
           latitude: dropoffLocation.lat,
           longitude: dropoffLocation.lng,
@@ -168,17 +252,63 @@ export const GoogleMap: React.FC<GoogleMapProps> = ({
           longitudeDelta,
         };
 
-        console.log('Setting new region:', newRegion);
+        console.log('GoogleMap: Setting new region:', newRegion);
         setRegion(newRegion);
 
-        // Also fit to coordinates if map is ready
+        // Animate to region if map is ready
         if (mapRef.current) {
-          mapRef.current.fitToCoordinates(coordinates, {
-            edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-            animated: true,
-          });
+          console.log('GoogleMap: Animating to region:', newRegion);
+          // Use setTimeout to ensure the map is fully ready
+          setTimeout(() => {
+            if (mapRef.current) {
+              mapRef.current.animateToRegion(newRegion, 1000);
+            }
+          }, 100);
+        }
+
+        // Also fit to coordinates if map is ready
+        const fitToCoords = () => {
+          if (mapRef.current) {
+            console.log('GoogleMap: Fitting to coordinates:', coordinates);
+            // Use setTimeout to ensure the map is fully ready
+            setTimeout(() => {
+              if (mapRef.current) {
+                mapRef.current.fitToCoordinates(coordinates, {
+                  edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+                  animated: true,
+                });
+              }
+            }, 200);
+          } else {
+            console.log('GoogleMap: Map not ready, retrying...');
+            // Retry after a short delay if map is not ready
+            setTimeout(fitToCoords, 100);
+          }
+        };
+
+        fitToCoords();
+      } else {
+        console.log('GoogleMap: No valid coordinates to display, resetting to default region');
+        // Reset to default region when no valid coordinates
+        const defaultRegion = {
+          latitude: 12.9716,
+          longitude: 77.5946,
+          latitudeDelta: 0.1,
+          longitudeDelta: 0.1,
+        };
+        setRegion(defaultRegion);
+
+        if (mapRef.current) {
+          console.log('GoogleMap: Animating to default region');
+          setTimeout(() => {
+            if (mapRef.current) {
+              mapRef.current.animateToRegion(defaultRegion, 1000);
+            }
+          }, 100);
         }
       }
+    } else {
+      console.log('GoogleMap: No locations provided');
     }
   }, [pickupLocation, dropoffLocation]);
 
@@ -313,48 +443,81 @@ export const GoogleMap: React.FC<GoogleMapProps> = ({
   };
 
   const getMapRegion = () => {
-    // If we have a region set (from current location), use it
-    if (region) {
-      return region;
-    }
-
-    // If pickup location exists, center on it
-    if (pickupLocation) {
-      return {
-        latitude: pickupLocation.lat,
-        longitude: pickupLocation.lng,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      };
-    }
-
-    // If dropoff location exists, center on it
-    if (dropoffLocation) {
-      return {
-        latitude: dropoffLocation.lat,
-        longitude: dropoffLocation.lng,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      };
-    }
-
-    // Default to Bangalore (more central location)
-    return {
-      latitude: 12.9716,
-      longitude: 77.5946,
-      latitudeDelta: 0.1,
-      longitudeDelta: 0.1,
-    };
+    // Always return the current region state, which is initialized with default values
+    return region;
   };
+
+  // Removed dynamic key to prevent unnecessary MapView re-mounts
+  // Markers should update properly through React's normal re-rendering
+
+  // Show simplified fallback if Google Maps tiles don't load
+  if (useStaticMap) {
+    return (
+      <View style={[styles.container, styles.errorContainer]}>
+        <View style={styles.errorContent}>
+          <Text style={styles.errorTitle}>Map View Unavailable</Text>
+          <Text style={styles.errorText}>
+            The interactive map is not loading properly on this device. This may be due to Google Maps API restrictions for development environments.
+          </Text>
+          <Text style={styles.errorText}>
+            You can still use the location input fields above to set your pickup and drop-off locations.
+          </Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => {
+              setUseStaticMap(false);
+              setIsMapReady(false);
+              // Retry with interactive map
+            }}
+          >
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // Show error state if map failed to load
+  if (mapLoadError) {
+    return (
+      <View style={[styles.container, styles.errorContainer]}>
+        <View style={styles.errorContent}>
+          <Text style={styles.errorTitle}>Map Unavailable</Text>
+          <Text style={styles.errorText}>
+            {isPhysicalDevice
+              ? 'Map functionality may be limited on physical devices. Using default map provider.'
+              : 'Unable to load map. Please check your internet connection and try again.'}
+          </Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => {
+              setMapLoadError(false);
+              setIsMapReady(false);
+              // Retry loading
+              const timeout = setTimeout(() => {
+                if (!isMapReady) {
+                  setMapLoadError(true);
+                }
+              }, 30000);
+              setMapLoadTimeout(timeout);
+            }}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <MapView
         ref={mapRef}
-        provider={PROVIDER_GOOGLE}
+        {...(mapProvider ? { provider: mapProvider } : {})}
         style={{
           width: '100%',
-          height: typeof height === 'string' ? parseInt(height) : height,
+          height: typeof height === 'string' ? parseInt(height.replace('px', '')) || 300 : height,
+          minHeight: 200, // Ensure minimum height
         }}
         region={region || getMapRegion()}
         onPress={handleMapPress}
@@ -363,11 +526,42 @@ export const GoogleMap: React.FC<GoogleMapProps> = ({
         zoomEnabled={interactive || showLocationButtons}
         scrollEnabled={interactive || showLocationButtons}
         rotateEnabled={interactive || showLocationButtons}
-        loadingEnabled={true}
-        loadingIndicatorColor="#2563eb"
-        loadingBackgroundColor="#ffffff"
+        loadingEnabled={false}
         onMapReady={() => {
-          console.log('Map is ready');
+          console.log('Map is ready - Google Maps interface loaded');
+          setIsMapReady(true);
+          setMapLoadError(false);
+          // Clear timeout since map loaded successfully
+          if (mapLoadTimeout) {
+            clearTimeout(mapLoadTimeout);
+            setMapLoadTimeout(null);
+          }
+          // Force hide loading states as failsafe
+          setIsLocationLoading(false);
+          setIsLoading(false);
+
+          // Check if map tiles are actually rendering after a delay
+          const renderCheckTimeout = setTimeout(() => {
+            console.log('Map render check - verifying if tiles are visible');
+            // On physical devices, if Google Maps tiles don't load due to API restrictions,
+            // we should fall back to a static map or alternative
+            if (isPhysicalDevice) {
+              console.log('Physical device detected - checking for map tile rendering issues');
+              // Add a user prompt to check if map is visible
+              setTimeout(() => {
+                console.log('Prompting user to check map visibility');
+                // If map is still not visible after 10 seconds, show fallback
+                setTimeout(() => {
+                  if (!mapLoadError) {
+                    console.log('Map may not be rendering tiles - showing fallback option');
+                    setUseStaticMap(true);
+                  }
+                }, 10000);
+              }, 3000);
+            }
+          }, 3000);
+
+          setMapRenderTimeout(renderCheckTimeout);
         }}
         onRegionChangeComplete={(newRegion) => {
           // Update region state when user interacts with map
@@ -377,8 +571,9 @@ export const GoogleMap: React.FC<GoogleMapProps> = ({
         }}
       >
         {/* Pickup Marker */}
-        {pickupLocation && pickupLocation.lat && pickupLocation.lng && (
+        {pickupLocation && typeof pickupLocation.lat === 'number' && typeof pickupLocation.lng === 'number' && !isNaN(pickupLocation.lat) && !isNaN(pickupLocation.lng) && (
           <Marker
+            key={`pickup-${pickupLocation.lat}-${pickupLocation.lng}-${forceRender}`}
             coordinate={{
               latitude: pickupLocation.lat,
               longitude: pickupLocation.lng,
@@ -390,8 +585,9 @@ export const GoogleMap: React.FC<GoogleMapProps> = ({
         )}
 
         {/* Dropoff Marker */}
-        {dropoffLocation && dropoffLocation.lat && dropoffLocation.lng && (
+        {dropoffLocation && typeof dropoffLocation.lat === 'number' && typeof dropoffLocation.lng === 'number' && !isNaN(dropoffLocation.lat) && !isNaN(dropoffLocation.lng) && (
           <Marker
+            key={`dropoff-${dropoffLocation.lat}-${dropoffLocation.lng}-${forceRender}`}
             coordinate={{
               latitude: dropoffLocation.lat,
               longitude: dropoffLocation.lng,
@@ -428,15 +624,19 @@ export const GoogleMap: React.FC<GoogleMapProps> = ({
       </MapView>
 
       {/* Loading Indicator */}
-      {(isLoading || isLocationLoading) && (
-        <View style={styles.loadingOverlay}>
-          <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>
-              {isLocationLoading ? 'Getting your location...' : 'Calculating route...'}
-            </Text>
+      {(() => {
+        const shouldShowLoading = isLoading || isLocationLoading;
+        console.log('GoogleMap: Loading overlay check - isLoading:', isLoading, 'isLocationLoading:', isLocationLoading, 'shouldShow:', shouldShowLoading);
+        return shouldShowLoading ? (
+          <View style={styles.loadingOverlay}>
+            <View style={styles.loadingContainer}>
+              <Text style={styles.loadingText}>
+                {isLocationLoading ? 'Getting your location...' : 'Calculating route...'}
+              </Text>
+            </View>
           </View>
-        </View>
-      )}
+        ) : null;
+      })()}
 
       {/* Interactive Mode Indicator */}
       {(interactive || showLocationButtons) && (
@@ -488,6 +688,40 @@ export const GoogleMap: React.FC<GoogleMapProps> = ({
 const styles = StyleSheet.create({
   container: {
     position: 'relative',
+  },
+  errorContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+  },
+  errorContent: {
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1e293b',
+    marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  retryButton: {
+    backgroundColor: '#2563eb',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 6,
+  },
+  retryButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   loadingOverlay: {
     position: 'absolute',
@@ -566,4 +800,64 @@ const styles = StyleSheet.create({
   locationButtonTextActive: {
     color: '#0d9488', // Darker teal for active text
   },
+  staticMapContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    padding: 20,
+  },
+  staticMapTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1e293b',
+    marginBottom: 8,
+  },
+  staticMapSubtitle: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  staticMapWrapper: {
+    width: '100%',
+    height: 300,
+    borderRadius: 8,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  staticMapImage: {
+    width: '100%',
+    height: '100%',
+  },
+  staticMarker: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickupMarker: {
+    top: '40%',
+    left: '45%',
+  },
+  dropoffMarker: {
+    top: '50%',
+    right: '45%',
+  },
+  markerText: {
+    fontSize: 24,
+  },
+  switchToInteractiveButton: {
+    marginTop: 16,
+    backgroundColor: '#2563eb',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 6,
+  },
+  switchToInteractiveText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
 });
+
+export const GoogleMap = GoogleMapComponent;

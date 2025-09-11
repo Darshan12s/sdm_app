@@ -46,6 +46,9 @@ export const LocationStep: React.FC<LocationStepProps> = ({
   onNext,
   onBack,
 }) => {
+  // Refs to track if coordinates were just set to prevent reset
+  const pickupCoordsJustSetRef = React.useRef(false);
+  const dropoffCoordsJustSetRef = React.useRef(false);
 
   // Airport terminals
   const airportTerminals = {
@@ -55,6 +58,8 @@ export const LocationStep: React.FC<LocationStepProps> = ({
 
   // Location validation
   const validateLocationRadius = (lat: number, lng: number) => {
+    console.log('LocationStep: Validating coordinates:', { lat, lng });
+
     const mysoreCoords = { lat: 12.2958, lng: 76.6394 };
     const bangaloreCoords = { lat: 12.9716, lng: 77.5946 };
 
@@ -72,51 +77,163 @@ export const LocationStep: React.FC<LocationStepProps> = ({
     const distanceFromMysore = calculateDistance(lat, lng, mysoreCoords.lat, mysoreCoords.lng);
     const distanceFromBangalore = calculateDistance(lat, lng, bangaloreCoords.lat, bangaloreCoords.lng);
 
+    console.log('LocationStep: Distance from Mysore:', distanceFromMysore, 'km');
+    console.log('LocationStep: Distance from Bangalore:', distanceFromBangalore, 'km');
+    console.log('LocationStep: Validation result:', distanceFromMysore <= 50 || distanceFromBangalore <= 50);
+
     return distanceFromMysore <= 50 || distanceFromBangalore <= 50;
   };
 
   const handlePickupSelect = (place: any) => {
-    const isWithinRadius = validateLocationRadius(
-      place.geometry.location.lat,
-      place.geometry.location.lng
-    );
+    console.log('LocationStep: handlePickupSelect called with place:', place);
 
-    if (!isWithinRadius) {
-      onPickupLocationError("❌ We're currently unavailable in this location. Please select a location near Mysore or Bangalore.");
+    // Validate place object structure
+    if (!place || !place.geometry || !place.geometry.location || typeof place.geometry.location.lat !== 'number' || typeof place.geometry.location.lng !== 'number') {
+      console.error('LocationStep: Invalid place object structure');
+      onPickupLocationError("❌ Invalid location data. Please try selecting a different location.");
       onPickupCoordsChange(null);
-      onPickupLocationChange(place.description);
       return;
     }
 
+    const lat = place.geometry.location.lat;
+    const lng = place.geometry.location.lng;
+
+    // Check for invalid coordinates
+    if (lat === 0 && lng === 0) {
+      console.log('LocationStep: Invalid coordinates (0,0) detected');
+      onPickupLocationError("❌ Unable to get accurate location data. Please try selecting a different location.");
+      onPickupCoordsChange(null);
+      onPickupLocationChange(place.description || '');
+      return;
+    }
+
+    // Validate coordinate ranges
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      console.log('LocationStep: Coordinates out of valid range:', { lat, lng });
+      onPickupLocationError("❌ Invalid location coordinates. Please try selecting a different location.");
+      onPickupCoordsChange(null);
+      onPickupLocationChange(place.description || '');
+      return;
+    }
+
+    // Check for NaN values
+    if (isNaN(lat) || isNaN(lng)) {
+      console.log('LocationStep: NaN coordinates detected:', { lat, lng });
+      onPickupLocationError("❌ Invalid location data. Please try selecting a different location.");
+      onPickupCoordsChange(null);
+      onPickupLocationChange(place.description || '');
+      return;
+    }
+
+    const isWithinRadius = validateLocationRadius(lat, lng);
+
+    console.log('LocationStep: Location validation result:', isWithinRadius);
+
+    if (!isWithinRadius) {
+      console.log('LocationStep: Location outside service area');
+      onPickupLocationError("❌ We're currently unavailable in this location. Please select a location near Mysore or Bangalore.");
+      onPickupCoordsChange(null);
+      onPickupLocationChange(place.description || '');
+      return;
+    }
+
+    console.log('LocationStep: Setting pickup coordinates');
     onPickupLocationError("");
-    onPickupCoordsChange({
-      lat: place.geometry.location.lat,
-      lng: place.geometry.location.lng,
-      address: place.description
-    });
-    onPickupLocationChange(place.description);
+    const coords = {
+      lat: lat,
+      lng: lng,
+      address: place.description || ''
+    };
+    console.log('LocationStep: New pickup coords:', coords);
+    console.log('LocationStep: Calling onPickupCoordsChange with:', coords);
+    onPickupCoordsChange(coords);
+    // Set ref to prevent reset in onChange handler
+    console.log('LocationStep: Setting pickupCoordsJustSetRef to true');
+    pickupCoordsJustSetRef.current = true;
+    // Reset ref after a short delay
+    setTimeout(() => {
+      console.log('LocationStep: Resetting pickupCoordsJustSetRef to false');
+      pickupCoordsJustSetRef.current = false;
+    }, 100);
+    console.log('LocationStep: Calling onPickupLocationChange with:', place.description || '');
+    onPickupLocationChange(place.description || '');
+    console.log('LocationStep: handlePickupSelect completed');
   };
 
   const handleDropoffSelect = (place: any) => {
-    const isWithinRadius = validateLocationRadius(
-      place.geometry.location.lat,
-      place.geometry.location.lng
-    );
+    console.log('LocationStep: handleDropoffSelect called with place:', place);
 
-    if (!isWithinRadius) {
-      onDropoffLocationError("❌ We're currently unavailable in this location. Please select a location near Mysore or Bangalore.");
+    // Validate place object structure
+    if (!place || !place.geometry || !place.geometry.location || typeof place.geometry.location.lat !== 'number' || typeof place.geometry.location.lng !== 'number') {
+      console.error('LocationStep: Invalid place object structure for dropoff');
+      onDropoffLocationError("❌ Invalid location data. Please try selecting a different location.");
       onDropoffCoordsChange(null);
-      onDropoffLocationChange(place.description);
       return;
     }
 
+    const lat = place.geometry.location.lat;
+    const lng = place.geometry.location.lng;
+
+    // Check for invalid coordinates
+    if (lat === 0 && lng === 0) {
+      console.log('LocationStep: Invalid dropoff coordinates (0,0) detected');
+      onDropoffLocationError("❌ Unable to get accurate location data. Please try selecting a different location.");
+      onDropoffCoordsChange(null);
+      onDropoffLocationChange(place.description || '');
+      return;
+    }
+
+    // Validate coordinate ranges
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      console.log('LocationStep: Dropoff coordinates out of valid range:', { lat, lng });
+      onDropoffLocationError("❌ Invalid location coordinates. Please try selecting a different location.");
+      onDropoffCoordsChange(null);
+      onDropoffLocationChange(place.description || '');
+      return;
+    }
+
+    // Check for NaN values
+    if (isNaN(lat) || isNaN(lng)) {
+      console.log('LocationStep: NaN dropoff coordinates detected:', { lat, lng });
+      onDropoffLocationError("❌ Invalid location data. Please try selecting a different location.");
+      onDropoffCoordsChange(null);
+      onDropoffLocationChange(place.description || '');
+      return;
+    }
+
+    const isWithinRadius = validateLocationRadius(lat, lng);
+
+    console.log('LocationStep: Dropoff location validation result:', isWithinRadius);
+
+    if (!isWithinRadius) {
+      console.log('LocationStep: Dropoff location outside service area');
+      onDropoffLocationError("❌ We're currently unavailable in this location. Please select a location near Mysore or Bangalore.");
+      onDropoffCoordsChange(null);
+      onDropoffLocationChange(place.description || '');
+      return;
+    }
+
+    console.log('LocationStep: Setting dropoff coordinates');
     onDropoffLocationError("");
-    onDropoffCoordsChange({
-      lat: place.geometry.location.lat,
-      lng: place.geometry.location.lng,
-      address: place.description
-    });
-    onDropoffLocationChange(place.description);
+    const coords = {
+      lat: lat,
+      lng: lng,
+      address: place.description || ''
+    };
+    console.log('LocationStep: New dropoff coords:', coords);
+    console.log('LocationStep: Calling onDropoffCoordsChange with:', coords);
+    onDropoffCoordsChange(coords);
+    // Set ref to prevent reset in onChange handler
+    console.log('LocationStep: Setting dropoffCoordsJustSetRef to true');
+    dropoffCoordsJustSetRef.current = true;
+    // Reset ref after a short delay
+    setTimeout(() => {
+      console.log('LocationStep: Resetting dropoffCoordsJustSetRef to false');
+      dropoffCoordsJustSetRef.current = false;
+    }, 100);
+    console.log('LocationStep: Calling onDropoffLocationChange with:', place.description || '');
+    onDropoffLocationChange(place.description || '');
+    console.log('LocationStep: handleDropoffSelect completed');
   };
 
   const isFormValid = () => {
@@ -171,8 +288,16 @@ export const LocationStep: React.FC<LocationStepProps> = ({
               placeholder="Enter pickup location"
               value={pickupLocation}
               onChange={(value) => {
+                console.log('LocationStep: Pickup onChange called with value:', value);
+                console.log('LocationStep: pickupCoordsJustSetRef.current:', pickupCoordsJustSetRef.current);
                 onPickupLocationChange(value);
-                onPickupCoordsChange(null);
+                // Reset coordinates if input is cleared (empty value) or if coordinates weren't just set
+                if (value.trim() === '' || !pickupCoordsJustSetRef.current) {
+                  console.log('LocationStep: Resetting pickup coordinates to null');
+                  onPickupCoordsChange(null);
+                } else {
+                  console.log('LocationStep: Skipping coordinate reset - coordinates were just set');
+                }
               }}
               onPlaceSelect={handlePickupSelect}
               icon="pickup"
@@ -223,8 +348,16 @@ export const LocationStep: React.FC<LocationStepProps> = ({
                 placeholder="Enter drop-off location"
                 value={dropoffLocation}
                 onChange={(value) => {
+                  console.log('LocationStep: Dropoff onChange called with value:', value);
+                  console.log('LocationStep: dropoffCoordsJustSetRef.current:', dropoffCoordsJustSetRef.current);
                   onDropoffLocationChange(value);
-                  onDropoffCoordsChange(null);
+                  // Reset coordinates if input is cleared (empty value) or if coordinates weren't just set
+                  if (value.trim() === '' || !dropoffCoordsJustSetRef.current) {
+                    console.log('LocationStep: Resetting dropoff coordinates to null');
+                    onDropoffCoordsChange(null);
+                  } else {
+                    console.log('LocationStep: Skipping coordinate reset - coordinates were just set');
+                  }
                 }}
                 onPlaceSelect={handleDropoffSelect}
                 icon="dropoff"
@@ -266,7 +399,7 @@ export const LocationStep: React.FC<LocationStepProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f8f9fa',
     position: 'relative',
   },
   header: {
@@ -276,7 +409,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: '#3ccfa0',
     marginBottom: 6,
   },
   subtitle: {
@@ -308,8 +441,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   terminalButtonActive: {
-    borderColor: '#2563eb',
-    backgroundColor: '#eff6ff',
+    borderColor: '#3ccfa0',
+    backgroundColor: '#ecfdf5',
   },
   terminalText: {
     fontSize: 12,
@@ -317,7 +450,7 @@ const styles = StyleSheet.create({
     color: '#475569',
   },
   terminalTextActive: {
-    color: '#2563eb',
+    color: '#3ccfa0',
   },
   errorText: {
     fontSize: 11,
@@ -351,13 +484,13 @@ const styles = StyleSheet.create({
   },
   nextButton: {
     flex: 2,
-    backgroundColor: '#2563eb',
+    backgroundColor: '#3ccfa0',
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
   },
   nextButtonDisabled: {
-    backgroundColor: '#cbd5e1',
+    backgroundColor: '#e2e8f0',
   },
   nextButtonText: {
     fontSize: 14,

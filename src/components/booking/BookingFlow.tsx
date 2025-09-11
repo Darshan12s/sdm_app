@@ -19,6 +19,28 @@ interface BookingFlowProps {
   onBookingComplete: (bookingData: any) => void;
 }
 
+// Location validation
+const validateLocationRadius = (lat: number, lng: number) => {
+  const mysoreCoords = { lat: 12.2958, lng: 76.6394 };
+  const bangaloreCoords = { lat: 12.9716, lng: 77.5946 };
+
+  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const distanceFromMysore = calculateDistance(lat, lng, mysoreCoords.lat, mysoreCoords.lng);
+  const distanceFromBangalore = calculateDistance(lat, lng, bangaloreCoords.lat, bangaloreCoords.lng);
+
+  return distanceFromMysore <= 50 || distanceFromBangalore <= 50;
+};
+
 export const BookingFlow: React.FC<BookingFlowProps> = ({ onBookingComplete }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 6;
@@ -39,6 +61,44 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ onBookingComplete }) =
   const [dropoffCoords, setDropoffCoords] = useState<LocationData | null>(null);
   const [pickupLocationError, setPickupLocationError] = useState('');
   const [dropoffLocationError, setDropoffLocationError] = useState('');
+
+  // Debug wrapper for state setters
+  const debugSetPickupCoords = (coords: LocationData | null) => {
+    console.log('BookingFlow: setPickupCoords called with:', coords);
+    pickupCoordsRef.current = coords;
+    setPickupCoords(coords);
+  };
+
+  const debugSetDropoffCoords = (coords: LocationData | null) => {
+    console.log('BookingFlow: setDropoffCoords called with:', coords);
+    dropoffCoordsRef.current = coords;
+    setDropoffCoords(coords);
+  };
+
+  // Force re-render counter
+  const [renderKey, setRenderKey] = useState(0);
+
+  // Refs to track latest state values
+  const pickupCoordsRef = React.useRef<LocationData | null>(null);
+  const dropoffCoordsRef = React.useRef<LocationData | null>(null);
+
+  // Sync refs with state
+  React.useEffect(() => {
+    pickupCoordsRef.current = pickupCoords;
+    dropoffCoordsRef.current = dropoffCoords;
+  }, [pickupCoords, dropoffCoords]);
+
+  // Debug: Log state changes and force re-render
+  React.useEffect(() => {
+    console.log('BookingFlow: State updated - pickupCoords:', pickupCoords, 'dropoffCoords:', dropoffCoords);
+    console.log('BookingFlow: Ref values - pickupCoords:', pickupCoordsRef.current, 'dropoffCoords:', dropoffCoordsRef.current);
+    // Force re-render to ensure GoogleMap receives updated props
+    setRenderKey(prev => prev + 1);
+  }, [pickupCoords, dropoffCoords]);
+
+  // Debug: Log when rendering GoogleMap
+  console.log('BookingFlow: About to render GoogleMap with pickupCoords:', pickupCoords, 'dropoffCoords:', dropoffCoords);
+  console.log('BookingFlow: Ref values when rendering - pickupCoords:', pickupCoordsRef.current, 'dropoffCoords:', dropoffCoordsRef.current);
 
   // Date & Time state
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>();
@@ -186,8 +246,8 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ onBookingComplete }) =
             dropoffLocationError={dropoffLocationError}
             onPickupLocationChange={setPickupLocation}
             onDropoffLocationChange={setDropoffLocation}
-            onPickupCoordsChange={setPickupCoords}
-            onDropoffCoordsChange={setDropoffCoords}
+            onPickupCoordsChange={debugSetPickupCoords}
+            onDropoffCoordsChange={debugSetDropoffCoords}
             onPickupLocationError={setPickupLocationError}
             onDropoffLocationError={setDropoffLocationError}
             onNext={handleNext}
@@ -297,25 +357,43 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ onBookingComplete }) =
           </Text>
         </View> */}
 
-        {/* Map Container */}
-        <View style={styles.mapContainer}>
-          <GoogleMap
-            pickupLocation={pickupCoords}
-            dropoffLocation={dropoffCoords}
-            height={500}
-            interactive={currentStep === 2} // Only interactive on location step
-            showLocationButtons={true} // Always show location picking buttons
-            onPickupChange={(location) => {
-              setPickupCoords(location);
-              setPickupLocation(location.address);
-            }}
-            onDropoffChange={(location) => {
-              setDropoffCoords(location);
-              setDropoffLocation(location.address);
-            }}
-            activeMarker="pickup"
-          />
-        </View>
+        {/* Map Container - Show only in steps 1, 2, 3 */}
+        {currentStep <= 3 && (
+          <View style={styles.mapContainer}>
+            <GoogleMap
+              pickupLocation={pickupCoords}
+              dropoffLocation={dropoffCoords}
+              height={500}
+              interactive={currentStep === 2} // Only interactive on location step
+              showLocationButtons={true} // Always show location picking buttons
+              onPickupChange={(location) => {
+                const isValid = validateLocationRadius(location.lat, location.lng);
+                if (!isValid) {
+                  setPickupLocationError("❌ We're currently unavailable in this location. Please select a location near Mysore or Bangalore.");
+                  setPickupCoords(null);
+                  setPickupLocation(location.address);
+                } else {
+                  setPickupLocationError('');
+                  setPickupCoords(location);
+                  setPickupLocation(location.address);
+                }
+              }}
+              onDropoffChange={(location) => {
+                const isValid = validateLocationRadius(location.lat, location.lng);
+                if (!isValid) {
+                  setDropoffLocationError("❌ We're currently unavailable in this location. Please select a location near Mysore or Bangalore.");
+                  setDropoffCoords(null);
+                  setDropoffLocation(location.address);
+                } else {
+                  setDropoffLocationError('');
+                  setDropoffCoords(location);
+                  setDropoffLocation(location.address);
+                }
+              }}
+              activeMarker="pickup"
+            />
+          </View>
+        )}
 
         {/* Form Container */}
         <View style={styles.formContainer}>

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { ServiceType } from '@/types';
 
 interface DateTimeStepProps {
@@ -34,20 +36,8 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [activePicker, setActivePicker] = useState<'scheduled' | 'return'>('scheduled');
+  const [tempDate, setTempDate] = useState(new Date());
 
-  // Generate time slots
-  const generateTimeSlots = () => {
-    const slots: string[] = [];
-    for (let h = 0; h < 24; h++) {
-      const hh = String(h).padStart(2, '0');
-      slots.push(`${hh}:00`);
-      slots.push(`${hh}:30`);
-    }
-    slots.push('24:00');
-    return slots;
-  };
-
-  const timeSlots = generateTimeSlots();
 
   // Quick date options
   const quickDateOptions = [
@@ -66,13 +56,64 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
     }
   };
 
-  const handleTimeSelect = (time: string) => {
-    if (activePicker === 'scheduled') {
-      onScheduledTimeChange(time);
-    } else {
-      onReturnTimeChange(time);
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      if (activePicker === 'scheduled') {
+        onScheduledDateChange(selectedDate);
+        // If return date exists and is before new pickup date, clear it
+        if (returnDate && !validateReturnDate(returnDate, selectedDate)) {
+          onReturnDateChange(undefined);
+          onReturnTimeChange('');
+        }
+      } else if (activePicker === 'return' && scheduledDate) {
+        // Validate return date is after pickup date
+        if (validateReturnDate(selectedDate, scheduledDate)) {
+          onReturnDateChange(selectedDate);
+        } else {
+          // Show error or keep previous date
+          alert('Return date must be after pickup date');
+        }
+      } else {
+        onReturnDateChange(selectedDate);
+      }
     }
-    setShowTimePicker(false);
+  };
+
+  const handleTimeChange = (event: any, selectedTime?: Date) => {
+    setShowTimePicker(Platform.OS === 'ios');
+    if (selectedTime) {
+      const timeString = selectedTime.toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      if (activePicker === 'scheduled') {
+        onScheduledTimeChange(timeString);
+      } else {
+        onReturnTimeChange(timeString);
+      }
+    }
+  };
+
+  const openDatePicker = (picker: 'scheduled' | 'return') => {
+    setActivePicker(picker);
+    const currentDate = picker === 'scheduled' ? scheduledDate : returnDate;
+    const baseDate = picker === 'return' && scheduledDate ? scheduledDate : new Date();
+    setTempDate(currentDate || baseDate);
+    setShowDatePicker(true);
+  };
+
+  const openTimePicker = (picker: 'scheduled' | 'return') => {
+    setActivePicker(picker);
+    const currentTime = picker === 'scheduled' ? scheduledTime : returnTime;
+    const timeDate = new Date();
+    if (currentTime) {
+      const [hours, minutes] = currentTime.split(':');
+      timeDate.setHours(parseInt(hours), parseInt(minutes));
+    }
+    setTempDate(timeDate);
+    setShowTimePicker(true);
   };
 
   const isFormValid = () => {
@@ -89,6 +130,16 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
       month: 'short',
       day: 'numeric',
     });
+  };
+
+  const formatTime = (time: string | undefined) => {
+    if (!time) return 'Select time';
+    return time;
+  };
+
+  // Validation for return date (must be after pickup date)
+  const validateReturnDate = (returnDate: Date, pickupDate: Date) => {
+    return returnDate >= pickupDate;
   };
 
   return (
@@ -131,28 +182,32 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
           <View style={styles.dateTimeContainer}>
             <TouchableOpacity
               style={styles.dateTimeButton}
-              onPress={() => {
-                setActivePicker('scheduled');
-                setShowDatePicker(true);
-              }}
+              onPress={() => openDatePicker('scheduled')}
             >
-              <Text style={styles.dateTimeLabel}>Date</Text>
-              <Text style={styles.dateTimeValue}>
-                {formatDate(scheduledDate)}
-              </Text>
+              <View style={styles.dateTimeContent}>
+                <MaterialIcons name="event" size={20} color="#3ccfa0" />
+                <View style={styles.dateTimeTextContainer}>
+                  <Text style={styles.dateTimeLabel}>Date</Text>
+                  <Text style={styles.dateTimeValue}>
+                    {formatDate(scheduledDate)}
+                  </Text>
+                </View>
+              </View>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.dateTimeButton}
-              onPress={() => {
-                setActivePicker('scheduled');
-                setShowTimePicker(true);
-              }}
+              onPress={() => openTimePicker('scheduled')}
             >
-              <Text style={styles.dateTimeLabel}>Time</Text>
-              <Text style={styles.dateTimeValue}>
-                {scheduledTime || 'Select time'}
-              </Text>
+              <View style={styles.dateTimeContent}>
+                <MaterialIcons name="schedule" size={20} color="#3ccfa0" />
+                <View style={styles.dateTimeTextContainer}>
+                  <Text style={styles.dateTimeLabel}>Time</Text>
+                  <Text style={styles.dateTimeValue}>
+                    {formatTime(scheduledTime)}
+                  </Text>
+                </View>
+              </View>
             </TouchableOpacity>
           </View>
         </View>
@@ -190,122 +245,58 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
             <View style={styles.dateTimeContainer}>
               <TouchableOpacity
                 style={styles.dateTimeButton}
-                onPress={() => {
-                  setActivePicker('return');
-                  setShowDatePicker(true);
-                }}
+                onPress={() => openDatePicker('return')}
               >
-                <Text style={styles.dateTimeLabel}>Return Date</Text>
-                <Text style={styles.dateTimeValue}>
-                  {formatDate(returnDate)}
-                </Text>
+                <View style={styles.dateTimeContent}>
+                  <MaterialIcons name="event" size={20} color="#3ccfa0" />
+                  <View style={styles.dateTimeTextContainer}>
+                    <Text style={styles.dateTimeLabel}>Return Date</Text>
+                    <Text style={styles.dateTimeValue}>
+                      {formatDate(returnDate)}
+                    </Text>
+                  </View>
+                </View>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.dateTimeButton}
-                onPress={() => {
-                  setActivePicker('return');
-                  setShowTimePicker(true);
-                }}
+                onPress={() => openTimePicker('return')}
               >
-                <Text style={styles.dateTimeLabel}>Return Time</Text>
-                <Text style={styles.dateTimeValue}>
-                  {returnTime || 'Select time'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* Date Picker Modal */}
-        {showDatePicker && (
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>
-                Select {activePicker === 'scheduled' ? 'Pickup' : 'Return'} Date
-              </Text>
-
-              {/* Simple date selection - in real app, use proper date picker */}
-              <View style={styles.dateGrid}>
-                {Array.from({ length: 30 }, (_, i) => {
-                  const date = new Date();
-                  date.setDate(date.getDate() + i);
-                  const isSelected = activePicker === 'scheduled'
-                    ? scheduledDate?.toDateString() === date.toDateString()
-                    : returnDate?.toDateString() === date.toDateString();
-
-                  return (
-                    <TouchableOpacity
-                      key={i}
-                      style={[styles.dateButton, isSelected && styles.dateButtonActive]}
-                      onPress={() => {
-                        if (activePicker === 'scheduled') {
-                          onScheduledDateChange(date);
-                        } else {
-                          onReturnDateChange(date);
-                        }
-                        setShowDatePicker(false);
-                      }}
-                    >
-                      <Text style={[styles.dateText, isSelected && styles.dateTextActive]}>
-                        {date.getDate()}
-                      </Text>
-                      <Text style={[styles.dayText, isSelected && styles.dayTextActive]}>
-                        {date.toLocaleDateString('en-IN', { weekday: 'short' })}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              <TouchableOpacity
-                style={styles.modalCancelButton}
-                onPress={() => setShowDatePicker(false)}
-              >
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* Time Picker Modal */}
-        {showTimePicker && (
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>
-                Select {activePicker === 'scheduled' ? 'Pickup' : 'Return'} Time
-              </Text>
-
-              <ScrollView style={styles.timeScrollView} showsVerticalScrollIndicator={false}>
-                <View style={styles.timeGrid}>
-                  {timeSlots.map((time) => {
-                    const isSelected = activePicker === 'scheduled'
-                      ? scheduledTime === time
-                      : returnTime === time;
-
-                    return (
-                      <TouchableOpacity
-                        key={time}
-                        style={[styles.timeButton, isSelected && styles.timeButtonActive]}
-                        onPress={() => handleTimeSelect(time)}
-                      >
-                        <Text style={[styles.timeText, isSelected && styles.timeTextActive]}>
-                          {time}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                <View style={styles.dateTimeContent}>
+                  <MaterialIcons name="schedule" size={20} color="#3ccfa0" />
+                  <View style={styles.dateTimeTextContainer}>
+                    <Text style={styles.dateTimeLabel}>Return Time</Text>
+                    <Text style={styles.dateTimeValue}>
+                      {formatTime(returnTime)}
+                    </Text>
+                  </View>
                 </View>
-              </ScrollView>
-
-              <TouchableOpacity
-                style={styles.modalCancelButton}
-                onPress={() => setShowTimePicker(false)}
-              >
-                <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
             </View>
           </View>
+        )}
+
+        {/* Date Picker */}
+        {showDatePicker && (
+          <DateTimePicker
+            value={tempDate}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={handleDateChange}
+            minimumDate={activePicker === 'return' && scheduledDate ? scheduledDate : new Date()}
+            maximumDate={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)} // 30 days from now
+          />
+        )}
+
+        {/* Time Picker */}
+        {showTimePicker && (
+          <DateTimePicker
+            value={tempDate}
+            mode="time"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={handleTimeChange}
+            minuteInterval={30}
+          />
         )}
       </ScrollView>
 
@@ -336,7 +327,7 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f8f9fa',
   },
   header: {
     padding: 12,
@@ -345,7 +336,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: '#3ccfa0',
     marginBottom: 6,
   },
   subtitle: {
@@ -378,8 +369,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   quickDateButtonActive: {
-    borderColor: '#2563eb',
-    backgroundColor: '#eff6ff',
+    borderColor: '#3ccfa0',
+    backgroundColor: '#ecfdf5',
   },
   quickDateText: {
     fontSize: 12,
@@ -387,7 +378,7 @@ const styles = StyleSheet.create({
     color: '#475569',
   },
   quickDateTextActive: {
-    color: '#2563eb',
+    color: '#3ccfa0',
   },
   dateTimeContainer: {
     flexDirection: 'row',
@@ -400,6 +391,14 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1,
     borderColor: '#e2e8f0',
+  },
+  dateTimeContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dateTimeTextContainer: {
+    flex: 1,
   },
   dateTimeLabel: {
     fontSize: 12,
@@ -451,8 +450,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dateButtonActive: {
-    borderColor: '#2563eb',
-    backgroundColor: '#eff6ff',
+    borderColor: '#3ccfa0',
+    backgroundColor: '#ecfdf5',
   },
   dateText: {
     fontSize: 18,
@@ -460,7 +459,7 @@ const styles = StyleSheet.create({
     color: '#1e293b',
   },
   dateTextActive: {
-    color: '#2563eb',
+    color: '#3ccfa0',
   },
   dayText: {
     fontSize: 12,
@@ -468,7 +467,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   dayTextActive: {
-    color: '#2563eb',
+    color: '#3ccfa0',
   },
   timeScrollView: {
     maxHeight: 300,
@@ -487,8 +486,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   timeButtonActive: {
-    borderColor: '#2563eb',
-    backgroundColor: '#eff6ff',
+    borderColor: '#3ccfa0',
+    backgroundColor: '#ecfdf5',
   },
   timeText: {
     fontSize: 14,
@@ -496,7 +495,7 @@ const styles = StyleSheet.create({
     color: '#475569',
   },
   timeTextActive: {
-    color: '#2563eb',
+    color: '#3ccfa0',
   },
   modalCancelButton: {
     backgroundColor: '#e2e8f0',
@@ -536,13 +535,13 @@ const styles = StyleSheet.create({
   },
   nextButton: {
     flex: 2,
-    backgroundColor: '#2563eb',
+    backgroundColor: '#3ccfa0',
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
   },
   nextButtonDisabled: {
-    backgroundColor: '#cbd5e1',
+    backgroundColor: '#e2e8f0',
   },
   nextButtonText: {
     fontSize: 14,
