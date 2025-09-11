@@ -31,9 +31,9 @@ export default function RideHistoryScreen() {
         .from('bookings')
         .select(`
           *,
-          driver:drivers!drivers_user_id_fkey (
+          driver:drivers!bookings_driver_id_fkey (
             id,
-            user:users!drivers_user_id_fkey (
+            user:users!drivers_id_fkey (
               full_name
             )
           )
@@ -140,14 +140,14 @@ export default function RideHistoryScreen() {
                 <View style={styles.routeStep}>
                   <Text style={styles.routeDot}>●</Text>
                   <Text style={styles.routeText}>
-                    {ride.pickup_location.address || 'Pickup Location'}
+                    {ride.pickup_address || 'Pickup Location'}
                   </Text>
                 </View>
                 <View style={styles.routeLine} />
                 <View style={styles.routeStep}>
                   <Text style={styles.routeDot}>●</Text>
                   <Text style={styles.routeText}>
-                    {ride.drop_location?.address || 'Drop Location'}
+                    {ride.dropoff_address || 'Drop Location'}
                   </Text>
                 </View>
               </View>
@@ -163,13 +163,13 @@ export default function RideHistoryScreen() {
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Driver:</Text>
                   <Text style={styles.detailValue}>
-                    {(ride as any).driver?.user?.full_name || 'Not assigned'}
+                    {ride.driver?.user?.full_name || 'Not assigned'}
                   </Text>
                 </View>
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Fare:</Text>
                   <Text style={styles.detailValue}>
-                    ₹{ride.actual_fare || ride.estimated_fare}
+                    ₹{ride.fare_amount || ride.estimated_fare || 0}
                   </Text>
                 </View>
               </View>

@@ -72,6 +72,10 @@ export interface Vehicle {
 }
 
 export interface Booking {
+  fare_amount: number;
+  driver: any;
+  dropoff_address: string;
+  pickup_address: string;
   id: string;
   customer_id: string;
   driver_id?: string;

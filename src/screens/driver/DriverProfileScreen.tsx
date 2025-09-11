@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
   SafeAreaView,
   Platform,
-  Modal,
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -21,7 +20,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { AuthService } from '@/services/supabase/auth';
 import { useAppStore, useUser } from '@/stores/appStore';
 import { supabase } from '@/services/supabase/client';
-import { diagnoseStorageIssue, findCorrectBucketName, testNetworkConnectivity, uploadWithRestAPI, createRLSPolicyGuide } from '@/utils/storageTest';
+import { uploadWithRestAPI } from '@/utils/storageTest';
 
 export default function DriverProfileScreen({ navigation }: { navigation: any }) {
   const user = useUser();
@@ -34,6 +33,7 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
   const [userName, setUserName] = useState(user?.full_name || '');
   const [phoneNumber, setPhoneNumber] = useState(user?.phone_no || '');
   const [email, setEmail] = useState(user?.email || '');
+  const [licenseNumber, setLicenseNumber] = useState('');
   const [formattedDob, setFormattedDob] = useState('');
   const [selectedDob, setSelectedDob] = useState<Date | null>(null);
 
@@ -49,9 +49,63 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
   const [tempUserName, setTempUserName] = useState(user?.full_name || '');
   const [tempPhoneNumber, setTempPhoneNumber] = useState(user?.phone_no || '');
   const [tempEmail, setTempEmail] = useState(user?.email || '');
+  const [tempLicenseNumber, setTempLicenseNumber] = useState('');
 
   // Date picker state
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Menu items from the image
+  const menuItems = [
+    {
+      title: 'Vehicle Information',
+      subtitle: 'Manage your vehicle details',
+      icon: 'airport-shuttle',
+      iconType: 'MaterialIcons',
+      onPress: () => navigation.navigate('VehicleInformation'),
+    },
+    {
+      title: 'Vehicle Documents',
+      subtitle: 'License, insurance, permits',
+      icon: 'description',
+      iconType: 'MaterialIcons',
+      onPress: () => navigation.navigate('VehicleDocuments'),
+    },
+    {
+      title: 'Driver Documents',
+      subtitle: 'License, ID proof, and verification',
+      icon: 'description',
+      iconType: 'MaterialIcons',
+      onPress: () => navigation.navigate('DriverDocuments'),
+    },
+    {
+      title: 'Bank Details',
+      subtitle: 'Update payment information',
+      icon: 'account-balance',
+      iconType: 'MaterialIcons',
+      onPress: () => Alert.alert('Coming Soon', 'Bank details coming soon'),
+    },
+    {
+      title: 'Notifications',
+      subtitle: 'Manage app notifications',
+      icon: 'notifications',
+      iconType: 'MaterialIcons',
+      onPress: () => Alert.alert('Coming Soon', 'Notifications settings coming soon'),
+    },
+    {
+      title: 'Support',
+      subtitle: 'Get help and contact us',
+      icon: 'help',
+      iconType: 'MaterialIcons',
+      onPress: () => Alert.alert('Coming Soon', 'Support coming soon'),
+    },
+    {
+      title: 'Settings',
+      subtitle: 'App preferences and privacy',
+      icon: 'settings',
+      iconType: 'MaterialIcons',
+      onPress: () => Alert.alert('Coming Soon', 'Settings coming soon'),
+    },
+  ];
 
   useEffect(() => {
     loadProfileData();
@@ -90,16 +144,21 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
 
   const fetchDriverData = async (userId: string) => {
     try {
-      // Fetch driver-specific data including DOB
+      // Fetch driver-specific data including license number
       const { data, error } = await supabase
         .from('drivers')
-        .select('*')
+        .select('license_number')
         .eq('id', userId)
         .single();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
         console.error('Error fetching driver data:', error);
         return;
+      }
+
+      if (data) {
+        setLicenseNumber(data.license_number || '');
+        setTempLicenseNumber(data.license_number || '');
       }
 
       // Fetch profile picture if exists
@@ -161,15 +220,59 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
 
   const fetchUserStats = async (userId: string) => {
     try {
-      // Using mock data for now - replace with actual Supabase query
-      setRating(4.7);
-      setTotalTrips(1247);
-      setTotalEarnings(45678.50);
+      // Fetch real statistics from bookings table
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('driver_id', userId);
+
+      if (bookingsError) {
+        console.error('Error fetching bookings:', bookingsError);
+        // Fallback to mock data if there's an error
+        
+        return;
+      }
+
+      if (bookingsData && bookingsData.length > 0) {
+        // Calculate statistics from real data
+        const completedBookings = bookingsData.filter(booking => 
+          booking.status === 'completed'
+        );
+        
+        const cancelledBookings = bookingsData.filter(booking => 
+          booking.status === 'cancelled'
+        );
+        
+        // Calculate average rating
+        const ratings = completedBookings
+          .filter(booking => booking.rating !== null && booking.rating !== undefined)
+          .map(booking => booking.rating);
+        
+        const averageRating = ratings.length > 0 
+          ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length 
+          : 0;
+        
+        // Calculate total earnings
+        const totalEarningsValue = completedBookings.reduce((sum, booking) => 
+          sum + (booking.fare_amount || 0), 0
+        );
+        
+        // Set the calculated values
+        setRating(parseFloat(averageRating.toFixed(1)));
+        setTotalTrips(bookingsData.length);
+        setCompletedTrips(completedBookings.length);
+        setCancelledTrips(cancelledBookings.length);
+        setTotalEarnings(totalEarningsValue);
+      } else {
+        // No bookings found, use mock data
+       
+      }
     } catch (error) {
       console.error('Error fetching user stats:', error);
+      // Fallback to mock data
+      
     }
   };
-
   const uploadProfileImage = async (uri: string) => {
     try {
       console.log('🚀 Starting driver profile image upload...');
@@ -258,7 +361,7 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
           console.log('🔄 Primary upload failed, trying REST API fallback...');
 
           try {
-            const restResult = await uploadWithRestAPI(filePath, blob);
+            const restResult = await uploadWithRestAPI(filePath, blob, 'image/jpeg');
             if (restResult.success) {
               console.log('✅ REST API upload successful!');
               uploadData = restResult.data;
@@ -488,9 +591,27 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
           if (phoneError) console.error('Error updating phone number:', phoneError);
         }
 
+        // Update license number in drivers table
+        if (tempLicenseNumber !== licenseNumber) {
+          const { error: licenseError } = await supabase
+            .from('drivers')
+            .update({
+              license_number: tempLicenseNumber,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', user.id);
+
+          if (licenseError) {
+            console.error('Error updating license number:', licenseError);
+            Alert.alert('Error', 'Failed to update license number');
+            return;
+          }
+        }
+
         setUserName(tempUserName);
         setPhoneNumber(tempPhoneNumber);
         setEmail(tempEmail);
+        setLicenseNumber(tempLicenseNumber);
         setIsEditingPersonalInfo(false);
         Alert.alert('Success', 'Changes saved successfully!');
       } catch (error) {
@@ -502,6 +623,7 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
       setTempUserName(userName);
       setTempPhoneNumber(phoneNumber);
       setTempEmail(email);
+      setTempLicenseNumber(licenseNumber);
       setIsEditingPersonalInfo(true);
     }
   };
@@ -570,9 +692,6 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#1e293b" />
-          </TouchableOpacity>
           <Text style={styles.title}>Driver Profile</Text>
           <View style={styles.headerSpacer} />
         </View>
@@ -669,6 +788,25 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
               )}
             </View>
           </View>
+
+          <View style={styles.infoItem}>
+            <View style={styles.infoIcon}>
+              <MaterialIcons name="badge" size={20} color="#64748b" />
+            </View>
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>License Number</Text>
+              {isEditingPersonalInfo ? (
+                <TextInput
+                  style={styles.input}
+                  value={tempLicenseNumber}
+                  onChangeText={setTempLicenseNumber}
+                  placeholder="Enter license number"
+                />
+              ) : (
+                <Text style={styles.infoValue}>{licenseNumber || 'Not provided'}</Text>
+              )}
+            </View>
+          </View>
         </View>
 
         {/* Driver Statistics Card */}
@@ -693,21 +831,28 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
           </View>
         </View>
 
-        {/* RLS Policy Guide Button (kept for future reference) */}
-        {/* <TouchableOpacity
-          style={[styles.logoutButton, { backgroundColor: '#8b5cf6', marginBottom: 8 }]}
-          onPress={() => {
-            Alert.alert(
-              'RLS Policy Guide',
-              'Check console logs for detailed RLS policy setup instructions.',
-              [
-                { text: 'OK', onPress: () => createRLSPolicyGuide() }
-              ]
-            );
-          }}
-        >
-          <Text style={[styles.logoutText, { color: '#ffffff' }]}>RLS Guide</Text>
-        </TouchableOpacity> */}
+        {/* Menu Items Card */}
+        <View style={styles.card}>
+          {menuItems.map((item, index) => (
+            <TouchableOpacity 
+              key={index} 
+              style={[
+                styles.menuItem,
+                index < menuItems.length - 1 && styles.menuItemBorder
+              ]}
+              onPress={item.onPress}
+            >
+              <View style={styles.menuItemIcon}>
+                <MaterialIcons name={item.icon as any} size={24} color="#3b82f6" />
+              </View>
+              <View style={styles.menuItemContent}>
+                <Text style={styles.menuItemTitle}>{item.title}</Text>
+                <Text style={styles.menuItemSubtitle}>{item.subtitle}</Text>
+              </View>
+              <MaterialIcons name="chevron-right" size={24} color="#64748b" />
+            </TouchableOpacity>
+          ))}
+        </View>
 
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
@@ -760,6 +905,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#1e293b',
+    left: 120,
   },
   headerSpacer: {
     width: 40,
@@ -884,6 +1030,37 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748b',
   },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  menuItemBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  menuItemIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#eff6ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  menuItemContent: {
+    flex: 1,
+  },
+  menuItemTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1e293b',
+    marginBottom: 4,
+  },
+  menuItemSubtitle: {
+    fontSize: 14,
+    color: '#64748b',
+  },
   logoutButton: {
     backgroundColor: '#fef2f2',
     padding: 16,
@@ -899,3 +1076,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
+
+function setCompletedTrips(length: number) {
+  throw new Error('Function not implemented.');
+}
+function setCancelledTrips(length: number) {
+  throw new Error('Function not implemented.');
+}
+

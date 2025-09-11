@@ -32,6 +32,10 @@ export type CustomerStackParamList = {
 
 export type DriverStackParamList = {
   DriverTabs: undefined;
+  VehicleInformation: undefined;
+  VehicleDocuments: undefined;
+  DriverDocuments: undefined;
+  
   // Add other driver screens here
 };
 

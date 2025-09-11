@@ -297,7 +297,7 @@ export const testNetworkConnectivity = async () => {
   }
 };
 
-export const uploadWithRestAPI = async (filePath: string, blob: Blob) => {
+export const uploadWithRestAPI = async (filePath: string, blob: Blob, mimeType: string) => {
   console.log('🔄 Trying REST API upload method...');
 
   try {

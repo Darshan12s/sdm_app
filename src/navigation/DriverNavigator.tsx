@@ -9,6 +9,9 @@ import AvailableRidesScreen from '@/screens/driver/AvailableRidesScreen';
 import ActiveRideScreen from '@/screens/driver/ActiveRideScreen';
 import EarningsScreen from '@/screens/driver/EarningsScreen';
 import DriverProfileScreen from '@/screens/driver/DriverProfileScreen';
+import VehicleInformationScreen from '@/screens/driver/navigation/VehicleInformationScreen';
+import VehicleDocumentsScreen from '@/screens/driver/navigation/VehicleDocumentsScreen';
+import DriverDocumentsScreen from '@/screens/driver/navigation/DriverDocumentsScreen';
 
 // Import components
 import NotificationBell from '@/components/NotificationBell';
@@ -102,6 +105,7 @@ function DriverTabNavigator() {
           ),
         }}
       />
+      
     </Tab.Navigator>
   );
 }
@@ -132,6 +136,24 @@ export default function DriverNavigator() {
         options={{ headerShown: false }}
       />
       {/* Additional screens can be added here for modals/details */}
+      
+      <Stack.Screen
+        name="VehicleInformation"
+        component={VehicleInformationScreen}
+        options={{ title: 'Vehicle Information' }}
+      />
+      <Stack.Screen
+        name="VehicleDocuments"
+        component={VehicleDocumentsScreen}
+        options={{ title: 'Vehicle Documents' }}
+      />
+      
+      <Stack.Screen
+        name="DriverDocuments"
+        component={DriverDocumentsScreen}
+        options={{ title: 'DriverDocuments' }}
+      />
     </Stack.Navigator>
+    
   );
 }
