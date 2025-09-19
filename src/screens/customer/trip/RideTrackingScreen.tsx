@@ -24,6 +24,9 @@ import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
 import Config from 'react-native-config';
 
+// Import theme
+import { useTheme } from '../../../contexts/ThemeContext';
+
 // Add your Google Maps API key here
 const GOOGLE_MAPS_APIKEY = Config.GOOGLE_MAPS_API_KEY || 'AIzaSyAejqe2t4TAptcLnkpoFTTNMhm0SFHFJgQ';
 
@@ -76,6 +79,7 @@ type RideTrackingScreenProps = {
 };
 
 const RideTrackingScreen: React.FC<RideTrackingScreenProps> = ({ route }) => {
+  const { colors } = useTheme();
   const user = useUser();
   const { bookingId, driverId, vehicleId } = route.params;
   const [activeBooking, setActiveBooking] = useState<ActiveBooking | null>(null);
@@ -209,15 +213,15 @@ const RideTrackingScreen: React.FC<RideTrackingScreenProps> = ({ route }) => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'accepted':
-        return { backgroundColor: '#3b82f620', color: '#3b82f6', borderColor: '#3b82f650' };
+        return { backgroundColor: colors.info + '20', color: colors.info, borderColor: colors.info + '50' };
       case 'started':
-        return { backgroundColor: '#10b98120', color: '#10b981', borderColor: '#10b98150' };
-        case 'pending':
-        return { backgroundColor: '#10b98120', color: '#EE231FFF', borderColor: '#10b98150' };
+        return { backgroundColor: colors.success + '20', color: colors.success, borderColor: colors.success + '50' };
+      case 'pending':
+        return { backgroundColor: colors.warning + '20', color: colors.warning, borderColor: colors.warning + '50' };
       case 'completed':
-        return { backgroundColor: '#10b98120', color: '#10b981', borderColor: '#10b98150' };
+        return { backgroundColor: colors.success + '20', color: colors.success, borderColor: colors.success + '50' };
       default:
-        return { backgroundColor: '#6b728020', color: '#6b7280', borderColor: '#6b728050' };
+        return { backgroundColor: colors.textMuted + '20', color: colors.textMuted, borderColor: colors.textMuted + '50' };
     }
   };
 
@@ -448,9 +452,9 @@ const RideTrackingScreen: React.FC<RideTrackingScreenProps> = ({ route }) => {
   }) => {
     if (!driver || !driverUser) {
       return (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Driver Information</Text>
-          <Text style={styles.noDataText}>Driver details not available yet</Text>
+        <View style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Driver Information</Text>
+          <Text style={[styles.noDataText, { color: colors.textSecondary }]}>Driver details not available yet</Text>
         </View>
       );
     }
@@ -458,8 +462,8 @@ const RideTrackingScreen: React.FC<RideTrackingScreenProps> = ({ route }) => {
     return (
       <View>
         {/* Driver Section */}
-        <View style={styles.card}>
-          <Text style={styles.sectionHeader}>Your Driver</Text>
+        <View style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
+          <Text style={[styles.sectionHeader, { color: colors.text }]}>Your Driver</Text>
           <View style={styles.driverInfo}>
             {driverUser.profile_picture_url ? (
               <Image 
@@ -472,65 +476,65 @@ const RideTrackingScreen: React.FC<RideTrackingScreenProps> = ({ route }) => {
               </View>
             )}
             <View style={styles.driverDetails}>
-              <Text style={styles.driverName}>{driverUser.full_name}</Text>
-              <Text style={styles.driverRating}>
+              <Text style={[styles.driverName, { color: colors.text }]}>{driverUser.full_name}</Text>
+              <Text style={[styles.driverRating, { color: colors.textSecondary }]}>
                 ★ {driver.rating?.toFixed(1) || '5.0'} • {driver.total_rides || 0} trips
               </Text>
-              <Text style={styles.driverLicense}>License: {driver.license_number}</Text>
+              <Text style={[styles.driverLicense, { color: colors.textSecondary }]}>License: {driver.license_number}</Text>
             </View>
           </View>
           
           <View style={styles.driverActions}>
-            <TouchableOpacity 
-              style={styles.driverActionButton}
+            <TouchableOpacity
+              style={[styles.driverActionButton, { borderColor: colors.border }]}
               onPress={handleCallDriver}
             >
-              <MaterialIcons name="phone" size={20} color="#3b82f6" />
-              <Text style={styles.driverActionText}>Call</Text>
+              <MaterialIcons name="phone" size={20} color={colors.primary} />
+              <Text style={[styles.driverActionText, { color: colors.textSecondary }]}>Call</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.driverActionButton}
+
+            <TouchableOpacity
+              style={[styles.driverActionButton, { borderColor: colors.border }]}
               onPress={handleMessageDriver}
             >
-              <MaterialIcons name="message" size={20} color="#3b82f6" />
-              <Text style={styles.driverActionText}>SMS</Text>
+              <MaterialIcons name="message" size={20} color={colors.primary} />
+              <Text style={[styles.driverActionText, { color: colors.textSecondary }]}>SMS</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.driverActionButton}
+
+            <TouchableOpacity
+              style={[styles.driverActionButton, { borderColor: colors.border }]}
               onPress={handleWhatsAppDriver}
             >
               <FontAwesome name="whatsapp" size={20} color="#25D366" />
-              <Text style={styles.driverActionText}>WhatsApp</Text>
+              <Text style={[styles.driverActionText, { color: colors.textSecondary }]}>WhatsApp</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Vehicle Section */}
         {vehicle && (
-          <View style={styles.card}>
-            <Text style={styles.sectionHeader}>Your Vehicle</Text>
-            <Text style={styles.vehicleSubHeader}>Vehicle</Text>
-            <Text style={styles.vehicleModel}>
+          <View style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
+            <Text style={[styles.sectionHeader, { color: colors.text }]}>Your Vehicle</Text>
+            <Text style={[styles.vehicleSubHeader, { color: colors.textSecondary }]}>Vehicle</Text>
+            <Text style={[styles.vehicleModel, { color: colors.text }]}>
               {vehicle.make} {vehicle.model}
             </Text>
-            <Text style={styles.vehicleDetails}>
+            <Text style={[styles.vehicleDetails, { color: colors.textSecondary }]}>
               {vehicle.year} • {vehicle.color}
             </Text>
-            
+
             <View style={styles.licensePlateContainer}>
-              <Text style={styles.licensePlateLabel}>License Plate</Text>
-              <Text style={styles.licensePlate}>{vehicle.license_plate}</Text>
+              <Text style={[styles.licensePlateLabel, { color: colors.textSecondary }]}>License Plate</Text>
+              <Text style={[styles.licensePlate, { color: colors.text }]}>{vehicle.license_plate}</Text>
             </View>
-            
+
             <View style={styles.vehicleTypeContainer}>
-              <View style={styles.vehicleTypeBadge}>
-                <Text style={styles.vehicleTypeText}>{vehicle.type || 'Standard'}</Text>
+              <View style={[styles.vehicleTypeBadge, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.vehicleTypeText, { color: colors.primary }]}>{vehicle.type || 'Standard'}</Text>
               </View>
             </View>
-            
-            <Text style={styles.lookForVehicle}>Look for this vehicle</Text>
+
+            <Text style={[styles.lookForVehicle, { color: colors.primary }]}>Look for this vehicle</Text>
           </View>
         )}
       </View>
@@ -539,38 +543,38 @@ const RideTrackingScreen: React.FC<RideTrackingScreenProps> = ({ route }) => {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Ride Tracking</Text>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Ride Tracking</Text>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3b82f6" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Ride Tracking</Text>
-        <Text style={styles.headerSubtitle}>Track your current ride in real-time</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Ride Tracking</Text>
+        <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>Track your current ride in real-time</Text>
       </View>
 
       <ScrollView style={styles.content}>
         {!activeBooking ? (
-          <View style={styles.noRideCard}>
-            <MaterialIcons name="navigation" size={48} color="#64748b" />
-            <Text style={styles.noRideTitle}>No active rides</Text>
-            <Text style={styles.noRideText}>You don't have any active rides to track</Text>
+          <View style={[styles.noRideCard, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
+            <MaterialIcons name="navigation" size={48} color={colors.textSecondary} />
+            <Text style={[styles.noRideTitle, { color: colors.text }]}>No active rides</Text>
+            <Text style={[styles.noRideText, { color: colors.textSecondary }]}>You don't have any active rides to track</Text>
           </View>
         ) : (
           <View style={styles.rideContainer}>
             {/* Live Map Tracking */}
-            {activeBooking.pickup_latitude && activeBooking.pickup_longitude && 
+            {activeBooking.pickup_latitude && activeBooking.pickup_longitude &&
              activeBooking.dropoff_latitude && activeBooking.dropoff_longitude && (
-              <View style={styles.card}>
-                <Text style={styles.sectionHeader}>Live Route Tracking</Text>
+              <View style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
+                <Text style={[styles.sectionHeader, { color: colors.text }]}>Live Route Tracking</Text>
                 <LiveMapTracking
                   pickup={{
                     lat: activeBooking.pickup_latitude,
@@ -603,9 +607,9 @@ const RideTrackingScreen: React.FC<RideTrackingScreenProps> = ({ route }) => {
             />
 
             {/* Ride Status */}
-            <View style={styles.card}>
+            <View style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
               <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>Current Ride</Text>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>Current Ride</Text>
                 <View style={[styles.statusBadge, getStatusColor(activeBooking.status)]}>
                   <Text style={[styles.statusText, { color: getStatusColor(activeBooking.status).color }]}>
                     {activeBooking.status.toUpperCase()}
@@ -615,67 +619,67 @@ const RideTrackingScreen: React.FC<RideTrackingScreenProps> = ({ route }) => {
               
               <View style={styles.rideDetails}>
                 <View style={styles.locationRow}>
-                  <MaterialIcons name="location-on" size={16} color="#10b981" />
+                  <MaterialIcons name="location-on" size={16} color={colors.success} />
                   <View style={styles.locationText}>
-                    <Text style={styles.locationLabel}>Pickup Location</Text>
-                    <Text style={styles.locationValue}>{activeBooking.pickup_address}</Text>
+                    <Text style={[styles.locationLabel, { color: colors.textSecondary }]}>Pickup Location</Text>
+                    <Text style={[styles.locationValue, { color: colors.text }]}>{activeBooking.pickup_address}</Text>
                   </View>
                 </View>
-                
+
                 <View style={styles.locationRow}>
-                  <MaterialIcons name="location-on" size={16} color="#ef4444" />
+                  <MaterialIcons name="location-on" size={16} color={colors.error} />
                   <View style={styles.locationText}>
-                    <Text style={styles.locationLabel}>Destination</Text>
-                    <Text style={styles.locationValue}>{activeBooking.dropoff_address}</Text>
+                    <Text style={[styles.locationLabel, { color: colors.textSecondary }]}>Destination</Text>
+                    <Text style={[styles.locationValue, { color: colors.text }]}>{activeBooking.dropoff_address}</Text>
                   </View>
                 </View>
-                
+
                 <View style={styles.infoRow}>
-                  <MaterialIcons name="access-time" size={16} color="#3b82f6" />
-                  <Text style={styles.infoLabel}>Booking Time: </Text>
-                  <Text style={styles.infoValue}>{formatTime(activeBooking.created_at)}</Text>
+                  <MaterialIcons name="access-time" size={16} color={colors.primary} />
+                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Booking Time: </Text>
+                  <Text style={[styles.infoValue, { color: colors.text }]}>{formatTime(activeBooking.created_at)}</Text>
                 </View>
-                
+
                 <View style={styles.infoRow}>
-                  <MaterialIcons name="directions-car" size={16} color="#3b82f6" />
-                  <Text style={styles.infoLabel}>Vehicle Type: </Text>
-                  <Text style={styles.infoValue}>{activeBooking.vehicle_type || 'Standard'}</Text>
+                  <MaterialIcons name="directions-car" size={16} color={colors.primary} />
+                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Vehicle Type: </Text>
+                  <Text style={[styles.infoValue, { color: colors.text }]}>{activeBooking.vehicle_type || 'Standard'}</Text>
                 </View>
-                
+
                 <View style={styles.infoRow}>
-                  <MaterialIcons name="attach-money" size={16} color="#3b82f6" />
-                  <Text style={styles.infoLabel}>Fare: </Text>
-                  <Text style={styles.infoValue}>₹{activeBooking.fare_amount?.toFixed(2) || '0.00'}</Text>
+                  <MaterialIcons name="attach-money" size={16} color={colors.primary} />
+                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Fare: </Text>
+                  <Text style={[styles.infoValue, { color: colors.text }]}>₹{activeBooking.fare_amount?.toFixed(2) || '0.00'}</Text>
                 </View>
               </View>
             </View>
 
             {/* Quick Actions */}
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Quick Actions</Text>
+            <View style={[styles.card, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>Quick Actions</Text>
               <View style={styles.actionsContainer}>
-                <TouchableOpacity 
-                  style={styles.actionButton}
+                <TouchableOpacity
+                  style={[styles.actionButton, { borderColor: colors.border }]}
                   onPress={handleEmergencyCall}
                 >
-                  <MaterialIcons name="phone" size={20} color="#3b82f6" />
-                  <Text style={styles.actionText}>Emergency Support</Text>
+                  <MaterialIcons name="phone" size={20} color={colors.primary} />
+                  <Text style={[styles.actionText, { color: colors.text }]}>Emergency Support</Text>
                 </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={styles.actionButton}
+
+                <TouchableOpacity
+                  style={[styles.actionButton, { borderColor: colors.border }]}
                   onPress={handleShareTrip}
                 >
-                  <MaterialIcons name="person" size={20} color="#3b82f6" />
-                  <Text style={styles.actionText}>Share Trip Details</Text>
+                  <MaterialIcons name="person" size={20} color={colors.primary} />
+                  <Text style={[styles.actionText, { color: colors.text }]}>Share Trip Details</Text>
                 </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={[styles.actionButton, styles.cancelButton]}
+
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.cancelButton, { borderColor: colors.error }]}
                   onPress={() => setCancelDialogOpen(true)}
                 >
-                  <MaterialIcons name="cancel" size={20} color="#ef4444" />
-                  <Text style={[styles.actionText, styles.cancelText]}>Cancel Ride</Text>
+                  <MaterialIcons name="cancel" size={20} color={colors.error} />
+                  <Text style={[styles.actionText, styles.cancelText, { color: colors.error }]}>Cancel Ride</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -690,38 +694,39 @@ const RideTrackingScreen: React.FC<RideTrackingScreenProps> = ({ route }) => {
         animationType="slide"
         onRequestClose={() => setCancelDialogOpen(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Cancel Ride</Text>
-            <Text style={styles.modalDescription}>
+        <View style={[styles.modalOverlay, { backgroundColor: colors.modal }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Cancel Ride</Text>
+            <Text style={[styles.modalDescription, { color: colors.textSecondary }]}>
               Are you sure you want to cancel this ride? Please provide a reason for cancellation.
             </Text>
-            
+
             <TextInput
-              style={styles.reasonInput}
+              style={[styles.reasonInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
               placeholder="Please provide a reason for cancellation..."
+              placeholderTextColor={colors.inputPlaceholder}
               value={cancelReason}
               onChangeText={setCancelReason}
               multiline={true}
               numberOfLines={4}
             />
-            
+
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.cancelButton]}
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton, { backgroundColor: colors.surface }]}
                 onPress={() => {
                   setCancelDialogOpen(false);
                   setCancelReason('');
                 }}
               >
-                <Text style={styles.modalButtonText}>Keep Ride</Text>
+                <Text style={[styles.modalButtonText, { color: colors.textSecondary }]}>Keep Ride</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.confirmCancelButton]}
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmCancelButton, { backgroundColor: colors.error }]}
                 onPress={handleCancelRide}
               >
-                <Text style={[styles.modalButtonText, styles.confirmCancelText]}>Cancel Ride</Text>
+                <Text style={[styles.modalButtonText, styles.confirmCancelText, { color: colors.surface }]}>Cancel Ride</Text>
               </TouchableOpacity>
             </View>
           </View>

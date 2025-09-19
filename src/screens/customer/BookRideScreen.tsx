@@ -10,9 +10,13 @@ import { CustomerTabParamList } from '@/types/navigation';
 // Import components
 import { BookingFlow } from '@/components/booking/BookingFlow';
 
+// Import theme
+import { useTheme } from '../../contexts/ThemeContext';
+
 type BookRideScreenNavigationProp = StackNavigationProp<CustomerTabParamList, 'BookRide'>;
 
 export default function BookRideScreen() {
+  const { colors } = useTheme();
   const navigation = useNavigation<BookRideScreenNavigationProp>();
 
   const handleBookingComplete = useCallback((bookingData: any) => {
@@ -31,7 +35,7 @@ export default function BookRideScreen() {
   }, [navigation]);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ flexGrow: 1 }}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={{ flexGrow: 1 }}>
       <BookingFlow onBookingComplete={handleBookingComplete} />
     </ScrollView>
   );
@@ -40,6 +44,5 @@ export default function BookRideScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
 });

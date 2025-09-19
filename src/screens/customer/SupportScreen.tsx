@@ -11,7 +11,11 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation, useNavigationState } from '@react-navigation/native';
 
+// Import theme
+import { useTheme } from '../../contexts/ThemeContext';
+
 export default function SupportScreen() {
+  const { colors } = useTheme();
   const navigation = useNavigation();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
@@ -203,22 +207,22 @@ export default function SupportScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Help & Support</Text>
-        <Text style={styles.headerSubtitle}>
+      <View style={[styles.header, { backgroundColor: colors.surface }]}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Help & Support</Text>
+        <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
           Get help with your SDM Cab Hailing experience
         </Text>
       </View>
 
       {/* Support Categories */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Browse by Category</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Browse by Category</Text>
         {supportCategories.map((category) => (
           <View key={category.id}>
             <TouchableOpacity
-              style={styles.categoryCard}
+              style={[styles.categoryCard, { backgroundColor: colors.card }]}
               onPress={() => handleCategorySelect(category.id)}
             >
               <View style={styles.categoryHeader}>
@@ -226,8 +230,8 @@ export default function SupportScreen() {
                   <MaterialIcons name={category.icon as any} size={24} color="#64748b" />
                 </View>
                 <View style={styles.categoryInfo}>
-                  <Text style={styles.categoryTitle}>{category.title}</Text>
-                  <Text style={styles.categoryDescription}>
+                  <Text style={[styles.categoryTitle, { color: colors.text }]}>{category.title}</Text>
+                  <Text style={[styles.categoryDescription, { color: colors.textSecondary }]}>
                     {category.description}
                   </Text>
                 </View>
@@ -238,15 +242,15 @@ export default function SupportScreen() {
             </TouchableOpacity>
 
             {selectedCategory === category.id && (
-              <View style={styles.faqContainer}>
+              <View style={[styles.faqContainer, { backgroundColor: colors.surface }]}>
                 {category.faqs.map((faq, index) => (
                   <TouchableOpacity
                     key={index}
                     style={styles.faqItem}
                     onPress={() => handleFAQPress(faq)}
                   >
-                    <Text style={styles.faqText}>{faq}</Text>
-                    <Text style={styles.faqArrow}>›</Text>
+                    <Text style={[styles.faqText, { color: colors.text }]}>{faq}</Text>
+                    <Text style={[styles.faqArrow, { color: colors.textSecondary }]}>›</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -257,11 +261,11 @@ export default function SupportScreen() {
 
       {/* Contact Options */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Contact Us</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Contact Us</Text>
         {contactOptions.map((option, index) => (
           <TouchableOpacity
             key={index}
-            style={styles.contactCard}
+            style={[styles.contactCard, { backgroundColor: colors.card }]}
             onPress={option.action}
           >
             <View style={styles.contactLeft}>
@@ -269,11 +273,11 @@ export default function SupportScreen() {
                 <MaterialIcons name={option.icon as any} size={20} color="#64748b" />
               </View>
               <View style={styles.contactInfo}>
-                <Text style={styles.contactTitle}>{option.title}</Text>
-                <Text style={styles.contactSubtitle}>{option.subtitle}</Text>
+                <Text style={[styles.contactTitle, { color: colors.text }]}>{option.title}</Text>
+                <Text style={[styles.contactSubtitle, { color: colors.textSecondary }]}>{option.subtitle}</Text>
               </View>
             </View>
-            <Text style={styles.contactArrow}>›</Text>
+            <Text style={[styles.contactArrow, { color: colors.textSecondary }]}>›</Text>
           </TouchableOpacity>
         ))}
       </View>

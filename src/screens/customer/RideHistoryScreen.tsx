@@ -23,7 +23,11 @@ import { useUser } from '../../stores/appStore';
 import { Booking } from '../../types';
 import { CustomerTabParamList, CustomerStackParamList } from '../../types/navigation';
 
+// Import theme
+import { useTheme } from '../../contexts/ThemeContext';
+
 const RideHistoryScreen = ({ navigation }: { navigation: CompositeNavigationProp<BottomTabNavigationProp<CustomerTabParamList>, StackNavigationProp<CustomerStackParamList>> }) => {
+  const { colors } = useTheme();
   const user = useUser();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,15 +123,15 @@ const RideHistoryScreen = ({ navigation }: { navigation: CompositeNavigationProp
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
-        return { backgroundColor: '#10b98120', color: '#10b981', borderColor: '#10b98150' };
+        return { backgroundColor: colors.success + '20', color: colors.success, borderColor: colors.success + '50' };
       case 'cancelled':
-        return { backgroundColor: '#ef444420', color: '#ef4444', borderColor: '#ef444450' };
+        return { backgroundColor: colors.error + '20', color: colors.error, borderColor: colors.error + '50' };
       case 'pending':
-        return { backgroundColor: '#eab30820', color: '#eab308', borderColor: '#eab30850' };
+        return { backgroundColor: colors.warning + '20', color: colors.warning, borderColor: colors.warning + '50' };
       case 'started':
-        return { backgroundColor: '#3b82f620', color: '#3b82f6', borderColor: '#3b82f650' };
+        return { backgroundColor: colors.info + '20', color: colors.info, borderColor: colors.info + '50' };
       default:
-        return { backgroundColor: '#6b728020', color: '#6b7280', borderColor: '#6b728050' };
+        return { backgroundColor: colors.textMuted + '20', color: colors.textMuted, borderColor: colors.textMuted + '50' };
     }
   };
 
@@ -160,7 +164,7 @@ const RideHistoryScreen = ({ navigation }: { navigation: CompositeNavigationProp
   };
 
   const renderBookingItem = ({ item }: { item: Booking }) => (
-    <View style={styles.bookingCard}>
+    <View style={[styles.bookingCard, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
       <View style={styles.bookingHeader}>
         <View style={styles.statusContainer}>
           <View style={[styles.statusBadge, getStatusColor(item.status)]}>
@@ -168,80 +172,80 @@ const RideHistoryScreen = ({ navigation }: { navigation: CompositeNavigationProp
               {item.status}
             </Text>
           </View>
-          <View style={styles.paymentBadge}>
-            <Text style={styles.paymentText}>{item.payment_status}</Text>
+          <View style={[styles.paymentBadge, { borderColor: colors.border }]}>
+            <Text style={[styles.paymentText, { color: colors.textSecondary }]}>{item.payment_status}</Text>
           </View>
         </View>
         <View style={styles.dateContainer}>
-          <MaterialIcons name="event" size={14} color="#6b7280" />
-          <Text style={styles.dateText}>{formatDate(item.created_at)}</Text>
+          <MaterialIcons name="event" size={14} color={colors.textSecondary} />
+          <Text style={[styles.dateText, { color: colors.textSecondary }]}>{formatDate(item.created_at)}</Text>
         </View>
       </View>
 
       <View style={styles.locationContainer}>
         <View style={styles.locationRow}>
-          <MaterialIcons name="location-on" size={14} color="#10b981" />
+          <MaterialIcons name="location-on" size={14} color={colors.success} />
           <View>
-            <Text style={styles.locationLabel}>Pickup</Text>
-            <Text style={styles.locationText}>{item.pickup_address || 'N/A'}</Text>
+            <Text style={[styles.locationLabel, { color: colors.textSecondary }]}>Pickup</Text>
+            <Text style={[styles.locationText, { color: colors.text }]}>{item.pickup_address || 'N/A'}</Text>
           </View>
         </View>
         <View style={styles.locationRow}>
-          <MaterialIcons name="location-on" size={14} color="#ef4444" />
+          <MaterialIcons name="location-on" size={14} color={colors.error} />
           <View>
-            <Text style={styles.locationLabel}>Dropoff</Text>
-            <Text style={styles.locationText}>{item.dropoff_address || 'N/A'}</Text>
+            <Text style={[styles.locationLabel, { color: colors.textSecondary }]}>Dropoff</Text>
+            <Text style={[styles.locationText, { color: colors.text }]}>{item.dropoff_address || 'N/A'}</Text>
           </View>
         </View>
       </View>
 
       <View style={styles.detailsContainer}>
         <View style={styles.detailRow}>
-          <MaterialIcons name="directions-car" size={14} color="#3b82f6" />
-          <Text style={styles.detailText}>{item.vehicle_type || 'Standard'}</Text>
+          <MaterialIcons name="directions-car" size={14} color={colors.primary} />
+          <Text style={[styles.detailText, { color: colors.text }]}>{item.vehicle_type || 'Standard'}</Text>
         </View>
         <View style={styles.detailRow}>
-          <MaterialIcons name="attach-money" size={14} color="#3b82f6" />
-          <Text style={styles.detailText}>₹{item.fare_amount}</Text>
+          <MaterialIcons name="attach-money" size={14} color={colors.primary} />
+          <Text style={[styles.detailText, { color: colors.text }]}>₹{item.fare_amount}</Text>
         </View>
         {item.started_at && item.completed_at && (
           <View style={styles.detailRow}>
-            <MaterialIcons name="schedule" size={14} color="#3b82f6" />
-            <Text style={styles.detailText}>
+            <MaterialIcons name="schedule" size={14} color={colors.primary} />
+            <Text style={[styles.detailText, { color: colors.text }]}>
               {Math.round((new Date(item.completed_at).getTime() - new Date(item.started_at).getTime()) / (1000 * 60))} mins
             </Text>
           </View>
         )}
       </View>
 
-      <View style={styles.footer}>
-        <Text style={styles.tripId}>Trip ID: {item.id.slice(0, 8)}...</Text>
+      <View style={[styles.footer, { borderTopColor: colors.border }]}>
+        <Text style={[styles.tripId, { color: colors.textSecondary }]}>Trip ID: {item.id.slice(0, 8)}...</Text>
         <View style={styles.actionButtons}>
           {(item.status === 'pending' || item.status === 'accepted') && (
-            <TouchableOpacity 
-              style={styles.cancelButton}
+            <TouchableOpacity
+              style={[styles.cancelButton, { backgroundColor: colors.error + '20', borderColor: colors.error }]}
               onPress={() => {
                 setCancelBookingId(item.id);
                 setCancelDialogOpen(true);
               }}
             >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={[styles.cancelButtonText, { color: colors.error }]}>Cancel</Text>
             </TouchableOpacity>
           )}
           {item.status === 'completed' && item.driver_id && (
             <TouchableOpacity
-              style={styles.rateButton}
+              style={[styles.rateButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
               onPress={() => handleRateTrip(item)}
             >
-              <MaterialIcons name="star" size={14} color="#eab308" />
-              <Text style={styles.rateButtonText}>Rate Trip</Text>
+              <MaterialIcons name="star" size={14} color={colors.warning} />
+              <Text style={[styles.rateButtonText, { color: colors.warning }]}>Rate Trip</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity 
-            style={styles.detailsButton}
+          <TouchableOpacity
+            style={[styles.detailsButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
             onPress={() => navigation.navigate('TripDetails', { bookingId: item.id })}
           >
-            <Text style={styles.detailsButtonText}>View Details</Text>
+            <Text style={[styles.detailsButtonText, { color: colors.primary }]}>View Details</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -250,31 +254,31 @@ const RideHistoryScreen = ({ navigation }: { navigation: CompositeNavigationProp
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Trip History</Text>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Trip History</Text>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3b82f6" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Trip History</Text>
-        <Text style={styles.headerSubtitle}>View all your past and current bookings</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Trip History</Text>
+        <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>View all your past and current bookings</Text>
       </View>
 
       {bookings.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <MaterialIcons name="directions-car" size={48} color="#6b7280" />
-          <Text style={styles.emptyTitle}>No trips yet</Text>
-          <Text style={styles.emptySubtitle}>Book your first ride to see your trip history</Text>
-          <TouchableOpacity style={styles.bookButton} onPress={() => navigation.navigate('BookRide')}>
-            <Text style={styles.bookButtonText}>Book a Ride</Text>
+          <MaterialIcons name="directions-car" size={48} color={colors.textSecondary} />
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>No trips yet</Text>
+          <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>Book your first ride to see your trip history</Text>
+          <TouchableOpacity style={[styles.bookButton, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('BookRide')}>
+            <Text style={[styles.bookButtonText, { color: colors.surface }]}>Book a Ride</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -295,36 +299,37 @@ const RideHistoryScreen = ({ navigation }: { navigation: CompositeNavigationProp
         animationType="slide"
         onRequestClose={() => setCancelDialogOpen(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Cancel Booking</Text>
-            <Text style={styles.modalDescription}>
+        <View style={[styles.modalOverlay, { backgroundColor: colors.modal }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Cancel Booking</Text>
+            <Text style={[styles.modalDescription, { color: colors.textSecondary }]}>
               Are you sure you want to cancel this booking? Please provide a reason for cancellation.
             </Text>
             <TextInput
-              style={styles.reasonInput}
+              style={[styles.reasonInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
               placeholder="Please provide a reason for cancellation..."
+              placeholderTextColor={colors.inputPlaceholder}
               value={cancelReason}
               onChangeText={setCancelReason}
               multiline={true}
               numberOfLines={4}
             />
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.cancelModalButton]}
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelModalButton, { backgroundColor: colors.surface }]}
                 onPress={() => {
                   setCancelReason('');
                   setCancelBookingId(null);
                   setCancelDialogOpen(false);
                 }}
               >
-                <Text style={styles.cancelModalButtonText}>Keep Booking</Text>
+                <Text style={[styles.cancelModalButtonText, { color: colors.textSecondary }]}>Keep Booking</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.confirmCancelButton]}
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmCancelButton, { backgroundColor: colors.error }]}
                 onPress={handleCancelBooking}
               >
-                <Text style={styles.confirmCancelButtonText}>Cancel Booking</Text>
+                <Text style={[styles.confirmCancelButtonText, { color: colors.surface }]}>Cancel Booking</Text>
               </TouchableOpacity>
             </View>
           </View>
