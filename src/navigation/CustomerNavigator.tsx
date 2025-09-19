@@ -1,22 +1,44 @@
 import React from 'react';
+
+// React Navigation imports
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
+
+// Third-party imports
 import { MaterialIcons } from '@expo/vector-icons';
 
-// Import screens
+// Context imports
+import { useTheme } from '@/contexts/ThemeContext';
+
+// Screen imports - Main customer screens
 import HomeScreen from '@/screens/customer/HomeScreen';
 import BookRideScreen from '@/screens/customer/BookRideScreen';
 import RideHistoryScreen from '@/screens/customer/RideHistoryScreen';
 import ProfileScreen from '@/screens/customer/ProfileScreen';
 import SupportScreen from '@/screens/customer/SupportScreen';
+
+// Screen imports - Payment and billing
 import PaymentScreen from '@/screens/customer/PaymentScreen';
+import PaymentMethodsScreen from '@/screens/customer/PaymentMethodsScreen';
+import BillingHistoryScreen from '@/screens/customer/BillingHistoryScreen';
+
+// Screen imports - Trip related
 import TripDetailsScreen from '@/screens/customer/trip/TripDetailsScreen';
 import RideTrackingScreen from '@/screens/customer/trip/RideTrackingScreen';
+import ReviewModal from '@/screens/customer/ReviewModal';
 
-// Import components
+// Screen imports - Settings and FAQ
+import SettingsScreen from '@/screens/customer/SettingsScreen';
+import BookingFAQScreen from '@/screens/customer/faq/BookingFAQScreen';
+import PaymentFAQScreen from '@/screens/customer/faq/PaymentFAQScreen';
+import AccountFAQScreen from '@/screens/customer/faq/AccountFAQScreen';
+import SafetyFAQScreen from '@/screens/customer/faq/SafetyFAQScreen';
+import TechnicalFAQScreen from '@/screens/customer/faq/TechnicalFAQScreen';
+
+// Component imports
 import NotificationBell from '@/components/NotificationBell';
 
-// Import types
+// Type imports
 import { CustomerTabParamList, CustomerStackParamList } from '@/types/navigation';
 
 const Tab = createBottomTabNavigator<CustomerTabParamList>();
@@ -24,16 +46,18 @@ const Stack = createStackNavigator<CustomerStackParamList>();
 
 // Main tab navigator for customer
 function CustomerTabNavigator() {
+  const { colors } = useTheme();
+
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: '#2dd4bf', // Teal color from the modern theme
-        tabBarInactiveTintColor: '#64748b', // Slate gray for inactive items
+        tabBarActiveTintColor: colors.tabBarActive,
+        tabBarInactiveTintColor: colors.tabBarInactive,
         tabBarStyle: {
-          backgroundColor: '#ffffff',
-          borderTopColor: '#e2e8f0',
+          backgroundColor: colors.tabBarBackground,
+          borderTopColor: colors.border,
           elevation: 8,
-          shadowColor: '#000000',
+          shadowColor: colors.shadow,
           shadowOpacity: 0.1,
           shadowRadius: 4,
           shadowOffset: { width: 0, height: -2 },
@@ -41,9 +65,9 @@ function CustomerTabNavigator() {
           paddingBottom: 8,
         },
         headerStyle: {
-          backgroundColor: '#2dd4bf', // Teal color from the modern theme
+          backgroundColor: colors.headerBackground,
         },
-        headerTintColor: '#ffffff',
+        headerTintColor: colors.headerTint,
         headerTitleStyle: {
           fontWeight: 'bold',
         },
@@ -111,21 +135,23 @@ function CustomerTabNavigator() {
 
 // Main customer navigator with stack for modals/details
 export default function CustomerNavigator() {
+  const { colors } = useTheme();
+
   return (
     <Stack.Navigator
       screenOptions={{
         headerStyle: {
-          backgroundColor: '#2dd4bf', // Teal color from the modern theme
+          backgroundColor: colors.headerBackground,
           elevation: 0,
           shadowOpacity: 0,
         },
-        headerTintColor: '#ffffff',
+        headerTintColor: colors.headerTint,
         headerTitleStyle: {
           fontWeight: 'bold',
           fontSize: 18,
         },
         cardStyle: {
-          backgroundColor: '#f8f9fa', // Light background color
+          backgroundColor: colors.background,
         },
       }}
     >
@@ -140,11 +166,11 @@ export default function CustomerNavigator() {
         options={{
           title: 'Payment',
           headerStyle: {
-            backgroundColor: '#2dd4bf', // Teal color from the modern theme
+            backgroundColor: colors.headerBackground,
             elevation: 0,
             shadowOpacity: 0,
           },
-          headerTintColor: '#ffffff',
+          headerTintColor: colors.headerTint,
           headerTitleStyle: {
             fontWeight: 'bold',
             fontSize: 18,
@@ -157,11 +183,11 @@ export default function CustomerNavigator() {
         options={{
           title: 'Trip Details',
           headerStyle: {
-            backgroundColor: '#2dd4bf', // Teal color from the modern theme
+            backgroundColor: colors.headerBackground,
             elevation: 0,
             shadowOpacity: 0,
           },
-          headerTintColor: '#ffffff',
+          headerTintColor: colors.headerTint,
           headerTitleStyle: {
             fontWeight: 'bold',
             fontSize: 18,
@@ -174,11 +200,165 @@ export default function CustomerNavigator() {
         options={{
           title: 'Track Ride',
           headerStyle: {
-            backgroundColor: '#2dd4bf', // Teal color from the modern theme
+            backgroundColor: colors.headerBackground,
             elevation: 0,
             shadowOpacity: 0,
           },
-          headerTintColor: '#ffffff',
+          headerTintColor: colors.headerTint,
+          headerTitleStyle: {
+            fontWeight: 'bold',
+            fontSize: 18,
+          },
+        }}
+      />
+      <Stack.Screen
+        name="ReviewModal"
+        component={ReviewModal}
+        options={{
+          title: 'Rate Your Trip',
+          headerStyle: {
+            backgroundColor: colors.headerBackground,
+            elevation: 0,
+            shadowOpacity: 0,
+          },
+          headerTintColor: colors.headerTint,
+          headerTitleStyle: {
+            fontWeight: 'bold',
+            fontSize: 18,
+          },
+          presentation: 'modal',
+        }}
+      />
+      <Stack.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{
+          title: 'Settings',
+          headerStyle: {
+            backgroundColor: colors.headerBackground,
+            elevation: 0,
+            shadowOpacity: 0,
+          },
+          headerTintColor: colors.headerTint,
+          headerTitleStyle: {
+            fontWeight: 'bold',
+            fontSize: 18,
+          },
+        }}
+      />
+      <Stack.Screen
+        name="PaymentMethods"
+        component={PaymentMethodsScreen}
+        options={{
+          title: 'Payment Methods',
+          headerStyle: {
+            backgroundColor: colors.headerBackground,
+            elevation: 0,
+            shadowOpacity: 0,
+          },
+          headerTintColor: colors.headerTint,
+          headerTitleStyle: {
+            fontWeight: 'bold',
+            fontSize: 18,
+          },
+        }}
+      />
+      <Stack.Screen
+        name="BillingHistory"
+        component={BillingHistoryScreen}
+        options={{
+          title: 'Billing History',
+          headerStyle: {
+            backgroundColor: colors.headerBackground,
+            elevation: 0,
+            shadowOpacity: 0,
+          },
+          headerTintColor: colors.headerTint,
+          headerTitleStyle: {
+            fontWeight: 'bold',
+            fontSize: 18,
+          },
+        }}
+      />
+      <Stack.Screen
+        name="BookingFAQ"
+        component={BookingFAQScreen}
+        options={{
+          title: 'Booking FAQs',
+          headerStyle: {
+            backgroundColor: colors.headerBackground,
+            elevation: 0,
+            shadowOpacity: 0,
+          },
+          headerTintColor: colors.headerTint,
+          headerTitleStyle: {
+            fontWeight: 'bold',
+            fontSize: 18,
+          },
+        }}
+      />
+      <Stack.Screen
+        name="PaymentFAQ"
+        component={PaymentFAQScreen}
+        options={{
+          title: 'Payment FAQs',
+          headerStyle: {
+            backgroundColor: colors.headerBackground,
+            elevation: 0,
+            shadowOpacity: 0,
+          },
+          headerTintColor: colors.headerTint,
+          headerTitleStyle: {
+            fontWeight: 'bold',
+            fontSize: 18,
+          },
+        }}
+      />
+      <Stack.Screen
+        name="AccountFAQ"
+        component={AccountFAQScreen}
+        options={{
+          title: 'Account FAQs',
+          headerStyle: {
+            backgroundColor: colors.headerBackground,
+            elevation: 0,
+            shadowOpacity: 0,
+          },
+          headerTintColor: colors.headerTint,
+          headerTitleStyle: {
+            fontWeight: 'bold',
+            fontSize: 18,
+          },
+        }}
+      />
+      <Stack.Screen
+        name="SafetyFAQ"
+        component={SafetyFAQScreen}
+        options={{
+          title: 'Safety FAQs',
+          headerStyle: {
+            backgroundColor: colors.headerBackground,
+            elevation: 0,
+            shadowOpacity: 0,
+          },
+          headerTintColor: colors.headerTint,
+          headerTitleStyle: {
+            fontWeight: 'bold',
+            fontSize: 18,
+          },
+        }}
+      />
+      <Stack.Screen
+        name="TechnicalFAQ"
+        component={TechnicalFAQScreen}
+        options={{
+          title: 'Technical FAQs',
+          headerStyle: {
+            backgroundColor: colors.headerBackground,
+            elevation: 0,
+            shadowOpacity: 0,
+          },
+          headerTintColor: colors.headerTint,
           headerTitleStyle: {
             fontWeight: 'bold',
             fontSize: 18,

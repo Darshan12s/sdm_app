@@ -24,6 +24,9 @@ import { uploadWithRestAPI } from '../../utils/storageTest';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system';
 
+// Import theme
+import { useTheme } from '../../contexts/ThemeContext';
+
 // Address type definition
 type Address = {
   id: string;
@@ -53,10 +56,11 @@ const KARNATAKA_BOUNDS = {
 };
 
 export default function ProfileScreen({ navigation }: { navigation: any }) {
-  const [isLoading, setIsLoading] = useState(true);
-  const [profileImage, setProfileImage] = useState<string | null>(null);
-  // Get user data from store
-  const { user, setUser } = useAppStore();
+   const { colors } = useTheme();
+   const [isLoading, setIsLoading] = useState(true);
+   const [profileImage, setProfileImage] = useState<string | null>(null);
+   // Get user data from store
+   const { user, setUser } = useAppStore();
   // User information
   const [userName, setUserName] = useState(user?.full_name || '');
   const [phoneNumber, setPhoneNumber] = useState(user?.phone_no || '');
@@ -249,12 +253,57 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
 
   const fetchUserStats = async (userId: string) => {
     try {
-      // Using mock data for now - replace with actual Supabase query
-      setRating(4.5);
-      setTotalTrips(12);
-      setTotalSpent(245.75);
+      // Fetch real statistics from bookings table
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (bookingsError) {
+        console.error('Error fetching bookings:', bookingsError);
+        // Fallback to mock data if there's an error
+        setRating(4.5);
+        setTotalTrips(0);
+        setTotalSpent(0);
+        return;
+      }
+
+      if (bookingsData && bookingsData.length > 0) {
+        // Calculate statistics from real data
+        const completedBookings = bookingsData.filter(booking =>
+          booking.status === 'completed'
+        );
+
+        // Calculate average rating
+        const ratings = completedBookings
+          .filter(booking => booking.rating !== null && booking.rating !== undefined)
+          .map(booking => booking.rating);
+
+        const averageRating = ratings.length > 0
+          ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length
+          : 0;
+
+        // Calculate total spent
+        const totalSpentValue = completedBookings.reduce((sum, booking) =>
+          sum + (booking.fare_amount || 0), 0
+        );
+
+        // Set the calculated values
+        setRating(parseFloat(averageRating.toFixed(1)));
+        setTotalTrips(bookingsData.length);
+        setTotalSpent(totalSpentValue);
+      } else {
+        // No bookings found, set defaults
+        setRating(0);
+        setTotalTrips(0);
+        setTotalSpent(0);
+      }
     } catch (error) {
       console.error('Error fetching user stats:', error);
+      // Fallback to mock data
+      setRating(4.5);
+      setTotalTrips(0);
+      setTotalSpent(0);
     }
   };
 
@@ -1025,17 +1074,17 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
         <View style={styles.centered}>
-          <ActivityIndicator size="large" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.header}>
          
           <View style={styles.headerSpacer} />
@@ -1046,90 +1095,93 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
             {profileImage ? (
               <Image source={{ uri: profileImage }} style={styles.avatar} />
             ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Ionicons name="person" size={40} color="#64748b" />
+              <View style={[styles.avatarPlaceholder, { backgroundColor: colors.surface }]}>
+                <Ionicons name="person" size={40} color={colors.textSecondary} />
               </View>
             )}
-            <View style={styles.cameraButton}>
-              <Ionicons name="camera" size={20} color="#fff" />
+            <View style={[styles.cameraButton, { backgroundColor: colors.text }]}>
+              <Ionicons name="camera" size={20} color={colors.surface} />
             </View>
           </TouchableOpacity>
-          <Text style={styles.userName}>{userName || 'Your Name'}</Text>
+          <Text style={[styles.userName, { color: colors.text }]}>{userName || 'Your Name'}</Text>
           <View style={styles.ratingContainer}>
-            <Ionicons name="star" size={18} color="#f59e0b" />
-            <Text style={styles.ratingText}>
+            <Ionicons name="star" size={18} color={colors.warning} />
+            <Text style={[styles.ratingText, { color: colors.textSecondary }]}>
               {rating.toFixed(1)} ({totalTrips} trips)
             </Text>
           </View>
         </View>
 
         {/* Personal Information Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Personal Information</Text>
-            <TouchableOpacity onPress={toggleEditPersonalInfo}>
-              <Text style={styles.editButtonText}>
-                {isEditingPersonalInfo ? 'Save' : 'Edit'}
-              </Text>
-            </TouchableOpacity>
-          </View>
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
+           <View style={styles.cardHeader}>
+             <Text style={[styles.cardTitle, { color: colors.text }]}>Personal Information</Text>
+             <TouchableOpacity onPress={toggleEditPersonalInfo}>
+               <Text style={[styles.editButtonText, { color: colors.primary }]}>
+                 {isEditingPersonalInfo ? 'Save' : 'Edit'}
+               </Text>
+             </TouchableOpacity>
+           </View>
         
           <View style={styles.infoItem}>
             <View style={styles.infoIcon}>
-              <MaterialIcons name="phone" size={20} color="#64748b" />
+              <MaterialIcons name="phone" size={20} color={colors.textSecondary} />
             </View>
             <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Phone Number</Text>
+              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Phone Number</Text>
               {isEditingPersonalInfo ? (
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
                   value={tempPhoneNumber}
                   onChangeText={setTempPhoneNumber}
                   placeholder="Enter phone number"
+                  placeholderTextColor={colors.inputPlaceholder}
                   keyboardType="phone-pad"
                 />
               ) : (
-                <Text style={styles.infoValue}>{phoneNumber || 'Not provided'}</Text>
+                <Text style={[styles.infoValue, { color: colors.text }]}>{phoneNumber || 'Not provided'}</Text>
               )}
             </View>
           </View>
         
           <View style={styles.infoItem}>
             <View style={styles.infoIcon}>
-              <MaterialIcons name="email" size={20} color="#64748b" />
+              <MaterialIcons name="email" size={20} color={colors.textSecondary} />
             </View>
             <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Email</Text>
+              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Email</Text>
               {isEditingPersonalInfo ? (
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
                   value={tempEmail}
                   onChangeText={setTempEmail}
                   placeholder="Enter email"
+                  placeholderTextColor={colors.inputPlaceholder}
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
               ) : (
-                <Text style={styles.infoValue}>{email}</Text>
+                <Text style={[styles.infoValue, { color: colors.text }]}>{email}</Text>
               )}
             </View>
           </View>
         
           <View style={styles.infoItem}>
             <View style={styles.infoIcon}>
-              <MaterialIcons name="person" size={20} color="#64748b" />
+              <MaterialIcons name="person" size={20} color={colors.textSecondary} />
             </View>
             <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Full Name</Text>
+              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Full Name</Text>
               {isEditingPersonalInfo ? (
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
                   value={tempUserName}
                   onChangeText={setTempUserName}
                   placeholder="Enter your name"
+                  placeholderTextColor={colors.inputPlaceholder}
                 />
               ) : (
-                <Text style={styles.infoValue}>{userName}</Text>
+                <Text style={[styles.infoValue, { color: colors.text }]}>{userName}</Text>
               )}
             </View>
           </View>
@@ -1150,23 +1202,23 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
         </View>
 
         {/* Trip Statistics Card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Trip Statistics</Text>
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
+           <Text style={[styles.cardTitle, { color: colors.text }]}>Trip Statistics</Text>
         
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{totalTrips}</Text>
-              <Text style={styles.statLabel}>Total Trips</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{totalTrips}</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total Trips</Text>
             </View>
-          
+
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{rating.toFixed(1)}</Text>
-              <Text style={styles.statLabel}>Rating</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{rating.toFixed(1)}</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Rating</Text>
             </View>
-          
+
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>${totalSpent.toFixed(2)}</Text>
-              <Text style={styles.statLabel}>Total Spent</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>${totalSpent.toFixed(2)}</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total Spent</Text>
             </View>
           </View>
         </View>
@@ -1344,9 +1396,49 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
           )}
         </View>
 
+        {/* Payment Section */}
+        {/* <View style={[styles.card, { backgroundColor: colors.card }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Payment & Billing</Text>
+          <TouchableOpacity
+            style={styles.settingsButton}
+            onPress={() => navigation.navigate('PaymentMethods')}
+          >
+            <View style={styles.settingsButtonContent}>
+              <MaterialIcons name="credit-card" size={24} color={colors.primary} />
+              <Text style={[styles.settingsButtonText, { color: colors.text }]}>Payment Methods</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.settingsButton}
+            onPress={() => navigation.navigate('BillingHistory')}
+          >
+            <View style={styles.settingsButtonContent}>
+              <MaterialIcons name="receipt" size={24} color={colors.primary} />
+              <Text style={[styles.settingsButtonText, { color: colors.text }]}>Billing History</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View> */}
+
+        {/* Settings Section */}
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Settings</Text>
+          <TouchableOpacity
+            style={styles.settingsButton}
+            onPress={() => navigation.navigate('Settings')}
+          >
+            <View style={styles.settingsButtonContent}>
+              <MaterialIcons name="settings" size={24} color={colors.primary} />
+              <Text style={[styles.settingsButtonText, { color: colors.text }]}>App Settings</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
         {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutText}>Logout</Text>
+        <TouchableOpacity style={[styles.logoutButton, { backgroundColor: colors.error + '20', borderColor: colors.error }]} onPress={handleLogout}>
+          <Text style={[styles.logoutText, { color: colors.error }]}>Logout</Text>
         </TouchableOpacity>
 
         {/* Date Picker */}
@@ -2043,6 +2135,22 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 14,
     color: '#1e293b',
+    fontWeight: '500',
+  },
+  settingsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 4,
+  },
+  settingsButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  settingsButtonText: {
+    fontSize: 16,
     fontWeight: '500',
   },
 });

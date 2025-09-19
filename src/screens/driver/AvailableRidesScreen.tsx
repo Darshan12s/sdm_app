@@ -7,239 +7,534 @@ import {
   Alert,
   RefreshControl,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { supabase } from '@/services/supabase/client';
+import Toast from 'react-native-toast-message';
+import { useUser } from '@/stores/appStore';
 
-export default function AvailableRidesScreen() {
+// Import theme
+import { useTheme } from '@/contexts/ThemeContext';
+
+// Import types
+import { DriverStackParamList } from '@/types/navigation';
+
+// Use the global Booking type instead of local interface
+import { Booking } from '@/types';
+
+type AvailableRidesScreenProps = {
+  navigation: StackNavigationProp<DriverStackParamList>;
+};
+
+export default function AvailableRidesScreen({ navigation }: AvailableRidesScreenProps) {
+  const { colors } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
-  const [availableRides, setAvailableRides] = useState<any[]>([]);
-
-  // Mock data for available rides
-  const mockRides = [
-    {
-      id: '1',
-      pickup: 'Connaught Place',
-      drop: 'Indira Gandhi Airport',
-      distance: '18.5 km',
-      duration: '35 mins',
-      fare: 450,
-      customerRating: 4.8,
-      customerName: 'Rahul S.',
-      requestedAt: '2 mins ago',
-      serviceType: 'Airport Transfer',
-    },
-    {
-      id: '2',
-      pickup: 'Karol Bagh',
-      drop: 'Lajpat Nagar',
-      distance: '8.2 km',
-      duration: '22 mins',
-      fare: 180,
-      customerRating: 4.6,
-      customerName: 'Priya M.',
-      requestedAt: '5 mins ago',
-      serviceType: 'City Ride',
-    },
-    {
-      id: '3',
-      pickup: 'Delhi Railway Station',
-      drop: 'Red Fort',
-      distance: '6.8 km',
-      duration: '18 mins',
-      fare: 150,
-      customerRating: 4.9,
-      customerName: 'Amit K.',
-      requestedAt: '8 mins ago',
-      serviceType: 'City Ride',
-    },
-  ];
+  const [availableRides, setAvailableRides] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'accepted' | 'started' | 'completed' | 'cancelled'>('all');
+  const user = useUser();
 
   useEffect(() => {
-    setAvailableRides(mockRides);
-  }, []);
+    fetchRides(activeTab);
+  }, [activeTab, user]);
+
+  const fetchRides = async (tab: string) => {
+    try {
+      setLoading(true);
+      let query = supabase
+        .from('bookings')
+        .select(`
+          *,
+          user:users(full_name, phone_no, profile_picture_url, email, whatsapp_phone),
+          driver:drivers(rating, total_rides),
+          review:reviews(rating, comment)
+        `)
+        .order('created_at', { ascending: false });
+
+      // Filter based on tab
+      switch (tab) {
+        case 'pending':
+          query = query.eq('status', 'pending');
+          break;
+        case 'accepted':
+          query = query.eq('status', 'accepted').eq('driver_id', user?.id);
+          break;
+        case 'started':
+          query = query.eq('status', 'started').eq('driver_id', user?.id);
+          break;
+        case 'completed':
+          query = query.eq('status', 'completed').eq('driver_id', user?.id);
+          break;
+        case 'cancelled':
+          query = query.eq('status', 'cancelled').eq('driver_id', user?.id);
+          break;
+        case 'all':
+        default:
+          query = query.in('status', ['pending', 'accepted', 'started', 'completed', 'cancelled']);
+          break;
+      }
+
+      const { data: bookingsData, error: bookingsError } = await query;
+
+      if (bookingsError) throw bookingsError;
+
+      const ridesWithTimeAgo = bookingsData?.map(booking => ({
+        ...booking,
+        requestedAt: calculateTimeAgo(booking.updated_at || booking.created_at),
+      })) || [];
+
+      setAvailableRides(ridesWithTimeAgo);
+    } catch (error) {
+      console.error(`Error fetching ${tab} rides:`, error);
+      Toast.show({
+        type: 'error',
+        text1: `Failed to load ${tab} rides`,
+      });
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const calculateTimeAgo = (dateString: string): string => {
+    const now = new Date();
+    const created = new Date(dateString);
+    const diffInSeconds = Math.floor((now.getTime() - created.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return 'Just now';
+    else if (diffInSeconds < 3600) {
+      const minutes = Math.floor(diffInSeconds / 60);
+      return `${minutes} minute${minutes !== 1 ? 's' : ''} ago`;
+    } else if (diffInSeconds < 86400) {
+      const hours = Math.floor(diffInSeconds / 3600);
+      return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+    } else {
+      const days = Math.floor(diffInSeconds / 86400);
+      return `${days} day${days !== 1 ? 's' : ''} ago`;
+    }
+  };
+
+  const calculateDuration = (distanceKm: number): string => {
+    const minutes = Math.round((distanceKm / 30) * 60);
+    return `${minutes} mins`;
+  };
 
   const onRefresh = () => {
     setRefreshing(true);
-    // Simulate API call
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
+    fetchRides(activeTab);
   };
 
-  const handleAcceptRide = (ride: any) => {
-    Alert.alert(
-      'Accept Ride',
-      `Accept ride from ${ride.customerName}?\n\nPickup: ${ride.pickup}\nDrop: ${ride.drop}\nFare: ₹${ride.fare}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Accept',
-          onPress: () => {
-            Alert.alert('Ride Accepted', 'Navigate to pickup location');
-            // Here you would update the ride status and navigate to active ride
-          },
-        },
-      ]
-    );
+  const handleAcceptRide = async (ride: Booking) => {
+    if (!user) {
+      Toast.show({
+        type: 'error',
+        text1: 'You must be logged in to accept rides',
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({
+          status: 'accepted',
+          driver_id: user.id,
+        })
+        .eq('id', ride.id);
+
+      if (error) throw error;
+
+      Alert.alert(
+        'Ride Accepted',
+        `You have accepted the ride from ${ride.user?.full_name || 'Customer'}\nContact: ${ride.user?.phone_no || 'N/A'}${
+          ride.user?.whatsapp_phone ? `\nWhatsApp: ${ride.user.whatsapp_phone}` : ''
+        }${ride.user?.email ? `\nEmail: ${ride.user.email}` : ''}`,
+        [{ text: 'OK', onPress: () => fetchRides(activeTab) }],
+      );
+    } catch (error) {
+      console.error('Error accepting ride:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to accept ride',
+      });
+    }
   };
 
-  const handleRejectRide = (rideId: string) => {
-    setAvailableRides(prev => prev.filter(ride => ride.id !== rideId));
+  const handleStartRide = async (ride: Booking) => {
+    if (!user || ride.driver_id !== user.id) {
+      Toast.show({
+        type: 'error',
+        text1: 'You are not authorized to start this ride',
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({
+          status: 'started',
+          start_time: new Date().toISOString(),
+        })
+        .eq('id', ride.id);
+
+      if (error) throw error;
+
+      Toast.show({
+        type: 'success',
+        text1: 'Ride started successfully',
+      });
+      fetchRides(activeTab);
+    } catch (error) {
+      console.error('Error starting ride:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to start ride',
+      });
+    }
+  };
+
+  const handleCompleteRide = async (ride: Booking) => {
+    if (!user || ride.driver_id !== user.id) {
+      Toast.show({
+        type: 'error',
+        text1: 'You are not authorized to complete this ride',
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({
+          status: 'completed',
+          end_time: new Date().toISOString(),
+        })
+        .eq('id', ride.id);
+
+      if (error) throw error;
+
+      Toast.show({
+        type: 'success',
+        text1: 'Ride completed successfully',
+      });
+      fetchRides(activeTab);
+    } catch (error) {
+      console.error('Error completing ride:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to complete ride',
+      });
+    }
+  };
+
+  const handleRejectRide = async (rideId: string) => {
+    if (!user) {
+      Toast.show({
+        type: 'error',
+        text1: 'You must be logged in to reject rides',
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: 'cancelled' })
+        .eq('id', rideId);
+
+      if (error) throw error;
+
+      setAvailableRides(prev => prev.filter(ride => ride.id !== rideId));
+      Toast.show({
+        type: 'success',
+        text1: 'Ride cancelled successfully',
+      });
+    } catch (error) {
+      console.error('Error rejecting ride:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to reject ride',
+      });
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return '#f59e0b';
+      case 'accepted': return '#3b82f6';
+      case 'started': return '#10b981';
+      case 'completed': return '#6b7280';
+      case 'cancelled': return '#ef4444';
+      default: return '#6b7280';
+    }
   };
 
   const getServiceTypeColor = (serviceType: string) => {
     switch (serviceType) {
-      case 'Airport Transfer':
-        return '#2563eb';
-      case 'City Ride':
-        return '#16a34a';
-      case 'Outstation':
-        return '#ca8a04';
-      default:
-        return '#6b7280';
+      case 'Airport Transfer': return '#2563eb';
+      case 'Outstation': return '#ca8a04';
+      case 'Rental': return '#9333ea';
+      default: return '#16a34a';
     }
   };
 
-  return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Available Rides</Text>
-        <Text style={styles.headerSubtitle}>
-          {availableRides.length} ride{availableRides.length !== 1 ? 's' : ''} available
-        </Text>
-      </View>
-
-      {/* Rides List */}
-      {availableRides.length > 0 ? (
-        <View style={styles.ridesList}>
-          {availableRides.map((ride) => (
-            <View key={ride.id} style={styles.rideCard}>
-              {/* Header */}
-              <View style={styles.rideHeader}>
-                <View style={styles.rideHeaderLeft}>
-                  <Text style={styles.customerName}>{ride.customerName}</Text>
-                  <View style={styles.customerInfo}>
-                    <View style={styles.customerRatingContainer}>
-                      <MaterialIcons name="star" size={14} color="#f59e0b" />
-                      <Text style={styles.customerRating}>{ride.customerRating}</Text>
-                    </View>
-                    <Text style={styles.requestedTime}>{ride.requestedAt}</Text>
-                  </View>
-                </View>
-                <View
-                  style={[styles.serviceTypeBadge, { backgroundColor: getServiceTypeColor(ride.serviceType) }]}
-                >
-                  <Text style={styles.serviceTypeText}>{ride.serviceType}</Text>
-                </View>
-              </View>
-
-              {/* Route */}
-              <View style={styles.routeContainer}>
-                <View style={styles.routeStep}>
-                  <Text style={styles.routeDot}>●</Text>
-                  <Text style={styles.routeText}>{ride.pickup}</Text>
-                </View>
-                <View style={styles.routeLine} />
-                <View style={styles.routeStep}>
-                  <Text style={styles.routeDot}>●</Text>
-                  <Text style={styles.routeText}>{ride.drop}</Text>
-                </View>
-              </View>
-
-              {/* Ride Details */}
-              <View style={styles.rideDetails}>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Distance:</Text>
-                  <Text style={styles.detailValue}>{ride.distance}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Duration:</Text>
-                  <Text style={styles.detailValue}>{ride.duration}</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Fare:</Text>
-                  <Text style={styles.detailValue}>₹{ride.fare}</Text>
-                </View>
-              </View>
-
-              {/* Actions */}
-              <View style={styles.actionsContainer}>
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.actionButtonSkip]}
-                  onPress={() => handleRejectRide(ride.id)}
-                >
-                  <Text style={styles.actionButtonText}>Skip</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.actionButtonAccept]}
-                  onPress={() => handleAcceptRide(ride)}
-                >
-                  <Text style={[styles.actionButtonText, styles.actionButtonTextAccept]}>Accept Ride</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))}
+  const renderActionButtons = (ride: Booking) => {
+    if (ride.driver_id && ride.driver_id !== user?.id) {
+      return (
+        <View style={styles.actionsContainer}>
+          <Text style={styles.assignedText}>Assigned to another driver</Text>
         </View>
-      ) : (
-        <View style={styles.emptyContainer}>
-          <MaterialIcons name="directions-car" size={60} color="#cbd5e1" />
-          <Text style={styles.emptyTitle}>No rides available</Text>
-          <Text style={styles.emptyText}>
-            New ride requests will appear here when available
-          </Text>
+      );
+    }
+
+    if (ride.driver_id === user?.id) {
+      switch (ride.status) {
+        case 'accepted':
+          return (
+            <View style={styles.actionsContainer}>
+              <TouchableOpacity
+                // style={[styles.actionButton, styles.actionButtonStart]}
+                onPress={() => handleStartRide(ride)}
+              >
+                {/* <Text style={[styles.actionButtonText, styles.actionButtonTextStart]}>Start Ride</Text> */}
+              </TouchableOpacity>
+            </View>
+          );
+        case 'started':
+          return (
+            <View style={styles.actionsContainer}>
+              <TouchableOpacity
+                // style={[styles.actionButton, styles.actionButtonComplete]}
+                onPress={() => handleCompleteRide(ride)}
+              >
+                {/* <Text style={[styles.actionButtonText, styles.actionButtonTextComplete]}>Complete Ride</Text> */}
+              </TouchableOpacity>
+            </View>
+          );
+        case 'completed':
+           return null;
+        default:
+          return null;
+      }
+    }
+
+    if (ride.status === 'pending' && !ride.driver_id) {
+      return (
+        <View style={styles.actionsContainer}>
           <TouchableOpacity
-            style={styles.refreshButton}
-            onPress={onRefresh}
+            style={[styles.actionButton, styles.actionButtonSkip, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={() => handleRejectRide(ride.id)}
           >
-            <Text style={styles.refreshButtonText}>Refresh</Text>
+            <Text style={[styles.actionButtonText, { color: colors.textSecondary }]}>Skip</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.actionButtonAccept, { backgroundColor: colors.success }]}
+            onPress={() => handleAcceptRide(ride)}
+          >
+            <Text style={[styles.actionButtonText, styles.actionButtonTextAccept]}>Accept Ride</Text>
           </TouchableOpacity>
         </View>
-      )}
-    </ScrollView>
+      );
+    }
+
+    return null;
+  };
+
+  const renderRideDetails = (ride: Booking) => {
+    return (
+      <TouchableOpacity
+        style={styles.viewDetailsButton}
+        onPress={() => navigation.navigate('RideDetails', { booking: ride })}
+      >
+        <Text style={[styles.viewDetailsText, { color: colors.primary }]}>View Details</Text>
+      </TouchableOpacity>
+    );
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading rides...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.tabContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        {['all', 'pending', 'accepted', 'started', 'completed', 'cancelled'].map(tab => (
+          <TouchableOpacity
+            key={tab}
+            style={[styles.tab, { backgroundColor: colors.card }, activeTab === tab && [styles.activeTab, { backgroundColor: colors.primary }]]}
+            onPress={() => setActiveTab(tab as any)}
+          >
+            <Text style={[styles.tabText, { color: colors.textSecondary }, activeTab === tab && [styles.activeTabText, { color: colors.surface }]]}>
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <ScrollView
+        style={styles.scrollContainer}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Rides</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+            {availableRides.length} ride{availableRides.length !== 1 ? 's' : ''} found
+          </Text>
+        </View>
+
+        {availableRides.length > 0 ? (
+          <View style={styles.ridesList}>
+            {availableRides.map(ride => (
+              <View key={ride.id} style={[styles.rideCard, { backgroundColor: colors.card }]}>
+                <View style={styles.rideHeader}>
+                  <View style={styles.rideHeaderLeft}>
+                     <View style={[styles.serviceTypeBadge, { backgroundColor: colors.surface }]}>
+                       <Text style={[styles.serviceTypeText, { color: colors.textSecondary }]}>{ride.service_type.toUpperCase()}</Text>
+                     </View>
+                     
+                {ride.scheduled_time && (
+                  <View style={styles.scheduledTimeContainer}>
+                    <MaterialIcons name="schedule" size={14} color="#3b82f6" />
+                    <Text style={styles.scheduledTimeText}>
+                      {new Date(ride.scheduled_time).toLocaleString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                      })}
+                    </Text>
+                  </View>
+                )}
+                    <View style={styles.customerInfo}>
+                      {ride.review?.rating && (
+                        <View style={styles.customerRatingContainer}>
+                          <MaterialIcons name="star" size={14} color="#f59e0b" />
+                          <Text style={styles.customerRating}>{ride.review.rating.toFixed(1)}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                  <View style={styles.statusBadgeContainer}>
+                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(ride.status) }]}>
+                      <Text style={styles.statusText}>
+                        {ride.status.replace('_', ' ').toUpperCase()}
+                      </Text>
+                    </View>
+                   
+                  </View>
+                </View>
+
+                <View style={styles.routeContainer}>
+                  <View style={styles.routeStep}>
+                    <Text style={styles.pickupDot}>●</Text>
+                    <Text style={[styles.routeText, { color: colors.text }]} numberOfLines={1}>{ride.pickup_address}</Text>
+                  </View>
+                  <View style={[styles.routeLine, { backgroundColor: colors.border }]} />
+                  <View style={styles.routeStep}>
+                    <Text style={styles.dropDot}>●</Text>
+                    <Text style={[styles.routeText, { color: colors.text }]} numberOfLines={1}>{ride.dropoff_address}</Text>
+                  </View>
+                </View>
+
+
+                <View style={styles.fareContainer}>
+                  <Text style={[styles.fareText, { color: colors.success }]}>₹{ride.fare_amount?.toFixed(2) || '0.00'}</Text>
+                  {renderRideDetails(ride)}
+                  <Text style={[styles.requestedTime, { color: colors.textSecondary }]}>{ride.requestedAt}</Text>
+                </View>
+                
+                {renderActionButtons(ride)}
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.emptyContainer}>
+            <MaterialIcons name="directions-car" size={60} color={colors.textMuted} />
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>No {activeTab} rides</Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              {activeTab === 'completed' ? 'Your completed rides will appear here' : 'New ride requests will appear here when available'}
+            </Text>
+            <TouchableOpacity style={[styles.refreshButton, { backgroundColor: colors.primary }]} onPress={onRefresh}>
+              <Text style={[styles.refreshButtonText, { color: colors.surface }]}>Refresh</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+  },
+  tab: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    borderRadius: 20,
+    marginHorizontal: 4,
+    marginVertical: 4,
+  },
+  activeTab: {
+  },
+  tabText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  activeTabText: {
+    fontWeight: '600',
   },
   header: {
-    backgroundColor: '#ffffff',
     paddingHorizontal: 20,
-    paddingVertical: 24,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#1e293b',
     marginBottom: 4,
   },
   headerSubtitle: {
-    fontSize: 16,
-    color: '#64748b',
+    fontSize: 14,
   },
   ridesList: {
-    padding: 20,
+    padding: 8,
   },
   rideCard: {
-    backgroundColor: '#ffffff',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    padding: 8,
+    marginBottom: 8,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
@@ -248,13 +543,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 16,
+    marginBottom: 8,
   },
   rideHeaderLeft: {
     flex: 1,
   },
   customerName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: '#1e293b',
     marginBottom: 4,
@@ -270,7 +565,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   customerRating: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#f59e0b',
     fontWeight: '500',
   },
@@ -278,90 +573,176 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748b',
   },
+  serviceTypeTextInline: {
+    fontSize: 22,
+    color: '#090B0EFF',
+  },
+  statusBadgeContainer: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
   serviceTypeBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
   },
   serviceTypeText: {
-    fontSize: 12,
+    fontSize: 20,
     fontWeight: '500',
-    color: '#ffffff',
+    color: '#64748b',
   },
   routeContainer: {
-    marginBottom: 16,
+    marginBottom: 8,
   },
   routeStep: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   routeDot: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#2563eb',
-    marginRight: 12,
-    width: 16,
+    marginRight: 8,
+    width: 12,
+    textAlign: 'center',
+  },
+  pickupDot: {
+    fontSize: 18,
+    color: '#16a34a',
+    marginRight: 8,
+    fontFamily:'system-ui',
+    fontWeight:'900',
+    width: 12,
+    textAlign: 'center',
+  },
+  dropDot: {
+    fontSize: 18,
+    color: '#ef4444',
+    fontFamily:'system-ui',
+    fontWeight:'900',
+    marginRight: 8,
+    width: 12,
     textAlign: 'center',
   },
   routeText: {
-    fontSize: 14,
-    color: '#475569',
+    fontSize: 20,
     flex: 1,
   },
   routeLine: {
-    height: 20,
+    height: 16,
     width: 1,
-    backgroundColor: '#e2e8f0',
-    marginLeft: 7,
-    marginBottom: 8,
+    marginLeft: 5,
+    marginBottom: 6,
   },
-  rideDetails: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
+  scheduledTimeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  detailRow: {
+  scheduledTimeText: {
+    fontSize: 14,
+    color: '#1e293b',
+    marginLeft: 8,
+  },
+  rideMeta: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  detailLabel: {
-    fontSize: 14,
+  metaItem: {
+    alignItems: 'center',
+  },
+  metaLabel: {
+    fontSize: 12,
     color: '#64748b',
+    marginBottom: 4,
   },
-  detailValue: {
+  metaValue: {
     fontSize: 14,
     fontWeight: '500',
     color: '#1e293b',
   },
+  fareContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  fareText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  durationText: {
+    fontSize: 14,
+  },
+  viewDetailsButton: {
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  viewDetailsText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
   actionsContainer: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
+    alignItems: 'center',
   },
   actionButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderRadius: 8,
     alignItems: 'center',
   },
   actionButtonSkip: {
-    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#cbd5e1',
   },
   actionButtonAccept: {
     flex: 2,
-    backgroundColor: '#16a34a',
   },
+  actionButtonStart: {
+    flex: 1,
+  },
+  // actionButtonComplete: {
+  //   flex: 1,
+  //   backgroundColor: '#10b981',
+  // },
   actionButtonText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
-    color: '#475569',
   },
   actionButtonTextAccept: {
-    color: '#ffffff',
     fontWeight: '600',
+  },
+  actionButtonTextStart: {
+    fontWeight: '600',
+  },
+  actionButtonTextComplete: {
+    fontWeight: '600',
+  },
+  assignedText: {
+    fontSize: 12,
+    color: '#64748b',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    flex: 1,
+  },
+  completedText: {
+    fontSize: 12,
+    color: '#10b981',
+    fontWeight: '600',
+    textAlign: 'center',
+    flex: 1,
   },
   emptyContainer: {
     flex: 1,
@@ -371,27 +752,24 @@ const styles = StyleSheet.create({
     paddingVertical: 80,
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
     marginBottom: 8,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#64748b',
+    fontSize: 14,
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 24,
+    lineHeight: 20,
+    marginBottom: 20,
   },
   refreshButton: {
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderRadius: 8,
   },
   refreshButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
-    color: '#ffffff',
   },
 });
+

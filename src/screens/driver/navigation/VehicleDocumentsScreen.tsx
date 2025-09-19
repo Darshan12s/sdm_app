@@ -17,8 +17,10 @@ import * as FileSystem from 'expo-file-system';
 import { supabase } from '@/services/supabase/client';
 import { useUser } from '@/stores/appStore';
 import * as mime from 'react-native-mime-types';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function VehicleDocumentsScreen({ navigation }: { navigation: any }) {
+  const { colors } = useTheme();
   const user = useUser();
   const [isLoading, setIsLoading] = useState(true);
   const [vehicle, setVehicle] = useState<any>(null);
@@ -159,27 +161,26 @@ export default function VehicleDocumentsScreen({ navigation }: { navigation: any
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
         <View style={styles.centered}>
-          <ActivityIndicator size="large" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-      
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView style={styles.container}>
         {!vehicle ? (
           <View style={styles.emptyState}>
-            <MaterialIcons name="error-outline" size={64} color="#64748b" />
-            <Text style={styles.emptyStateText}>No Vehicle Assigned</Text>
-            <Text style={styles.emptyStateSubtext}>
+            <MaterialIcons name="error-outline" size={64} color={colors.textSecondary} />
+            <Text style={[styles.emptyStateText, { color: colors.text }]}>No Vehicle Assigned</Text>
+            <Text style={[styles.emptyStateSubtext, { color: colors.textSecondary }]}>
               You need to have a vehicle assigned to manage documents.
             </Text>
           </View>
@@ -203,33 +204,33 @@ export default function VehicleDocumentsScreen({ navigation }: { navigation: any
             </View> */}
 
             {/* Documents List */}
-            <View style={styles.card}>
-              <Text style={styles.sectionTitle}>Documents</Text>
+            <View style={[styles.card, { backgroundColor: colors.card }]}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Documents</Text>
               {documents.length === 0 ? (
-                <Text style={styles.noDocumentsText}>No documents uploaded yet</Text>
+                <Text style={[styles.noDocumentsText, { color: colors.textSecondary }]}>No documents uploaded yet</Text>
               ) : (
                 documents.map((doc) => (
                   <TouchableOpacity
                     key={doc.id}
-                    style={styles.documentItem}
+                    style={[styles.documentItem, { borderColor: colors.border }]}
                     onPress={() => openDocument(doc.document_url)}
                   >
                     <View style={styles.documentInfo}>
-                      <MaterialIcons name="description" size={24} color="#3b82f6" />
+                      <MaterialIcons name="description" size={24} color={colors.primary} />
                       <View style={styles.documentDetails}>
-                        <Text style={styles.documentType}>
+                        <Text style={[styles.documentType, { color: colors.text }]}>
                           {doc.document_type.toUpperCase()}
                         </Text>
-                        <Text style={styles.documentDate}>
+                        <Text style={[styles.documentDate, { color: colors.textSecondary }]}>
                           Issued: {new Date(doc.issue_date).toLocaleDateString()}
                           {doc.expiry_date && ` • Expires: ${new Date(doc.expiry_date).toLocaleDateString()}`}
                         </Text>
-                        <Text style={styles.documentStatus}>
+                        <Text style={[styles.documentStatus, { color: colors.textSecondary }]}>
                           Status: {doc.verified ? 'Verified' : 'Pending Verification'}
                         </Text>
                       </View>
                     </View>
-                    <MaterialIcons name="chevron-right" size={24} color="#64748b" />
+                    <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
                   </TouchableOpacity>
                 ))
               )}
@@ -244,7 +245,6 @@ export default function VehicleDocumentsScreen({ navigation }: { navigation: any
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   centered: {
     flex: 1,
@@ -257,9 +257,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
   },
   backButton: {
     padding: 8,
@@ -267,7 +265,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1e293b',
   },
   headerSpacer: {
     width: 40,
@@ -277,7 +274,6 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   card: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -290,7 +286,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1e293b',
     marginBottom: 16,
   },
   uploadButton: {
@@ -298,14 +293,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
     borderRadius: 8,
     marginBottom: 12,
   },
   uploadButtonText: {
     marginLeft: 12,
     flex: 1,
-    color: '#1e293b',
     fontWeight: '500',
   },
   documentItem: {
@@ -314,7 +307,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
     borderRadius: 8,
     marginBottom: 12,
   },
@@ -330,21 +322,17 @@ const styles = StyleSheet.create({
   documentType: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#1e293b',
     marginBottom: 4,
   },
   documentDate: {
     fontSize: 12,
-    color: '#64748b',
     marginBottom: 4,
   },
   documentStatus: {
     fontSize: 12,
-    color: '#64748b',
   },
   noDocumentsText: {
     textAlign: 'center',
-    color: '#64748b',
     padding: 20,
   },
   emptyState: {
@@ -355,13 +343,11 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1e293b',
     marginTop: 16,
     marginBottom: 8,
   },
   emptyStateSubtext: {
     fontSize: 14,
-    color: '#64748b',
     textAlign: 'center',
   },
 });

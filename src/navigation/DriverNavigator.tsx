@@ -2,38 +2,48 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useTheme } from '@/contexts/ThemeContext';
 
-// Import screens
+// Import screensz
 import DriverHomeScreen from '@/screens/driver/DriverHomeScreen';
 import AvailableRidesScreen from '@/screens/driver/AvailableRidesScreen';
 import ActiveRideScreen from '@/screens/driver/ActiveRideScreen';
 import EarningsScreen from '@/screens/driver/EarningsScreen';
 import DriverProfileScreen from '@/screens/driver/DriverProfileScreen';
+import RideDetailsScreen from '@/screens/driver/RideDetailsScreen';
 import VehicleInformationScreen from '@/screens/driver/navigation/VehicleInformationScreen';
 import VehicleDocumentsScreen from '@/screens/driver/navigation/VehicleDocumentsScreen';
 import DriverDocumentsScreen from '@/screens/driver/navigation/DriverDocumentsScreen';
+import NotificationsScreen from '@/screens/driver/navigation/NotificationsScreen';
 
 // Import components
 import NotificationBell from '@/components/NotificationBell';
 
 // Import types
 import { DriverTabParamList, DriverStackParamList } from '@/types/navigation';
+import SettingsScreen from '@/screens/driver/navigation/SettingsScreen';
+import TermsConditionsScreen from '@/screens/driver/navigation/TermsConditionsScreen';
+import PaymentMethodsScreen from '@/screens/driver/navigation/PaymentMethodsScreen';
+import BillingHistoryScreen from '@/screens/driver/navigation/BillingHistoryScreen';
+import SupportScreen from '@/screens/customer/SupportScreen';
 
 const Tab = createBottomTabNavigator<DriverTabParamList>();
 const Stack = createStackNavigator<DriverStackParamList>();
 
 // Main tab navigator for driver
 function DriverTabNavigator() {
+  const { colors } = useTheme();
+
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: '#2dd4bf', // Teal color from the modern theme
-        tabBarInactiveTintColor: '#64748b', // Slate gray for inactive items
+        tabBarActiveTintColor: colors.tabBarActive,
+        tabBarInactiveTintColor: colors.tabBarInactive,
         tabBarStyle: {
-          backgroundColor: '#ffffff',
-          borderTopColor: '#e2e8f0',
+          backgroundColor: colors.tabBarBackground,
+          borderTopColor: colors.border,
           elevation: 8,
-          shadowColor: '#000000',
+          shadowColor: colors.shadow,
           shadowOpacity: 0.1,
           shadowRadius: 4,
           shadowOffset: { width: 0, height: -2 },
@@ -41,9 +51,9 @@ function DriverTabNavigator() {
           paddingBottom: 8,
         },
         headerStyle: {
-          backgroundColor: '#2dd4bf', // Teal color from the modern theme
+          backgroundColor: colors.headerBackground,
         },
-        headerTintColor: '#ffffff',
+        headerTintColor: colors.headerTint,
         headerTitleStyle: {
           fontWeight: 'bold',
         },
@@ -112,21 +122,23 @@ function DriverTabNavigator() {
 
 // Main driver navigator with stack for modals/details
 export default function DriverNavigator() {
+  const { colors } = useTheme();
+
   return (
     <Stack.Navigator
       screenOptions={{
         headerStyle: {
-          backgroundColor: '#2dd4bf', // Teal color from the modern theme
+          backgroundColor: colors.headerBackground,
           elevation: 0,
           shadowOpacity: 0,
         },
-        headerTintColor: '#ffffff',
+        headerTintColor: colors.headerTint,
         headerTitleStyle: {
           fontWeight: 'bold',
           fontSize: 18,
         },
         cardStyle: {
-          backgroundColor: '#f8f9fa', // Light background color
+          backgroundColor: colors.background,
         },
       }}
     >
@@ -153,6 +165,47 @@ export default function DriverNavigator() {
         component={DriverDocumentsScreen}
         options={{ title: 'DriverDocuments' }}
       />
+
+      <Stack.Screen
+        name="RideDetails"
+        component={RideDetailsScreen}
+        options={{ title: 'Ride Details' }}
+      />
+       <Stack.Screen
+         name="Settings"
+         component={SettingsScreen}
+         options={{ title: 'Settings' }}
+       />
+
+       <Stack.Screen
+         name="Notifications"
+         component={NotificationsScreen}
+         options={{ title: 'Notifications' }}
+       />
+
+       <Stack.Screen
+         name="TermsConditions"
+         component={TermsConditionsScreen}
+         options={{ title: 'Terms & Conditions' }}
+       />
+      
+      <Stack.Screen
+        name="PaymentMethods"
+        component={PaymentMethodsScreen}
+        options={{ title: 'Payment Methods' }}
+      />
+      
+      <Stack.Screen
+        name="BillingHistory"
+        component={BillingHistoryScreen}
+        options={{ title: 'Billing History' }}
+      />
+      <Stack.Screen
+        name="Support"
+        component={SupportScreen}
+        options={{ title: 'Support' }}
+      />
+  
     </Stack.Navigator>
     
   );

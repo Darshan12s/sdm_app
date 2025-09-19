@@ -7,41 +7,416 @@ import {
   Alert,
   Switch,
   StyleSheet,
+  ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 
 // Import services and stores
 import { useAppStore, useUser } from '@/stores/appStore';
+import { supabase } from '@/services/supabase/client';
+import { useTheme } from '@/contexts/ThemeContext';
+import Toast from 'react-native-toast-message';
 
-export default function DriverHomeScreen() {
+export default function DriverHomeScreen({ navigation }: any) {
   const user = useUser();
+  const { colors } = useTheme();
   const [isOnline, setIsOnline] = useState(false);
   const [currentRide, setCurrentRide] = useState<any>(null); // Will be typed properly later
+  const [availableRides, setAvailableRides] = useState<any[]>([]);
+  const [isLocationTracking, setIsLocationTracking] = useState(false);
+  const [locationSubscription, setLocationSubscription] = useState<Location.LocationSubscription | null>(null);
+  const [loadingRides, setLoadingRides] = useState(false);
+  const [rideSubscription, setRideSubscription] = useState<any>(null);
+  const [driverLocation, setDriverLocation] = useState<{
+    latitude: number;
+    longitude: number;
+    lastLocationUpdate: string | null;
+  } | null>(null);
+  const [loadingLocation, setLoadingLocation] = useState(false);
+  const [loadingStats, setLoadingStats] = useState(false);
+  const [stats, setStats] = useState({
+    todayEarnings: 0,
+    todayRides: 0,
+    rating: 0,
+    totalRides: 0,
+  });
 
-  const stats = {
-    todayEarnings: 1250,
-    todayRides: 8,
-    rating: 4.7,
-    totalRides: 1247,
+  // Start real-time subscription for ride requests
+  const startRideSubscription = () => {
+    if (!user || !isOnline) return;
+
+    const subscription = supabase
+      .channel('ride_requests')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'bookings',
+          filter: 'status=eq.pending',
+        },
+        (payload) => {
+          console.log('New ride request:', payload);
+          // Add new ride to the list
+          setAvailableRides(prev => [payload.new, ...prev.slice(0, 4)]); // Keep only 5 most recent
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'bookings',
+          filter: 'status=neq.pending',
+        },
+        (payload) => {
+          // Remove ride if it's no longer pending (accepted by another driver)
+          setAvailableRides(prev => prev.filter(ride => ride.id !== payload.new.id));
+        }
+      )
+      .subscribe();
+
+    setRideSubscription(subscription);
+  };
+
+  // Stop ride subscription
+  const stopRideSubscription = () => {
+    if (rideSubscription) {
+      supabase.removeChannel(rideSubscription);
+      setRideSubscription(null);
+    }
+  };
+
+  // Fetch driver's current location from backend
+  const fetchDriverLocation = async () => {
+    if (!user) return;
+
+    try {
+      setLoadingLocation(true);
+      const { data, error } = await supabase
+        .from('drivers')
+        .select('current_latitude, current_longitude, updated_at')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching driver location:', error);
+        // Don't show error toast for location fetch as it's not critical
+        return;
+      }
+
+      if (data && data.current_latitude && data.current_longitude) {
+        setDriverLocation({
+          latitude: data.current_latitude,
+          longitude: data.current_longitude,
+          lastLocationUpdate: data.updated_at,
+        });
+      }
+    } catch (error) {
+      console.error('Error in fetchDriverLocation:', error);
+    } finally {
+      setLoadingLocation(false);
+    }
+  };
+
+  // Refresh driver location data
+  const refreshDriverLocation = () => {
+    fetchDriverLocation();
+  };
+
+  // Fetch available ride requests
+  const fetchAvailableRides = async () => {
+    if (!user || !isOnline) {
+      setAvailableRides([]);
+      return;
+    }
+
+    try {
+      setLoadingRides(true);
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          user:users(full_name, phone_no, whatsapp_phone, email)
+        `)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(5); // Limit to 5 most recent requests
+
+      if (error) throw error;
+
+      setAvailableRides(data || []);
+    } catch (error) {
+      console.error('Error fetching available rides:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to load ride requests',
+      });
+    } finally {
+      setLoadingRides(false);
+    }
+  };
+
+  // Fetch today's summary stats
+  const fetchTodaysSummary = async () => {
+    if (!user) return;
+
+    try {
+      setLoadingStats(true);
+
+      // Get today's date in YYYY-MM-DD format
+      const today = new Date().toISOString().split('T')[0];
+
+      // Fetch today's completed rides and earnings
+      const { data: todayData, error: todayError } = await supabase
+        .from('bookings')
+        .select('fare_amount')
+        .eq('driver_id', user.id)
+        .eq('status', 'completed')
+        .gte('created_at', `${today}T00:00:00.000Z`)
+        .lt('created_at', `${today}T23:59:59.999Z`);
+
+      if (todayError) throw todayError;
+
+      // Calculate today's earnings and rides
+      const todayEarnings = todayData?.reduce((sum, booking) => sum + (booking.fare_amount || 0), 0) || 0;
+      const todayRides = todayData?.length || 0;
+
+      // Fetch total completed rides
+      const { count: totalRides, error: totalError } = await supabase
+        .from('bookings')
+        .select('*', { count: 'exact', head: true })
+        .eq('driver_id', user.id)
+        .eq('status', 'completed');
+
+      if (totalError) throw totalError;
+
+      // Fetch driver rating
+      const { data: driverData, error: driverError } = await supabase
+        .from('drivers')
+        .select('rating')
+        .eq('id', user.id)
+        .single();
+
+      if (driverError) {
+        console.error('Error fetching driver rating:', driverError);
+        // Don't throw here, just use 0 as fallback
+      }
+
+      const rating = driverData?.rating || 0;
+
+      setStats({
+        todayEarnings,
+        todayRides,
+        rating,
+        totalRides: totalRides || 0,
+      });
+    } catch (error) {
+      console.error('Error fetching today\'s summary:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to load summary data',
+      });
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  // Accept ride request
+  const acceptRideRequest = async (rideId: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({
+          status: 'accepted',
+          driver_id: user.id,
+        })
+        .eq('id', rideId);
+
+      if (error) throw error;
+
+      // Get the accepted ride data
+      const acceptedRide = availableRides.find(ride => ride.id === rideId);
+
+      // Remove the accepted ride from available rides
+      setAvailableRides(prev => prev.filter(ride => ride.id !== rideId));
+
+      Toast.show({
+        type: 'success',
+        text1: 'Ride accepted successfully',
+        text2: 'Starting ride...',
+      });
+
+      // Navigate to ActiveRideScreen with the accepted ride
+      setTimeout(() => {
+        if (navigation) {
+          navigation.navigate('ActiveRide', { booking: acceptedRide });
+        }
+      }, 1500);
+
+    } catch (error) {
+      console.error('Error accepting ride:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to accept ride',
+      });
+    }
+  };
+
+  // Reject ride request
+  const rejectRideRequest = async (rideId: string) => {
+    try {
+      // For now, just remove from local state
+      // In a real implementation, you might want to mark it as rejected in the database
+      setAvailableRides(prev => prev.filter(ride => ride.id !== rideId));
+
+      Toast.show({
+        type: 'info',
+        text1: 'Ride request dismissed',
+      });
+    } catch (error) {
+      console.error('Error rejecting ride:', error);
+    }
+  };
+
+  // Note: is_online column doesn't exist in database yet
+  // This function is kept for future use when the column is added
+  const updateDriverOnlineStatus = async (online: boolean) => {
+    if (!user) return;
+
+    try {
+      // For now, just log the status change
+      console.log(`Driver ${online ? 'went online' : 'went offline'}`);
+      // Future: Update is_online column when it's added to the database
+      // await supabase.from('drivers').update({ is_online: online }).eq('id', user.id);
+    } catch (error) {
+      console.error('Error updating driver online status:', error);
+    }
+  };
+
+  const startLocationTracking = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Location permission is required for tracking');
+        return;
+      }
+
+      setIsLocationTracking(true);
+      const subscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 120000, // Update every 2 minutes
+          distanceInterval: 100, // Update every 100 meters
+        },
+        (location) => {
+          // Update driver location in database
+          if (user) {
+            updateDriverLocation(location.coords.latitude, location.coords.longitude);
+          }
+        }
+      );
+      setLocationSubscription(subscription);
+    } catch (error) {
+      console.error('Error starting location tracking:', error);
+      setIsLocationTracking(false);
+    }
+  };
+
+  const stopLocationTracking = () => {
+    if (locationSubscription) {
+      locationSubscription.remove();
+      setLocationSubscription(null);
+      setIsLocationTracking(false);
+    }
+  };
+
+  const updateDriverLocation = async (lat: number, lng: number) => {
+    if (!user) return;
+
+    try {
+      await supabase
+        .from('drivers')
+        .update({
+          current_latitude: lat,
+          current_longitude: lng,
+        })
+        .eq('id', user.id);
+    } catch (error) {
+      console.error('Error updating driver location:', error);
+    }
   };
 
   const toggleOnlineStatus = () => {
     if (!isOnline) {
       Alert.alert(
         'Go Online',
-        'Are you ready to accept ride requests?',
+        'Are you ready to accept ride requests? Location tracking will be enabled.',
         [
           { text: 'Cancel', style: 'cancel' },
           {
             text: 'Go Online',
-            onPress: () => setIsOnline(true),
+            onPress: async () => {
+              setIsOnline(true);
+              await updateDriverOnlineStatus(true);
+              startLocationTracking();
+            },
           },
         ]
       );
     } else {
-      setIsOnline(false);
+      Alert.alert(
+        'Go Offline',
+        'Stop accepting ride requests? Location tracking will be disabled.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Go Offline',
+            onPress: async () => {
+              setIsOnline(false);
+              await updateDriverOnlineStatus(false);
+              stopLocationTracking();
+            },
+          },
+        ]
+      );
     }
   };
+
+  // Fetch driver location and stats on component mount
+  useEffect(() => {
+    if (user) {
+      fetchDriverLocation();
+      fetchTodaysSummary();
+    }
+  }, [user]);
+
+  // Fetch available rides and manage subscriptions when driver goes online
+  useEffect(() => {
+    if (isOnline && user) {
+      fetchAvailableRides();
+      startRideSubscription();
+    } else {
+      setAvailableRides([]);
+      stopRideSubscription();
+    }
+
+    return () => {
+      stopRideSubscription();
+    };
+  }, [isOnline, user]);
+
+  // Cleanup subscriptions on unmount
+  useEffect(() => {
+    return () => {
+      stopLocationTracking();
+      stopRideSubscription();
+    };
+  }, []);
 
   const handleAcceptRide = () => {
     Alert.alert('Ride Accepted', 'You have accepted the ride request. Navigate to pickup location.');
@@ -51,12 +426,75 @@ export default function DriverHomeScreen() {
     Alert.alert('Ride Rejected', 'You have rejected the ride request.');
   };
 
+  // Handle Update Location button press
+  const handleUpdateLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Location permission is required to update location');
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+
+      if (user) {
+        await updateDriverLocation(location.coords.latitude, location.coords.longitude);
+        Toast.show({
+          type: 'success',
+          text1: 'Location Updated',
+          text2: 'Your current location has been updated successfully',
+        });
+      }
+    } catch (error) {
+      console.error('Error updating location:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Location Update Failed',
+        text2: 'Unable to update your location',
+      });
+    }
+  };
+
+  // Handle Settings button press
+  const handleSettingsPress = () => {
+    if (navigation) {
+      navigation.navigate('Settings');
+    }
+  };
+
+  // Handle Emergency button press
+  const handleEmergencyPress = () => {
+    Alert.alert(
+      'Emergency',
+      'Are you in an emergency situation?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Call Emergency',
+          onPress: () => {
+            Linking.openURL('tel:112');
+          },
+          style: 'destructive',
+        },
+      ]
+    );
+  };
+
+  // Handle Analytics button press
+  const handleAnalyticsPress = () => {
+    if (navigation) {
+      navigation.navigate('Earnings');
+    }
+  };
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles(colors).container}>
       {/* Online Status */}
-      <View style={styles.statusCard}>
-        <View style={styles.statusHeader}>
-          <Text style={styles.statusTitle}>Driver Status</Text>
+      <View style={styles(colors).statusCard}>
+        <View style={styles(colors).statusHeader}>
+          <Text style={styles(colors).statusTitle}>Driver Status</Text>
           <Switch
             value={isOnline}
             onValueChange={toggleOnlineStatus}
@@ -64,107 +502,158 @@ export default function DriverHomeScreen() {
             thumbColor={isOnline ? '#ffffff' : '#f1f5f9'}
           />
         </View>
-        <Text style={[styles.statusText, isOnline ? styles.onlineText : styles.offlineText]}>
+        <Text style={[styles(colors).statusText, isOnline ? styles(colors).onlineText : styles(colors).offlineText]}>
           {isOnline ? 'Online - Accepting rides' : 'Offline - Not accepting rides'}
         </Text>
+        {isOnline && isLocationTracking && (
+          <View style={styles(colors).locationStatusContainer}>
+            <MaterialIcons name="location-on" size={16} color={colors.primary} />
+            <Text style={styles(colors).locationStatusText}>
+              Location tracking active
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Current Ride */}
       {currentRide && (
-        <View style={styles.rideCard}>
-          <Text style={styles.rideTitle}>Current Ride</Text>
-          <View style={styles.rideDetails}>
-            <Text style={styles.rideDetailText}>Pickup: {currentRide.pickup}</Text>
-            <Text style={styles.rideDetailText}>Drop: {currentRide.drop}</Text>
-            <Text style={styles.rideDetailText}>Fare: ₹{currentRide.fare}</Text>
+        <View style={styles(colors).rideCard}>
+          <Text style={styles(colors).rideTitle}>Current Ride</Text>
+          <View style={styles(colors).rideDetails}>
+            <Text style={styles(colors).rideDetailText}>Pickup: {currentRide.pickup}</Text>
+            <Text style={styles(colors).rideDetailText}>Drop: {currentRide.drop}</Text>
+            <Text style={styles(colors).rideDetailText}>Fare: ₹{currentRide.fare}</Text>
           </View>
-          <View style={styles.rideActions}>
-            <TouchableOpacity style={styles.arrivedButton}>
-              <Text style={styles.arrivedButtonText}>Arrived at Pickup</Text>
+          <View style={styles(colors).rideActions}>
+            <TouchableOpacity style={styles(colors).arrivedButton}>
+              <Text style={styles(colors).arrivedButtonText}>Arrived at Pickup</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.completeButton}>
-              <Text style={styles.completeButtonText}>Complete Ride</Text>
+            <TouchableOpacity style={styles(colors).completeButton}>
+              <Text style={styles(colors).completeButtonText}>Complete Ride</Text>
             </TouchableOpacity>
           </View>
         </View>
       )}
 
-      {/* Available Ride Request */}
+      {/* Available Ride Requests */}
       {isOnline && !currentRide && (
-        <View style={styles.requestCard}>
-          <View style={styles.requestTitleContainer}>
-            <MaterialIcons name="directions-car" size={20} color="#1e293b" />
-            <Text style={styles.requestTitle}>New Ride Request</Text>
-          </View>
-          <View style={styles.requestDetails}>
-            <Text style={styles.requestDetailText}>Distance: 2.5 km</Text>
-            <Text style={styles.requestDetailText}>Fare: ₹180</Text>
-            <Text style={styles.requestDetailText}>Pickup: Connaught Place</Text>
-            <Text style={styles.requestDetailText}>Drop: Karol Bagh</Text>
-          </View>
-          <View style={styles.requestActions}>
-            <TouchableOpacity
-              style={styles.rejectButton}
-              onPress={handleRejectRide}
-            >
-              <Text style={styles.rejectButtonText}>Reject</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.acceptButton}
-              onPress={handleAcceptRide}
-            >
-              <Text style={styles.acceptButtonText}>Accept</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        <>
+          {loadingRides ? (
+            <View style={styles(colors).loadingCard}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={[styles(colors).loadingText, { color: colors.textSecondary }]}>
+                Loading ride requests...
+              </Text>
+            </View>
+          ) : availableRides.length > 0 ? (
+            availableRides.map((ride) => (
+              <View key={ride.id} style={styles(colors).requestCard}>
+                <View style={styles(colors).requestTitleContainer}>
+                  <MaterialIcons name="directions-car" size={20} color={colors.text} />
+                  <Text style={styles(colors).requestTitle}>New Ride Request</Text>
+                </View>
+                <View style={styles(colors).requestDetails}>
+                  <Text style={styles(colors).requestDetailText}>
+                    Distance: {ride.distance_km ? `${ride.distance_km.toFixed(1)} km` : 'N/A'}
+                  </Text>
+                  <Text style={styles(colors).requestDetailText}>
+                    Fare: ₹{ride.fare_amount ? ride.fare_amount.toFixed(2) : '0.00'}
+                  </Text>
+                  <Text style={styles(colors).requestDetailText}>
+                    Pickup: {ride.pickup_address || 'N/A'}
+                  </Text>
+                  <Text style={styles(colors).requestDetailText}>
+                    Drop: {ride.dropoff_address || 'N/A'}
+                  </Text>
+                  <Text style={styles(colors).requestDetailText}>
+                    Customer: {ride.user?.full_name || 'N/A'}
+                  </Text>
+                </View>
+                <View style={styles(colors).requestActions}>
+                  <TouchableOpacity
+                    style={styles(colors).rejectButton}
+                    onPress={() => rejectRideRequest(ride.id)}
+                  >
+                    <Text style={styles(colors).rejectButtonText}>Reject</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles(colors).acceptButton}
+                    onPress={() => acceptRideRequest(ride.id)}
+                  >
+                    <Text style={styles(colors).acceptButtonText}>Accept</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          ) : (
+            <View style={styles(colors).noRequestsCard}>
+              <MaterialIcons name="schedule" size={40} color={colors.textMuted} />
+              <Text style={[styles(colors).noRequestsTitle, { color: colors.text }]}>
+                No Ride Requests
+              </Text>
+              <Text style={[styles(colors).noRequestsText, { color: colors.textSecondary }]}>
+                Waiting for new ride requests...
+              </Text>
+            </View>
+          )}
+        </>
       )}
 
       {/* Stats */}
-      <View style={styles.statsSection}>
-        <Text style={styles.statsTitle}>Today's Summary</Text>
-        <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <MaterialIcons name="attach-money" size={28} color="#10b981" />
-            <Text style={styles.statValue}>₹{stats.todayEarnings}</Text>
-            <Text style={styles.statLabel}>Earnings</Text>
+      <View style={styles(colors).statsSection}>
+        <Text style={styles(colors).statsTitle}>Today's Summary</Text>
+        {loadingStats ? (
+          <View style={styles(colors).loadingCard}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={[styles(colors).loadingText, { color: colors.textSecondary }]}>
+              Loading summary...
+            </Text>
           </View>
-          <View style={styles.statCard}>
-            <MaterialIcons name="directions-car" size={28} color="#2563eb" />
-            <Text style={styles.statValue}>{stats.todayRides}</Text>
-            <Text style={styles.statLabel}>Rides</Text>
+        ) : (
+          <View style={styles(colors).statsGrid}>
+            <View style={styles(colors).statCard}>
+              <MaterialIcons name="attach-money" size={28} color={colors.success} />
+              <Text style={styles(colors).statValue}>₹{stats.todayEarnings.toFixed(2)}</Text>
+              <Text style={styles(colors).statLabel}>Earnings</Text>
+            </View>
+            <View style={styles(colors).statCard}>
+              <MaterialIcons name="directions-car" size={28} color={colors.primary} />
+              <Text style={styles(colors).statValue}>{stats.todayRides}</Text>
+              <Text style={styles(colors).statLabel}>Rides</Text>
+            </View>
+            <View style={styles(colors).statCard}>
+              <MaterialIcons name="star" size={28} color={colors.warning} />
+              <Text style={styles(colors).statValue}>{stats.rating.toFixed(1)}</Text>
+              <Text style={styles(colors).statLabel}>Rating</Text>
+            </View>
+            <View style={styles(colors).statCard}>
+              <MaterialIcons name="bar-chart" size={28} color={colors.info} />
+              <Text style={styles(colors).statValue}>{stats.totalRides}</Text>
+              <Text style={styles(colors).statLabel}>Total</Text>
+            </View>
           </View>
-          <View style={styles.statCard}>
-            <MaterialIcons name="star" size={28} color="#f59e0b" />
-            <Text style={styles.statValue}>{stats.rating}</Text>
-            <Text style={styles.statLabel}>Rating</Text>
-          </View>
-          <View style={styles.statCard}>
-            <MaterialIcons name="bar-chart" size={28} color="#8b5cf6" />
-            <Text style={styles.statValue}>{stats.totalRides}</Text>
-            <Text style={styles.statLabel}>Total</Text>
-          </View>
-        </View>
+        )}
       </View>
 
       {/* Quick Actions */}
-      <View style={styles.actionsSection}>
-        <Text style={styles.actionsTitle}>Quick Actions</Text>
-        <View style={styles.actionsGrid}>
-          <TouchableOpacity style={styles.actionCard}>
-            <MaterialIcons name="my-location" size={24} color="#64748b" />
-            <Text style={styles.actionText}>Update Location</Text>
+      <View style={styles(colors).actionsSection}>
+        <Text style={styles(colors).actionsTitle}>Quick Actions</Text>
+        <View style={styles(colors).actionsGrid}>
+          <TouchableOpacity style={styles(colors).actionCard} onPress={handleUpdateLocation}>
+            <MaterialIcons name="my-location" size={24} color={colors.textSecondary} />
+            <Text style={styles(colors).actionText}>Update Location</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionCard}>
-            <MaterialIcons name="phone" size={24} color="#ef4444" />
-            <Text style={styles.actionText}>Emergency</Text>
+          <TouchableOpacity style={styles(colors).actionCard} onPress={handleEmergencyPress}>
+            <MaterialIcons name="phone" size={24} color={colors.error} />
+            <Text style={styles(colors).actionText}>Emergency</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionCard}>
-            <MaterialIcons name="settings" size={24} color="#64748b" />
-            <Text style={styles.actionText}>Settings</Text>
+          <TouchableOpacity style={styles(colors).actionCard} onPress={handleSettingsPress}>
+            <MaterialIcons name="settings" size={24} color={colors.textSecondary} />
+            <Text style={styles(colors).actionText}>Settings</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionCard}>
-            <MaterialIcons name="analytics" size={24} color="#64748b" />
-            <Text style={styles.actionText}>Analytics</Text>
+          <TouchableOpacity style={styles(colors).actionCard} onPress={handleAnalyticsPress}>
+            <MaterialIcons name="analytics" size={24} color={colors.textSecondary} />
+            <Text style={styles(colors).actionText}>Analytics</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -172,20 +661,20 @@ export default function DriverHomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: colors.background,
   },
   statusCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.card,
     marginHorizontal: 20,
     marginTop: 20,
     padding: 20,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    shadowColor: '#000',
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOffset: {
       width: 0,
       height: 8,
@@ -203,27 +692,27 @@ const styles = StyleSheet.create({
   statusTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
+    color: colors.text,
   },
   statusText: {
     fontSize: 14,
     fontWeight: '500',
   },
   onlineText: {
-    color: '#10b981',
+    color: colors.success,
   },
   offlineText: {
-    color: '#ef4444',
+    color: colors.error,
   },
   rideCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.card,
     marginHorizontal: 20,
     marginVertical: 20,
     padding: 20,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    shadowColor: '#000',
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOffset: {
       width: 0,
       height: 8,
@@ -235,7 +724,7 @@ const styles = StyleSheet.create({
   rideTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
+    color: colors.text,
     marginBottom: 12,
   },
   rideDetails: {
@@ -243,7 +732,7 @@ const styles = StyleSheet.create({
   },
   rideDetailText: {
     fontSize: 14,
-    color: '#64748b',
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   rideActions: {
@@ -252,37 +741,37 @@ const styles = StyleSheet.create({
   },
   arrivedButton: {
     flex: 1,
-    backgroundColor: '#f59e0b',
+    backgroundColor: colors.warning,
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
   },
   arrivedButtonText: {
-    color: '#ffffff',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '600',
   },
   completeButton: {
     flex: 1,
-    backgroundColor: '#10b981',
+    backgroundColor: colors.success,
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
   },
   completeButtonText: {
-    color: '#ffffff',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '600',
   },
   requestCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.card,
     marginHorizontal: 20,
     marginVertical: 20,
     padding: 20,
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: '#2563eb',
-    shadowColor: '#000',
+    borderColor: colors.primary,
+    shadowColor: colors.shadow,
     shadowOffset: {
       width: 0,
       height: 8,
@@ -300,14 +789,14 @@ const styles = StyleSheet.create({
   requestTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
+    color: colors.text,
   },
   requestDetails: {
     marginBottom: 16,
   },
   requestDetailText: {
     fontSize: 14,
-    color: '#64748b',
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   requestActions: {
@@ -316,25 +805,25 @@ const styles = StyleSheet.create({
   },
   rejectButton: {
     flex: 1,
-    backgroundColor: '#ef4444',
+    backgroundColor: colors.error,
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
   },
   rejectButtonText: {
-    color: '#ffffff',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '600',
   },
   acceptButton: {
     flex: 1,
-    backgroundColor: '#10b981',
+    backgroundColor: colors.success,
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
   },
   acceptButtonText: {
-    color: '#ffffff',
+    color: colors.text,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -345,7 +834,7 @@ const styles = StyleSheet.create({
   statsTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#1e293b',
+    color: colors.text,
     marginBottom: 16,
   },
   statsGrid: {
@@ -356,13 +845,13 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     minWidth: '45%',
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.card,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    shadowColor: '#000',
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOffset: {
       width: 0,
       height: 4,
@@ -374,12 +863,12 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: colors.text,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: '#64748b',
+    color: colors.textSecondary,
   },
   actionsSection: {
     paddingHorizontal: 20,
@@ -388,7 +877,7 @@ const styles = StyleSheet.create({
   actionsTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#1e293b',
+    color: colors.text,
     marginBottom: 16,
   },
   actionsGrid: {
@@ -399,13 +888,13 @@ const styles = StyleSheet.create({
   actionCard: {
     flex: 1,
     minWidth: '45%',
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.card,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    shadowColor: '#000',
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOffset: {
       width: 0,
       height: 4,
@@ -417,6 +906,59 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#64748b',
+    color: colors.textSecondary,
+  },
+  locationStatusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: colors.primaryLight || colors.primary,
+    borderRadius: 6,
+  },
+  locationStatusText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.text,
+    marginLeft: 6,
+  },
+  loadingCard: {
+    backgroundColor: colors.card,
+    marginHorizontal: 20,
+    marginVertical: 20,
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    marginTop: 8,
+    color: colors.textSecondary,
+  },
+  noRequestsCard: {
+    backgroundColor: colors.card,
+    marginHorizontal: 20,
+    marginVertical: 20,
+    padding: 30,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noRequestsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 12,
+    marginBottom: 4,
+    color: colors.text,
+  },
+  noRequestsText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
 });

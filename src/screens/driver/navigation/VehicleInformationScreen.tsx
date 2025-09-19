@@ -14,8 +14,10 @@ import {
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/services/supabase/client';
 import { useUser } from '@/stores/appStore';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function VehicleInformationScreen({ navigation }: { navigation: any }) {
+  const { colors } = useTheme();
   const user = useUser();
   const [isLoading, setIsLoading] = useState(true);
   const [vehicle, setVehicle] = useState<any>(null);
@@ -59,30 +61,29 @@ export default function VehicleInformationScreen({ navigation }: { navigation: a
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#3b82f6" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView style={styles.container}>
         {vehicle ? (
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
             {vehicle.image_url && (
               <Image source={{ uri: vehicle.image_url }} style={styles.vehicleImage} />
             )}
-            
+
             <View style={styles.infoSection}>
-              <Text style={styles.sectionTitle}>Basic Information</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Basic Information</Text>
               <InfoRow label="Make" value={vehicle.make} />
               <InfoRow label="Model" value={vehicle.model} />
               <InfoRow label="Year" value={vehicle.year} />
@@ -92,14 +93,14 @@ export default function VehicleInformationScreen({ navigation }: { navigation: a
             </View>
 
             <View style={styles.infoSection}>
-              <Text style={styles.sectionTitle}>Capacity & Status</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Capacity & Status</Text>
               <InfoRow label="Capacity" value={`${vehicle.capacity} persons`} />
               <InfoRow label="Status" value={vehicle.status} />
               <InfoRow label="Vendor" value={vehicle.vendor_id} />
             </View>
 
             <View style={styles.infoSection}>
-              <Text style={styles.sectionTitle}>Service Information</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Service Information</Text>
               <InfoRow label="Current Odometer" value={`${vehicle.current_odometer || 0} km`} />
               <InfoRow label="Last Service" value={vehicle.last_service_date || 'NA'} />
               <InfoRow label="Next Service Due" value={vehicle.next_service_due_date || 'NA'} />
@@ -107,8 +108,8 @@ export default function VehicleInformationScreen({ navigation }: { navigation: a
               <InfoRow label="Monthly Distance" value={vehicle.monthly_distance ? `${vehicle.monthly_distance} km` : 'NA'} />
             </View>
 
-            <TouchableOpacity 
-              style={styles.documentsButton}
+            <TouchableOpacity
+              style={[styles.documentsButton, { backgroundColor: colors.primary }]}
               onPress={() => navigation.navigate('VehicleDocuments')}
             >
               <MaterialIcons name="description" size={20} color="#fff" />
@@ -117,9 +118,9 @@ export default function VehicleInformationScreen({ navigation }: { navigation: a
           </View>
         ) : (
           <View style={styles.emptyState}>
-            <MaterialIcons name="airport-shuttle" size={64} color="#64748b" />
-            <Text style={styles.emptyStateText}>No Vehicle Assigned</Text>
-            <Text style={styles.emptyStateSubtext}>
+            <MaterialIcons name="airport-shuttle" size={64} color={colors.textSecondary} />
+            <Text style={[styles.emptyStateText, { color: colors.text }]}>No Vehicle Assigned</Text>
+            <Text style={[styles.emptyStateSubtext, { color: colors.textSecondary }]}>
               You haven't been assigned a vehicle yet. Please contact your administrator.
             </Text>
           </View>
@@ -129,17 +130,19 @@ export default function VehicleInformationScreen({ navigation }: { navigation: a
   );
 }
 
-const InfoRow = ({ label, value }: { label: string; value: any }) => (
-  <View style={styles.infoRow}>
-    <Text style={styles.infoLabel}>{label}</Text>
-    <Text style={styles.infoValue}>{value || 'SDM'}</Text>
-  </View>
-);
+const InfoRow = ({ label, value }: { label: string; value: any }) => {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.infoRow, { borderBottomColor: colors.borderLight }]}>
+      <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>{label}</Text>
+      <Text style={[styles.infoValue, { color: colors.text }]}>{value || 'SDM'}</Text>
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   centered: {
     flex: 1,
@@ -152,9 +155,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
   },
   backButton: {
     padding: 8,
@@ -162,7 +163,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1e293b',
   },
   headerSpacer: {
     width: 40,
@@ -172,7 +172,6 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   card: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
     shadowColor: '#000',
@@ -193,7 +192,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1e293b',
     marginBottom: 16,
   },
   infoRow: {
@@ -202,23 +200,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
   },
   infoLabel: {
     fontSize: 14,
-    color: '#64748b',
     fontWeight: '500',
   },
   infoValue: {
     fontSize: 14,
-    color: '#1e293b',
     fontWeight: '600',
   },
   documentsButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#3b82f6',
     padding: 16,
     borderRadius: 8,
     marginTop: 16,
@@ -236,13 +230,11 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1e293b',
     marginTop: 16,
     marginBottom: 8,
   },
   emptyStateSubtext: {
     fontSize: 14,
-    color: '#64748b',
     textAlign: 'center',
   },
 });

@@ -5,7 +5,7 @@
     "jsx": "react-jsx",
     "jsxImportSource": "react",
     "allowImportingTsExtensions": false,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,

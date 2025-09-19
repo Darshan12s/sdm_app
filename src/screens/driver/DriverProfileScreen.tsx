@@ -21,10 +21,12 @@ import { AuthService } from '@/services/supabase/auth';
 import { useAppStore, useUser } from '@/stores/appStore';
 import { supabase } from '@/services/supabase/client';
 import { uploadWithRestAPI } from '@/utils/storageTest';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function DriverProfileScreen({ navigation }: { navigation: any }) {
   const user = useUser();
   const { setLoading } = useAppStore();
+  const { colors } = useTheme();
 
   const [isLoading, setIsLoading] = useState(true);
   const [profileImage, setProfileImage] = useState<string | null>(null);
@@ -41,6 +43,7 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
   const [rating, setRating] = useState(0.0);
   const [totalTrips, setTotalTrips] = useState(0);
   const [totalEarnings, setTotalEarnings] = useState(0);
+  // const [averageEarnings, setAverageEarnings] = useState(0);
 
   // Editing states
   const [isEditingPersonalInfo, setIsEditingPersonalInfo] = useState(false);
@@ -89,21 +92,21 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
       subtitle: 'Manage app notifications',
       icon: 'notifications',
       iconType: 'MaterialIcons',
-      onPress: () => Alert.alert('Coming Soon', 'Notifications settings coming soon'),
+      onPress: () => navigation.navigate('Notifications'),
     },
     {
       title: 'Support',
       subtitle: 'Get help and contact us',
       icon: 'help',
       iconType: 'MaterialIcons',
-      onPress: () => Alert.alert('Coming Soon', 'Support coming soon'),
+       onPress: () => navigation.navigate('Support'),
     },
     {
       title: 'Settings',
       subtitle: 'App preferences and privacy',
       icon: 'settings',
       iconType: 'MaterialIcons',
-      onPress: () => Alert.alert('Coming Soon', 'Settings coming soon'),
+      onPress: () => navigation.navigate('Settings'),
     },
   ];
 
@@ -253,16 +256,20 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
           : 0;
         
         // Calculate total earnings
-        const totalEarningsValue = completedBookings.reduce((sum, booking) => 
+        const totalEarningsValue = completedBookings.reduce((sum, booking) =>
           sum + (booking.fare_amount || 0), 0
         );
-        
+
+        // Calculate average earnings per ride
+        const averageEarningsValue = completedBookings.length > 0
+          ? totalEarningsValue / completedBookings.length
+          : 0;
+
         // Set the calculated values
         setRating(parseFloat(averageRating.toFixed(1)));
         setTotalTrips(bookingsData.length);
-        setCompletedTrips(completedBookings.length);
-        setCancelledTrips(cancelledBookings.length);
         setTotalEarnings(totalEarningsValue);
+        // setAverageEarnings(averageEarningsValue);
       } else {
         // No bookings found, use mock data
        
@@ -680,8 +687,8 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.centered}>
+      <SafeAreaView style={styles(colors).safeArea}>
+        <View style={styles(colors).centered}>
           <ActivityIndicator size="large" />
         </View>
       </SafeAreaView>
@@ -689,75 +696,75 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Driver Profile</Text>
-          <View style={styles.headerSpacer} />
+    <SafeAreaView style={styles(colors).safeArea}>
+      <ScrollView style={styles(colors).container}>
+        <View style={styles(colors).header}>
+          <Text style={styles(colors).title}>Driver Profile</Text>
+          <View style={styles(colors).headerSpacer} />
         </View>
 
-        <View style={styles.profileSection}>
-          <TouchableOpacity onPress={showImagePickerOptions} style={styles.avatarContainer}>
+        <View style={styles(colors).profileSection}>
+          <TouchableOpacity onPress={showImagePickerOptions} style={styles(colors).avatarContainer}>
             {profileImage ? (
-              <Image source={{ uri: profileImage }} style={styles.avatar} />
+              <Image source={{ uri: profileImage }} style={styles(colors).avatar} />
             ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Ionicons name="person" size={40} color="#64748b" />
+              <View style={styles(colors).avatarPlaceholder}>
+                <Ionicons name="person" size={40} color={colors.textSecondary} />
               </View>
             )}
-            <View style={styles.cameraButton}>
-              <Ionicons name="camera" size={20} color="#fff" />
+            <View style={styles(colors).cameraButton}>
+              <Ionicons name="camera" size={20} color={colors.text} />
             </View>
           </TouchableOpacity>
-          <Text style={styles.userName}>{userName || 'Driver'}</Text>
-          <View style={styles.ratingContainer}>
-            <Ionicons name="star" size={18} color="#f59e0b" />
-            <Text style={styles.ratingText}>
+          <Text style={styles(colors).userName}>{userName || 'Driver'}</Text>
+          <View style={styles(colors).ratingContainer}>
+            <Ionicons name="star" size={18} color={colors.warning} />
+            <Text style={styles(colors).ratingText}>
               {rating.toFixed(1)} ({totalTrips} rides)
             </Text>
           </View>
         </View>
 
         {/* Personal Information Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Personal Information</Text>
+        <View style={styles(colors).card}>
+          <View style={styles(colors).cardHeader}>
+            <Text style={styles(colors).cardTitle}>Personal Information</Text>
             <TouchableOpacity onPress={toggleEditPersonalInfo}>
-              <Text style={styles.editButtonText}>
+              <Text style={styles(colors).editButtonText}>
                 {isEditingPersonalInfo ? 'Save' : 'Edit'}
               </Text>
             </TouchableOpacity>
           </View>
 
-          <View style={styles.infoItem}>
-            <View style={styles.infoIcon}>
-              <MaterialIcons name="phone" size={20} color="#64748b" />
+          <View style={styles(colors).infoItem}>
+            <View style={styles(colors).infoIcon}>
+              <MaterialIcons name="phone" size={20} color={colors.textSecondary} />
             </View>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Phone Number</Text>
+            <View style={styles(colors).infoContent}>
+              <Text style={styles(colors).infoLabel}>Phone Number</Text>
               {isEditingPersonalInfo ? (
                 <TextInput
-                  style={styles.input}
+                  style={styles(colors).input}
                   value={tempPhoneNumber}
                   onChangeText={setTempPhoneNumber}
                   placeholder="Enter phone number"
                   keyboardType="phone-pad"
                 />
               ) : (
-                <Text style={styles.infoValue}>{phoneNumber || 'Not provided'}</Text>
+                <Text style={styles(colors).infoValue}>{phoneNumber || 'Not provided'}</Text>
               )}
             </View>
           </View>
 
-          <View style={styles.infoItem}>
-            <View style={styles.infoIcon}>
-              <MaterialIcons name="email" size={20} color="#64748b" />
+          <View style={styles(colors).infoItem}>
+            <View style={styles(colors).infoIcon}>
+              <MaterialIcons name="email" size={20} color={colors.textSecondary} />
             </View>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Email</Text>
+            <View style={styles(colors).infoContent}>
+              <Text style={styles(colors).infoLabel}>Email</Text>
               {isEditingPersonalInfo ? (
                 <TextInput
-                  style={styles.input}
+                  style={styles(colors).input}
                   value={tempEmail}
                   onChangeText={setTempEmail}
                   placeholder="Enter email"
@@ -765,98 +772,103 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
                   autoCapitalize="none"
                 />
               ) : (
-                <Text style={styles.infoValue}>{email}</Text>
+                <Text style={styles(colors).infoValue}>{email}</Text>
               )}
             </View>
           </View>
 
-          <View style={styles.infoItem}>
-            <View style={styles.infoIcon}>
-              <MaterialIcons name="person" size={20} color="#64748b" />
+          <View style={styles(colors).infoItem}>
+            <View style={styles(colors).infoIcon}>
+              <MaterialIcons name="person" size={20} color={colors.textSecondary} />
             </View>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Full Name</Text>
+            <View style={styles(colors).infoContent}>
+              <Text style={styles(colors).infoLabel}>Full Name</Text>
               {isEditingPersonalInfo ? (
                 <TextInput
-                  style={styles.input}
+                  style={styles(colors).input}
                   value={tempUserName}
                   onChangeText={setTempUserName}
                   placeholder="Enter your name"
                 />
               ) : (
-                <Text style={styles.infoValue}>{userName}</Text>
+                <Text style={styles(colors).infoValue}>{userName}</Text>
               )}
             </View>
           </View>
 
-          <View style={styles.infoItem}>
-            <View style={styles.infoIcon}>
-              <MaterialIcons name="badge" size={20} color="#64748b" />
+          <View style={styles(colors).infoItem}>
+            <View style={styles(colors).infoIcon}>
+              <MaterialIcons name="badge" size={20} color={colors.textSecondary} />
             </View>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>License Number</Text>
+            <View style={styles(colors).infoContent}>
+              <Text style={styles(colors).infoLabel}>License Number</Text>
               {isEditingPersonalInfo ? (
                 <TextInput
-                  style={styles.input}
+                  style={styles(colors).input}
                   value={tempLicenseNumber}
                   onChangeText={setTempLicenseNumber}
                   placeholder="Enter license number"
                 />
               ) : (
-                <Text style={styles.infoValue}>{licenseNumber || 'Not provided'}</Text>
+                <Text style={styles(colors).infoValue}>{licenseNumber || 'Not provided'}</Text>
               )}
             </View>
           </View>
         </View>
 
         {/* Driver Statistics Card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Driver Statistics</Text>
+        <View style={styles(colors).card}>
+          <Text style={styles(colors).cardTitle}>Driver Statistics</Text>
 
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{totalTrips.toLocaleString()}</Text>
-              <Text style={styles.statLabel}>Total Rides</Text>
+          <View style={styles(colors).statsContainer}>
+            <View style={styles(colors).statItem}>
+              <Text style={styles(colors).statValue}>{totalTrips.toLocaleString()}</Text>
+              <Text style={styles(colors).statLabel}>Total Rides</Text>
             </View>
 
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{rating.toFixed(1)}</Text>
-              <Text style={styles.statLabel}>Rating</Text>
+            <View style={styles(colors).statItem}>
+              <Text style={styles(colors).statValue}>{rating.toFixed(1)}</Text>
+              <Text style={styles(colors).statLabel}>Rating</Text>
             </View>
 
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>₹{totalEarnings.toLocaleString()}</Text>
-              <Text style={styles.statLabel}>Total Earnings</Text>
+            <View style={styles(colors).statItem}>
+              <Text style={styles(colors).statValue}>₹{totalEarnings.toLocaleString()}</Text>
+              <Text style={styles(colors).statLabel}>Total Earnings</Text>
             </View>
+{/* 
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>₹{averageEarnings.toFixed(0)}</Text>
+              <Text style={styles.statLabel}>Avg per Ride</Text>
+            </View> */}
           </View>
         </View>
 
         {/* Menu Items Card */}
-        <View style={styles.card}>
+        <View style={styles(colors).card}>
           {menuItems.map((item, index) => (
-            <TouchableOpacity 
-              key={index} 
+            <TouchableOpacity
+              key={index}
               style={[
-                styles.menuItem,
-                index < menuItems.length - 1 && styles.menuItemBorder
+                styles(colors).menuItem,
+                index < menuItems.length - 1 && styles(colors).menuItemBorder
               ]}
               onPress={item.onPress}
             >
-              <View style={styles.menuItemIcon}>
-                <MaterialIcons name={item.icon as any} size={24} color="#3b82f6" />
+              <View style={styles(colors).menuItemIcon}>
+                <MaterialIcons name={item.icon as any} size={24} color={colors.primary} />
               </View>
-              <View style={styles.menuItemContent}>
-                <Text style={styles.menuItemTitle}>{item.title}</Text>
-                <Text style={styles.menuItemSubtitle}>{item.subtitle}</Text>
+              <View style={styles(colors).menuItemContent}>
+                <Text style={styles(colors).menuItemTitle}>{item.title}</Text>
+                <Text style={styles(colors).menuItemSubtitle}>{item.subtitle}</Text>
               </View>
-              <MaterialIcons name="chevron-right" size={24} color="#64748b" />
+              <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           ))}
         </View>
 
         {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutText}>Logout</Text>
+        <TouchableOpacity style={styles(colors).logoutButton} onPress={handleLogout}>
+          <Text style={styles(colors).logoutText}>Logout</Text>
         </TouchableOpacity>
 
         {/* Date Picker */}
@@ -874,10 +886,10 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
   );
 }
 
-const styles = StyleSheet.create({
+const styles = (colors: any) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.background,
   },
   centered: {
     flex: 1,
@@ -886,7 +898,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -894,9 +906,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: colors.border,
   },
   backButton: {
     padding: 8,
@@ -904,7 +916,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: colors.text,
     left: 120,
   },
   headerSpacer: {
@@ -928,7 +940,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#EEEEEE',
+    backgroundColor: colors.placeholder || '#EEEEEE',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -936,7 +948,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0,
     bottom: 0,
-    backgroundColor: '#000',
+    backgroundColor: colors.text,
     borderRadius: 18,
     width: 36,
     height: 36,
@@ -947,7 +959,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 4,
-    color: '#1e293b',
+    color: colors.text,
   },
   ratingContainer: {
     flexDirection: 'row',
@@ -955,16 +967,16 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: 14,
-    color: '#64748b',
+    color: colors.textSecondary,
     marginLeft: 4,
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.cardBackground || colors.background,
     borderRadius: 12,
     padding: 16,
     marginHorizontal: 16,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: colors.shadow || '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -979,10 +991,10 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: colors.text,
   },
   editButtonText: {
-    color: '#007AFF',
+    color: colors.primary,
     fontWeight: '500',
   },
   infoItem: {
@@ -999,23 +1011,26 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 12,
-    color: '#64748b',
+    color: colors.textSecondary,
     marginBottom: 2,
   },
   infoValue: {
     fontSize: 16,
-    color: '#1e293b',
+    color: colors.text,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: colors.border,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
+    backgroundColor: colors.inputBackground || colors.background,
+    color: colors.text,
   },
   statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
   },
   statItem: {
     alignItems: 'center',
@@ -1023,12 +1038,12 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1e293b',
+    color: colors.text,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 14,
-    color: '#64748b',
+    color: colors.textSecondary,
   },
   menuItem: {
     flexDirection: 'row',
@@ -1037,13 +1052,13 @@ const styles = StyleSheet.create({
   },
   menuItemBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: colors.border,
   },
   menuItemIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#eff6ff',
+    backgroundColor: colors.primaryLight || colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -1054,15 +1069,15 @@ const styles = StyleSheet.create({
   menuItemTitle: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#1e293b',
+    color: colors.text,
     marginBottom: 4,
   },
   menuItemSubtitle: {
     fontSize: 14,
-    color: '#64748b',
+    color: colors.textSecondary,
   },
   logoutButton: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: colors.errorBackground || '#fef2f2',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
@@ -1071,16 +1086,10 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   logoutText: {
-    color: '#dc2626',
+    color: colors.error || '#dc2626',
     fontWeight: 'bold',
     fontSize: 16,
   },
 });
 
-function setCompletedTrips(length: number) {
-  throw new Error('Function not implemented.');
-}
-function setCancelledTrips(length: number) {
-  throw new Error('Function not implemented.');
-}
 

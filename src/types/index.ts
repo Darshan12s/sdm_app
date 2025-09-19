@@ -120,6 +120,24 @@ export interface Booking {
   advance_amount?: number;
   payment_method?: string;
   remaining_amount?: number;
+  user?: {
+    full_name: string;
+    phone_no: string;
+    profile_picture_url?: string | null;
+    email?: string | null;
+    whatsapp_phone?: string | null;
+  };
+  review?: {
+    rating: number;
+    comment: string;
+  } | null;
+  requestedAt?: string;
+  pickup_latitude?: number;
+  pickup_longitude?: number;
+  dropoff_latitude?: number;
+  dropoff_longitude?: number;
+  start_time?: string | null;
+  end_time?: string | null;
 }
 
 export interface Payment {
@@ -167,6 +185,7 @@ export interface AppState {
   notifications: NotificationData[];
   location: Location | null;
   isOnline: boolean;
+  isDarkMode: boolean;
 }
 
 export interface BookingFormData {
@@ -187,4 +206,133 @@ export interface FareCalculation {
   total_fare: number;
   estimated_duration: number;
   estimated_distance: number;
+}
+
+// Settings and Preferences Types
+export interface UserPreferences {
+  user_id: string;
+  dark_mode: boolean;
+  notification_enabled: boolean;
+  email_notifications: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Wallet {
+  id: string;
+  user_id: string;
+  balance: number;
+  currency: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type TransactionType = 'credit' | 'debit';
+export type TransactionStatus = 'completed' | 'pending' | 'failed' | 'cancelled';
+
+export interface WalletTransaction {
+  id: string;
+  wallet_id: string;
+  transaction_type: TransactionType;
+  amount: number;
+  description: string;
+  reference_id?: string;
+  status: TransactionStatus;
+  transaction_date: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DriverEarnings {
+  id: string;
+  driver_id: string;
+  total_earnings: number;
+  weekly_earnings: number;
+  monthly_earnings: number;
+  total_rides: number;
+  average_rating: number;
+  commission_rate: number;
+  last_updated: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type DocumentType = 'license' | 'insurance' | 'registration' | 'photo' | 'vehicle_photo';
+export type DocumentStatus = 'pending' | 'approved' | 'rejected' | 'expired';
+
+export interface DriverDocument {
+  id: string;
+  driver_id: string;
+  document_type: DocumentType;
+  document_url: string;
+  status: DocumentStatus;
+  expiry_date?: string;
+  rejection_reason?: string;
+  verified_at?: string;
+  verified_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VehicleExtended extends Vehicle {
+  make: string;
+  insurance_expiry?: string;
+  registration_expiry?: string;
+  last_service_date?: string;
+  next_service_due?: string;
+}
+
+// Settings Screen State Types
+export interface SettingsScreenState {
+  user: User | null;
+  driver: Driver | null;
+  userPreferences: UserPreferences | null;
+  wallet: Wallet | null;
+  transactions: WalletTransaction[];
+  vehicle: VehicleExtended | null;
+  earnings: DriverEarnings | null;
+  documents: DriverDocument[];
+  loading: boolean;
+  arePushNotificationsEnabled: boolean;
+  isSoundEnabled: boolean;
+  isLocationSharingEnabled: boolean;
+  isDarkModeEnabled: boolean;
+}
+
+export enum SettingType {
+  darkMode = 'darkMode',
+  pushNotifications = 'pushNotifications',
+  sound = 'sound',
+  locationSharing = 'locationSharing'
+}
+
+export enum PaymentMethodType {
+  visa = 'visa',
+  mastercard = 'mastercard',
+  paypal = 'paypal',
+  upi = 'upi',
+  cash = 'cash'
+}
+
+export interface PaymentMethod {
+  id: string;
+  type: PaymentMethodType;
+  lastFourDigits?: string;
+  expiryDate?: string;
+  accountName?: string;
+  upiId?: string;
+  isDefault: boolean;
+}
+
+export interface HelpTopicData {
+  title: string;
+  description?: string;
+  category?: string;
+}
+
+export interface FAQItemData {
+  title: string;
+  answer: string;
+  category?: string;
 }

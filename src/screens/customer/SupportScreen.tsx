@@ -9,36 +9,65 @@ import {
   Linking,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useNavigation, useNavigationState } from '@react-navigation/native';
 
 export default function SupportScreen() {
+  const navigation = useNavigation();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  // Check if we're in driver context by examining navigation state
+  const isDriverContext = useNavigationState((state) => {
+    if (!state) return false;
+    // Check if any route in the state contains driver-specific screens
+    const hasDriverRoutes = state.routes.some(route =>
+      route.name === 'DriverTabs' ||
+      route.name === 'DriverHome' ||
+      route.name === 'AvailableRides' ||
+      route.name === 'ActiveRide' ||
+      route.name === 'Earnings' ||
+      route.name === 'DriverProfile'
+    );
+    return hasDriverRoutes;
+  });
 
   const supportCategories = [
     {
       id: 'booking',
-      title: 'Booking Issues',
-      description: 'Problems with booking rides',
+      title: isDriverContext ? 'Ride Management' : 'Booking Issues',
+      description: isDriverContext ? 'Managing rides and passenger requests' : 'Problems with booking rides',
       icon: 'event-note',
       iconType: 'MaterialIcons',
-      faqs: [
+      faqs: isDriverContext ? [
+        'How to accept ride requests?',
+        'What to do if passenger doesn\'t show up?',
+        'How to cancel a ride?',
+        'Managing ride status updates',
+      ] : [
         'How do I cancel a booking?',
         'Can I modify my booking?',
         'What if my driver is late?',
         'How to change pickup location?',
       ],
+      hasNavigation: !isDriverContext, // Only allow navigation for customers
     },
     {
       id: 'payment',
-      title: 'Payment & Billing',
-      description: 'Payment methods and billing questions',
+      title: 'Payment & Earnings',
+      description: isDriverContext ? 'Payment methods and earnings tracking' : 'Payment methods and billing questions',
       icon: 'credit-card',
       iconType: 'MaterialIcons',
-      faqs: [
+      faqs: isDriverContext ? [
+        'How to receive payments?',
+        'Earnings calculation',
+        'Payment methods setup',
+        'Commission structure',
+      ] : [
         'How do I add a payment method?',
         'Can I get a refund?',
         'Why was I charged extra?',
         'How to update payment details?',
       ],
+      hasNavigation: !isDriverContext, // Only allow navigation for customers
     },
     {
       id: 'account',
@@ -52,6 +81,7 @@ export default function SupportScreen() {
         'How to update my profile?',
         'Forgot password recovery',
       ],
+      hasNavigation: !isDriverContext, // Only allow navigation for customers
     },
     {
       id: 'safety',
@@ -65,6 +95,7 @@ export default function SupportScreen() {
         'How to report an incident?',
         'Safety tips for riders',
       ],
+      hasNavigation: !isDriverContext, // Only allow navigation for customers
     },
     {
       id: 'technical',
@@ -78,6 +109,7 @@ export default function SupportScreen() {
         'Payment failed in app',
         'How to update the app',
       ],
+      hasNavigation: !isDriverContext, // Only allow navigation for customers
     },
   ];
 
@@ -137,10 +169,36 @@ export default function SupportScreen() {
   ];
 
   const handleCategorySelect = (categoryId: string) => {
-    setSelectedCategory(selectedCategory === categoryId ? null : categoryId);
+    // Find the selected category
+    const selectedCategoryData = supportCategories.find(cat => cat.id === categoryId);
+
+    if (!selectedCategoryData?.hasNavigation) {
+      // For drivers or when navigation is disabled, show FAQ content directly
+      Alert.alert(
+        selectedCategoryData?.title || 'Support',
+        'This feature is currently under development. Please contact support directly for assistance.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    // Navigate to the appropriate FAQ screen based on category (only for customers)
+    const faqRoutes = {
+      booking: 'BookingFAQ',
+      payment: 'PaymentFAQ',
+      account: 'AccountFAQ',
+      safety: 'SafetyFAQ',
+      technical: 'TechnicalFAQ',
+    };
+
+    const routeName = faqRoutes[categoryId as keyof typeof faqRoutes];
+    if (routeName) {
+      navigation.navigate(routeName as never);
+    }
   };
 
   const handleFAQPress = (question: string) => {
+    // This function is now deprecated since we navigate to full FAQ screens
     Alert.alert('FAQ', `${question}\n\nThis is a placeholder answer. Full FAQ system coming soon!`);
   };
 

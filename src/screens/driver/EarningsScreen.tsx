@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,57 +6,120 @@ import {
   ScrollView,
   Alert,
   StyleSheet,
+  ActivityIndicator,
+  Share,
 } from 'react-native';
+import { supabase } from '@/services/supabase/client';
+import { useUser } from '@/stores/appStore';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function EarningsScreen() {
+  const { colors } = useTheme();
   const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'week' | 'month'>('today');
+  const [earningsData, setEarningsData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const user = useUser();
 
-  // Mock earnings data
-  const earningsData = {
-    today: {
-      total: 1250,
-      rides: 8,
-      hours: 6.5,
-      average: 156,
-      breakdown: [
-        { time: '09:30', amount: 180, type: 'City Ride' },
-        { time: '11:15', amount: 220, type: 'Airport Transfer' },
-        { time: '13:45', amount: 150, type: 'City Ride' },
-        { time: '15:20', amount: 200, type: 'Outstation' },
-        { time: '17:00', amount: 180, type: 'City Ride' },
-        { time: '18:30', amount: 160, type: 'City Ride' },
-        { time: '20:15', amount: 190, type: 'Airport Transfer' },
-        { time: '21:45', amount: 170, type: 'City Ride' },
-      ],
-    },
-    week: {
-      total: 8750,
-      rides: 56,
-      hours: 42,
-      average: 156,
-    },
-    month: {
-      total: 35000,
-      rides: 224,
-      hours: 168,
-      average: 156,
-    },
+  useEffect(() => {
+    fetchEarnings();
+  }, [selectedPeriod, user]);
+
+  const fetchEarnings = async () => {
+    if (!user) return;
+
+    setLoading(true);
+    try {
+      const now = new Date();
+      let startDate, endDate;
+
+      if (selectedPeriod === 'today') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      } else if (selectedPeriod === 'week') {
+        const dayOfWeek = now.getDay();
+        startDate = new Date(now.getTime() - dayOfWeek * 24 * 60 * 60 * 1000);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+      } else { // month
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      }
+
+      const { data: bookings, error } = await supabase
+        .from('bookings')
+        .select('fare_amount, start_time, end_time, service_type, created_at')
+        .eq('driver_id', user.id)
+        .eq('status', 'completed')
+        .gte('created_at', startDate.toISOString())
+        .lt('created_at', endDate.toISOString());
+
+      if (error) throw error;
+
+      const total = bookings.reduce((sum, b) => sum + (b.fare_amount || 0), 0);
+      const rides = bookings.length;
+      const hours = bookings.reduce((sum, b) => {
+        if (b.start_time && b.end_time) {
+          const start = new Date(b.start_time);
+          const end = new Date(b.end_time);
+          return sum + (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+        }
+        return sum;
+      }, 0);
+      const average = rides > 0 ? Math.round(total / rides) : 0;
+
+      let breakdown: Array<{ time: string; amount: number; type: string }> = [];
+      if (selectedPeriod === 'today' || selectedPeriod === 'week' || selectedPeriod === 'month') {
+        breakdown = bookings.map(b => ({
+          time: selectedPeriod === 'today'
+            ? new Date(b.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+            : new Date(b.created_at).toLocaleDateString('en-IN'),
+          amount: b.fare_amount || 0,
+          type: b.service_type || 'Ride'
+        }));
+      }
+
+      setEarningsData({
+        total,
+        rides,
+        hours: Math.round(hours * 10) / 10,
+        average,
+        breakdown
+      });
+    } catch (error) {
+      console.error('Error fetching earnings:', error);
+      Alert.alert('Error', 'Failed to load earnings data');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const currentData = earningsData[selectedPeriod];
-
-  const handleWithdraw = () => {
-    Alert.alert(
-      'Withdraw Earnings',
-      `Withdraw ₹${currentData.total} to your bank account?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Withdraw',
-          onPress: () => Alert.alert('Success', 'Withdrawal request submitted'),
-        },
-      ]
+  if (loading || !earningsData) {
+    return (
+      <View style={styles(colors).loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles(colors).loadingText}>Loading earnings...</Text>
+      </View>
     );
+  }
+
+  const currentData = earningsData;
+
+  const handleDownloadDocument = async () => {
+    try {
+      const periodLabel = getPeriodLabel(selectedPeriod);
+      const csvHeader = `Earnings Report - ${periodLabel}\nTotal Earnings: ₹${currentData.total}\n\nTime/Date,Amount,Type\n`;
+      const csvData = currentData.breakdown.map((ride: any) =>
+        `${ride.time},${ride.amount},${ride.type}`
+      ).join('\n');
+      const csv = csvHeader + csvData;
+
+      await Share.share({
+        message: csv,
+        title: `${periodLabel} Earnings Report`,
+      });
+    } catch (error) {
+      Alert.alert('Error', 'Failed to share earnings report');
+    }
   };
 
   const getPeriodLabel = (period: string) => {
@@ -73,22 +136,22 @@ export default function EarningsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles(colors).container}>
       {/* Period Selector */}
-      <View style={styles.periodSelector}>
-        <View style={styles.periodSelectorRow}>
+      <View style={styles(colors).periodSelector}>
+        <View style={styles(colors).periodSelectorRow}>
           {(['today', 'week', 'month'] as const).map((period) => (
             <TouchableOpacity
               key={period}
               style={[
-                styles.periodButton,
-                selectedPeriod === period && styles.periodButtonActive
+                styles(colors).periodButton,
+                selectedPeriod === period && styles(colors).periodButtonActive
               ]}
               onPress={() => setSelectedPeriod(period)}
             >
               <Text style={[
-                styles.periodButtonText,
-                selectedPeriod === period && styles.periodButtonTextActive
+                styles(colors).periodButtonText,
+                selectedPeriod === period && styles(colors).periodButtonTextActive
               ]}>
                 {getPeriodLabel(period)}
               </Text>
@@ -98,53 +161,55 @@ export default function EarningsScreen() {
       </View>
 
       {/* Earnings Summary */}
-      <View style={styles.earningsSummary}>
-        <Text style={styles.earningsLabel}>Total Earnings</Text>
-        <Text style={styles.earningsAmount}>₹{currentData.total.toLocaleString()}</Text>
-        <View style={styles.earningsStats}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{currentData.rides}</Text>
-            <Text style={styles.statLabel}>Rides</Text>
+      <View style={styles(colors).earningsSummary}>
+        <Text style={styles(colors).earningsLabel}>Total Earnings</Text>
+        <Text style={styles(colors).earningsAmount}>₹{currentData.total.toLocaleString()}</Text>
+        <View style={styles(colors).earningsStats}>
+          <View style={styles(colors).statItem}>
+            <Text style={styles(colors).statValue}>{currentData.rides}</Text>
+            <Text style={styles(colors).statLabel}>Rides</Text>
           </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{currentData.hours}h</Text>
-            <Text style={styles.statLabel}>Hours</Text>
+          <View style={styles(colors).statItem}>
+            <Text style={styles(colors).statValue}>{currentData.hours}h</Text>
+            <Text style={styles(colors).statLabel}>Hours</Text>
           </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>₹{currentData.average}</Text>
-            <Text style={styles.statLabel}>Average</Text>
+          <View style={styles(colors).statItem}>
+            <Text style={styles(colors).statValue}>₹{currentData.average}</Text>
+            <Text style={styles(colors).statLabel}>Average</Text>
           </View>
         </View>
       </View>
 
-      {/* Withdraw Button */}
-      <View style={styles.withdrawContainer}>
+      {/* Download Document Button */}
+      <View style={styles(colors).downloadContainer}>
         <TouchableOpacity
-          style={styles.withdrawButton}
-          onPress={handleWithdraw}
+          style={styles(colors).downloadButton}
+          onPress={handleDownloadDocument}
         >
-          <Text style={styles.withdrawButtonText}>Withdraw Earnings</Text>
+          <Text style={styles(colors).downloadButtonText}>Download Document</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Today's Breakdown (only for today) */}
-      {selectedPeriod === 'today' && 'breakdown' in currentData && (
-        <View style={styles.ridesSection}>
-          <Text style={styles.sectionTitle}>Today's Rides</Text>
+      {/* Rides Breakdown (for today, week, and month) */}
+      {(selectedPeriod === 'today' || selectedPeriod === 'week' || selectedPeriod === 'month') && 'breakdown' in currentData && (
+        <View style={styles(colors).ridesSection}>
+          <Text style={styles(colors).sectionTitle}>
+            {selectedPeriod === 'today' ? "Today's Rides" : selectedPeriod === 'week' ? "This Week's Rides" : "This Month's Rides"}
+          </Text>
           {currentData.breakdown.map((ride: any, index: number) => (
-            <View key={index} style={styles.rideCard}>
-              <View style={styles.rideInfo}>
-                <Text style={styles.rideTime}>{ride.time}</Text>
-                <Text style={styles.rideType}>{ride.type}</Text>
+            <View key={index} style={styles(colors).rideCard}>
+              <View style={styles(colors).rideInfo}>
+                <Text style={styles(colors).rideTime}>{ride.time}</Text>
+                <Text style={styles(colors).rideType}>{ride.type}</Text>
               </View>
-              <Text style={styles.rideAmount}>₹{ride.amount}</Text>
+              <Text style={styles(colors).rideAmount}>₹{ride.amount}</Text>
             </View>
           ))}
         </View>
       )}
 
       {/* Weekly/Monthly Summary */}
-      {selectedPeriod !== 'today' && (
+      {/* {selectedPeriod !== 'today' && (
         <View style={styles.summarySection}>
           <Text style={styles.sectionTitle}>Summary</Text>
           <View style={styles.summaryRow}>
@@ -168,14 +233,14 @@ export default function EarningsScreen() {
             </View>
           </View>
         </View>
-      )}
+      )} */}
 
       {/* Performance Insights */}
-      <View style={styles.insightsSection}>
-        <Text style={styles.sectionTitle}>Performance Insights</Text>
-        <View style={styles.insightsCard}>
-          <Text style={styles.insightsTitle}>💡 Tip</Text>
-          <Text style={styles.insightsText}>
+      <View style={styles(colors).insightsSection}>
+        <Text style={styles(colors).sectionTitle}>Performance Insights</Text>
+        <View style={styles(colors).insightsCard}>
+          <Text style={styles(colors).insightsTitle}>💡 Tip</Text>
+          <Text style={styles(colors).insightsText}>
             You're earning {currentData.average >= 160 ? 'above' : 'below'} average.
             {currentData.average >= 160
               ? ' Keep up the great work!'
@@ -187,20 +252,31 @@ export default function EarningsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: colors.textSecondary,
   },
   periodSelector: {
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: colors.card,
     marginHorizontal: 20,
     marginTop: 20,
     padding: 4,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    shadowColor: '#000',
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOffset: {
       width: 0,
       height: 8,
@@ -219,25 +295,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   periodButtonActive: {
-    backgroundColor: '#2563eb',
+    backgroundColor: colors.primary,
   },
   periodButtonText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#64748b',
+    color: colors.textSecondary,
   },
   periodButtonTextActive: {
-    color: '#ffffff',
+    color: colors.text,
   },
   earningsSummary: {
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: colors.card,
     marginHorizontal: 20,
     marginVertical: 20,
     padding: 24,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    shadowColor: '#000',
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOffset: {
       width: 0,
       height: 8,
@@ -249,13 +325,13 @@ const styles = StyleSheet.create({
   },
   earningsLabel: {
     fontSize: 16,
-    color: '#64748b',
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   earningsAmount: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: '#16a34a',
+    color: colors.success,
     marginBottom: 20,
   },
   earningsStats: {
@@ -269,23 +345,23 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
+    color: colors.text,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: '#64748b',
+    color: colors.textSecondary,
   },
-  withdrawContainer: {
+  downloadContainer: {
     paddingHorizontal: 20,
     marginBottom: 20,
   },
-  withdrawButton: {
-    backgroundColor: '#16a34a',
+  downloadButton: {
+    backgroundColor: colors.primary,
     paddingVertical: 16,
     borderRadius: 8,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: {
       width: 0,
       height: 4,
@@ -294,8 +370,8 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  withdrawButtonText: {
-    color: '#ffffff',
+  downloadButtonText: {
+    color: colors.text,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -306,17 +382,17 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#1e293b',
+    color: colors.text,
     marginBottom: 16,
   },
   rideCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: colors.card,
     padding: 16,
     marginBottom: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    shadowColor: '#000',
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOffset: {
       width: 0,
       height: 4,
@@ -334,17 +410,17 @@ const styles = StyleSheet.create({
   rideTime: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1e293b',
+    color: colors.text,
     marginBottom: 4,
   },
   rideType: {
     fontSize: 12,
-    color: '#64748b',
+    color: colors.textSecondary,
   },
   rideAmount: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#16a34a',
+    color: colors.success,
   },
   summarySection: {
     paddingHorizontal: 20,
@@ -387,12 +463,12 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   insightsCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: colors.card,
     padding: 20,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    shadowColor: '#000',
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOffset: {
       width: 0,
       height: 8,
@@ -404,12 +480,12 @@ const styles = StyleSheet.create({
   insightsTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1e293b',
+    color: colors.text,
     marginBottom: 8,
   },
   insightsText: {
     fontSize: 14,
-    color: '#64748b',
+    color: colors.textSecondary,
     lineHeight: 20,
   },
 });

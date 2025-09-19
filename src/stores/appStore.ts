@@ -28,6 +28,10 @@ interface AppStore extends AppState {
   // Online status
   setOnlineStatus: (isOnline: boolean) => void;
 
+  // Theme actions
+  setIsDarkMode: (isDarkMode: boolean) => void;
+  toggleTheme: () => void;
+
   // Utility actions
   reset: () => void;
 }
@@ -40,6 +44,7 @@ const initialState: AppState = {
   notifications: [],
   location: null,
   isOnline: true,
+  isDarkMode: false,
 };
 
 export const useAppStore = create<AppStore>()(
@@ -56,6 +61,7 @@ export const useAppStore = create<AppStore>()(
         isAuthenticated: false,
         currentBooking: null,
         notifications: [],
+        isDarkMode: false,
       }),
 
       setLoading: (isLoading) => set({ isLoading }),
@@ -85,7 +91,7 @@ export const useAppStore = create<AppStore>()(
               ...locationUpdate,
             },
           });
-        } else {
+        } else if (locationUpdate.latitude !== undefined && locationUpdate.longitude !== undefined) {
           set({ location: locationUpdate as Location });
         }
       },
@@ -110,6 +116,10 @@ export const useAppStore = create<AppStore>()(
 
       setOnlineStatus: (isOnline) => set({ isOnline }),
 
+      setIsDarkMode: (isDarkMode) => set({ isDarkMode }),
+
+      toggleTheme: () => set((state) => ({ isDarkMode: !state.isDarkMode })),
+
       reset: () => set(initialState),
     }),
     {
@@ -120,6 +130,7 @@ export const useAppStore = create<AppStore>()(
         isAuthenticated: state.isAuthenticated,
         notifications: state.notifications,
         location: state.location,
+        isDarkMode: state.isDarkMode,
       }),
     }
   )
@@ -133,6 +144,11 @@ export const useCurrentBooking = () => useAppStore((state) => state.currentBooki
 export const useNotifications = () => useAppStore((state) => state.notifications);
 export const useLocation = () => useAppStore((state) => state.location);
 export const useIsOnline = () => useAppStore((state) => state.isOnline);
+export const useIsDarkMode = () => useAppStore((state) => state.isDarkMode);
+export const useThemeActions = () => useAppStore((state) => ({
+  setDarkMode: state.setIsDarkMode,
+  toggleTheme: state.toggleTheme,
+}));
 
 // Type guards
 export const isCustomer = (user: User | null): user is Customer => {
