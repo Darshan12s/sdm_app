@@ -162,7 +162,7 @@ export default function ActiveRideScreen({ navigation }: ActiveRideScreenProps) 
       locationSubscription.current = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.High,
-          timeInterval: 120000, // Update every 2 minutes (120 seconds)
+          timeInterval: 5000, // Update every 5 seconds
           distanceInterval: 100, // Update every 100 meters
         },
         (location) => {
@@ -385,7 +385,7 @@ export default function ActiveRideScreen({ navigation }: ActiveRideScreenProps) 
           <View style={styles.locationStatusContainer}>
             <MaterialIcons name="location-on" size={20} color={colors.primary} />
             <Text style={[styles.locationStatusText, { color: colors.text }]}>
-              Location tracking active - Updates every 2 minutes
+              Location tracking active - Updates every 5 seconds
             </Text>
           </View>
         </View>

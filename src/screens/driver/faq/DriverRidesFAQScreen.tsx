@@ -11,7 +11,7 @@ import {
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { useTheme } from '@/contexts/ThemeContext';
-import { CustomerStackParamList } from '@/types/navigation';
+import { DriverStackParamList } from '@/types/navigation';
 
 interface FAQItem {
   id: string;
@@ -20,59 +20,59 @@ interface FAQItem {
   category: string;
 }
 
-const TechnicalFAQScreen: React.FC = () => {
-  const navigation = useNavigation<NavigationProp<CustomerStackParamList>>();
+const DriverRidesFAQScreen: React.FC = () => {
+  const navigation = useNavigation<NavigationProp<DriverStackParamList>>();
   const { colors } = useTheme();
   const [expandedFAQ, setExpandedFAQ] = useState<string | null>(null);
 
   const faqData: FAQItem[] = [
     {
-      id: 'app-not-loading',
-      question: 'App not loading properly',
-      answer: 'If the app is not loading, try force closing and reopening it. Clear app cache in device settings. Ensure you have a stable internet connection. Update the app to the latest version from the app store. If issues persist, uninstall and reinstall the app.',
-      category: 'technical',
+      id: 'accepting-rides',
+      question: 'How do I accept ride requests?',
+      answer: 'When you\'re online, ride requests will appear as notifications. You have 15 seconds to accept or decline. Tap "Accept" to start the ride. If you don\'t respond, the request goes to another driver.',
+      category: 'rides',
     },
     {
-      id: 'location-services',
-      question: 'Location services not working',
-      answer: 'Enable location services in your device settings and grant location permission to the app. Ensure GPS is turned on. Try restarting your device. If using Android, check that location accuracy is set to "High accuracy". Clear app cache and restart the app.',
-      category: 'technical',
+      id: 'ride-cancellation',
+      question: 'What happens if I cancel a ride?',
+      answer: 'Cancelling accepted rides affects your acceptance rate and may lead to penalties. Cancel only for genuine reasons. Multiple cancellations can result in temporary suspension. Always communicate with passengers before cancelling.',
+      category: 'rides',
     },
     {
-      id: 'payment-failed',
-      question: 'Payment failed in app',
-      answer: 'Check your internet connection and try again. Ensure your payment method has sufficient funds. Verify payment details are correct. Contact your bank if the issue persists. Try using a different payment method or contact our support team for assistance.',
-      category: 'technical',
+      id: 'passenger-no-show',
+      question: 'What if passenger doesn\'t show up?',
+      answer: 'Wait at the pickup location for 3 minutes. If the passenger doesn\'t arrive, mark them as "No Show" in the app. You\'ll still receive payment for waiting time. Contact support if this happens frequently.',
+      category: 'rides',
     },
     {
-      id: 'app-update',
-      question: 'How to update the app',
-      answer: 'Go to Google Play Store or Apple App Store, search for "SDM Cab Hailing", and tap "Update" if available. Enable automatic updates in store settings. The app will notify you when updates are available. Keeping the app updated ensures best performance and security.',
-      category: 'technical',
+      id: 'navigation-gps',
+      question: 'How does in-app navigation work?',
+      answer: 'The app provides turn-by-turn navigation to pickup and drop locations. Follow the GPS directions carefully. Update your location accuracy in phone settings for better navigation. Report any navigation issues to support.',
+      category: 'rides',
     },
     {
-      id: 'login-issues',
-      question: 'Login problems',
-      answer: 'Ensure you\'re using the correct phone number and password. Check your internet connection. Try "Forgot Password" if you can\'t remember your password. Clear app cache or reinstall the app. Contact support if you\'re still unable to login.',
-      category: 'technical',
+      id: 'ride-completion',
+      question: 'How to complete a ride?',
+      answer: 'Once you reach the destination, tap "End Ride" in the app. Collect payment if cash ride, then rate the passenger. Ride completion confirms payment processing. Always verify the destination before ending the ride.',
+      category: 'rides',
     },
     {
-      id: 'gps-accuracy',
-      question: 'GPS location inaccurate',
-      answer: 'Ensure you\'re in an open area with clear sky view. Enable high accuracy mode in location settings. Restart GPS services. Clear app cache. The app uses Google Maps for accurate location services. Try restarting your device if accuracy issues persist.',
-      category: 'technical',
+      id: 'peak-hours',
+      question: 'What are peak hours?',
+      answer: 'Peak hours are typically morning (8-10 AM) and evening (5-8 PM) on weekdays, and weekends. During peak hours, you may receive more ride requests and earn bonuses. Stay online during these times for maximum earnings.',
+      category: 'rides',
     },
     {
-      id: 'notification-issues',
-      question: 'Not receiving notifications',
-      answer: 'Enable notifications for the app in device settings. Check that "Do Not Disturb" mode is off. Ensure the app has background refresh enabled. Restart your device. Update the app to the latest version. Reinstall the app if notifications still don\'t work.',
-      category: 'technical',
+      id: 'ride-sharing',
+      question: 'How does ride sharing work for drivers?',
+      answer: 'In ride sharing, multiple passengers going to nearby destinations are matched. You\'ll see multiple pickup/drop points. Complete all stops to finish the ride. Shared rides pay more than regular rides.',
+      category: 'rides',
     },
     {
-      id: 'app-crashing',
-      question: 'App keeps crashing',
-      answer: 'Update the app to the latest version. Clear app cache and data. Restart your device. Ensure your device meets minimum requirements (Android 8.0+ or iOS 12.0+). Free up storage space. If crashes continue, uninstall and reinstall the app.',
-      category: 'technical',
+      id: 'emergency-situations',
+      question: 'What to do in emergency situations?',
+      answer: 'For any emergency during a ride, tap the emergency button in the app. It alerts authorities and shares your location. Stay calm, ensure passenger safety, and follow emergency protocols. Contact support immediately after.',
+      category: 'rides',
     },
   ];
 
@@ -113,20 +113,18 @@ const TechnicalFAQScreen: React.FC = () => {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={colors.isDark ? "light-content" : "dark-content"} backgroundColor={colors.headerBackground} />
 
-      {/* Header */}
-      {/* <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+          {/* <Ionicons name="arrow-back" size={24} color={colors.text} /> */}
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Technical FAQs</Text>
-          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-            App issues and technical problems
-          </Text>
+          {/* <Text style={[styles.headerTitle, { color: colors.text }]}>Rides FAQs</Text> */}
+          {/* <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+            Ride acceptance and completion
+          </Text> */}
         </View>
-      </View> */}
+      </View>
 
-      {/* FAQ List */}
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -135,7 +133,6 @@ const TechnicalFAQScreen: React.FC = () => {
 
           {faqData.map(renderFAQItem)}
 
-          {/* Contact Support */}
           <View style={[styles.contactCard, { backgroundColor: colors.card }]}>
             <MaterialIcons name="contact-support" size={24} color={colors.primary} />
             <View style={styles.contactInfo}>
@@ -146,7 +143,7 @@ const TechnicalFAQScreen: React.FC = () => {
             </View>
             <TouchableOpacity
               style={[styles.contactButton, { backgroundColor: colors.primary }]}
-              onPress={() => navigation.navigate('CustomerTabs', { screen: 'Support' })}
+              onPress={() => navigation.navigate('Support')}
             >
               <Text style={styles.contactButtonText}>Get Help</Text>
             </TouchableOpacity>
@@ -272,4 +269,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default TechnicalFAQScreen;
+export default DriverRidesFAQScreen;

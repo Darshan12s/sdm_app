@@ -9,8 +9,9 @@ import {
   StatusBar,
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { useTheme } from '@/contexts/ThemeContext';
+import { CustomerStackParamList } from '@/types/navigation';
 
 interface FAQItem {
   id: string;
@@ -20,7 +21,7 @@ interface FAQItem {
 }
 
 const AccountFAQScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<CustomerStackParamList>>();
   const { colors } = useTheme();
   const [expandedFAQ, setExpandedFAQ] = useState<string | null>(null);
 
@@ -113,7 +114,7 @@ const AccountFAQScreen: React.FC = () => {
       <StatusBar barStyle={colors.isDark ? "light-content" : "dark-content"} backgroundColor={colors.headerBackground} />
 
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      {/* <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
@@ -123,7 +124,7 @@ const AccountFAQScreen: React.FC = () => {
             Account management and settings
           </Text>
         </View>
-      </View>
+      </View> */}
 
       {/* FAQ List */}
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -145,7 +146,7 @@ const AccountFAQScreen: React.FC = () => {
             </View>
             <TouchableOpacity
               style={[styles.contactButton, { backgroundColor: colors.primary }]}
-              onPress={() => navigation.navigate('Support' as never)}
+              onPress={() => navigation.navigate('CustomerTabs', { screen: 'Support' })}
             >
               <Text style={styles.contactButtonText}>Get Help</Text>
             </TouchableOpacity>

@@ -11,7 +11,7 @@ import {
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { useTheme } from '@/contexts/ThemeContext';
-import { CustomerStackParamList } from '@/types/navigation';
+import { DriverStackParamList } from '@/types/navigation';
 
 interface FAQItem {
   id: string;
@@ -20,59 +20,59 @@ interface FAQItem {
   category: string;
 }
 
-const TechnicalFAQScreen: React.FC = () => {
-  const navigation = useNavigation<NavigationProp<CustomerStackParamList>>();
+const DriverAccountFAQScreen: React.FC = () => {
+  const navigation = useNavigation<NavigationProp<DriverStackParamList>>();
   const { colors } = useTheme();
   const [expandedFAQ, setExpandedFAQ] = useState<string | null>(null);
 
   const faqData: FAQItem[] = [
     {
-      id: 'app-not-loading',
-      question: 'App not loading properly',
-      answer: 'If the app is not loading, try force closing and reopening it. Clear app cache in device settings. Ensure you have a stable internet connection. Update the app to the latest version from the app store. If issues persist, uninstall and reinstall the app.',
-      category: 'technical',
+      id: 'change-phone-number',
+      question: 'How to change my phone number?',
+      answer: 'To change your phone number, go to Profile > Personal Information and tap the edit button. Update your phone number and verify it with the OTP sent to your new number. Your old number will be replaced once verification is complete. This change affects your login credentials.',
+      category: 'account',
     },
     {
-      id: 'location-services',
-      question: 'Location services not working',
-      answer: 'Enable location services in your device settings and grant location permission to the app. Ensure GPS is turned on. Try restarting your device. If using Android, check that location accuracy is set to "High accuracy". Clear app cache and restart the app.',
-      category: 'technical',
+      id: 'delete-account',
+      question: 'Can I delete my driver account?',
+      answer: 'Yes, you can delete your account by going to Profile > Settings > Account Settings > Delete Account. Please note that account deletion is permanent and cannot be undone. All your data, ride history, earnings, and saved information will be permanently removed. Ensure you have settled all pending payments before deletion.',
+      category: 'account',
     },
     {
-      id: 'payment-failed',
-      question: 'Payment failed in app',
-      answer: 'Check your internet connection and try again. Ensure your payment method has sufficient funds. Verify payment details are correct. Contact your bank if the issue persists. Try using a different payment method or contact our support team for assistance.',
-      category: 'technical',
+      id: 'update-profile',
+      question: 'How to update my driver profile?',
+      answer: 'Go to your Profile screen and tap the edit button next to Personal Information. You can update your name, email, phone number, and date of birth. For profile picture, tap on the avatar and choose to take a photo or select from gallery. Keep your profile information current for better ride assignments.',
+      category: 'account',
     },
     {
-      id: 'app-update',
-      question: 'How to update the app',
-      answer: 'Go to Google Play Store or Apple App Store, search for "SDM Cab Hailing", and tap "Update" if available. Enable automatic updates in store settings. The app will notify you when updates are available. Keeping the app updated ensures best performance and security.',
-      category: 'technical',
+      id: 'forgot-password',
+      question: 'Forgot password recovery',
+      answer: 'If you forgot your password, tap "Forgot Password" on the login screen. Enter your registered phone number and you\'ll receive an OTP. Use the OTP to reset your password. Make sure to create a strong password with at least 8 characters including numbers and special characters.',
+      category: 'account',
     },
     {
-      id: 'login-issues',
-      question: 'Login problems',
-      answer: 'Ensure you\'re using the correct phone number and password. Check your internet connection. Try "Forgot Password" if you can\'t remember your password. Clear app cache or reinstall the app. Contact support if you\'re still unable to login.',
-      category: 'technical',
+      id: 'change-email',
+      question: 'How do I change my email address?',
+      answer: 'Go to Profile > Personal Information > Edit, then update your email address. You\'ll receive a verification email at your new address. Click the verification link to confirm the change. Your old email will be replaced once verified.',
+      category: 'account',
     },
     {
-      id: 'gps-accuracy',
-      question: 'GPS location inaccurate',
-      answer: 'Ensure you\'re in an open area with clear sky view. Enable high accuracy mode in location settings. Restart GPS services. Clear app cache. The app uses Google Maps for accurate location services. Try restarting your device if accuracy issues persist.',
-      category: 'technical',
+      id: 'account-verification',
+      question: 'How to verify my driver account?',
+      answer: 'Account verification is done automatically when you register. For additional verification (like adding payment methods or vehicle documents), you may need to provide additional documents. Go to Profile > Account Verification to check your verification status and complete any pending verifications.',
+      category: 'account',
     },
     {
-      id: 'notification-issues',
-      question: 'Not receiving notifications',
-      answer: 'Enable notifications for the app in device settings. Check that "Do Not Disturb" mode is off. Ensure the app has background refresh enabled. Restart your device. Update the app to the latest version. Reinstall the app if notifications still don\'t work.',
-      category: 'technical',
+      id: 'driver-rating',
+      question: 'How does driver rating work?',
+      answer: 'Your rating is calculated from passenger feedback after each ride. Maintain a rating above 4.0 to receive more ride requests. Check your rating in the Profile section and focus on providing excellent service to improve it.',
+      category: 'account',
     },
     {
-      id: 'app-crashing',
-      question: 'App keeps crashing',
-      answer: 'Update the app to the latest version. Clear app cache and data. Restart your device. Ensure your device meets minimum requirements (Android 8.0+ or iOS 12.0+). Free up storage space. If crashes continue, uninstall and reinstall the app.',
-      category: 'technical',
+      id: 'account-security',
+      question: 'How to secure my driver account?',
+      answer: 'Enable two-factor authentication in Profile > Settings > Security. Use a strong password and never share your login credentials. Enable biometric login if available. Regularly review your ride history and report any suspicious activity immediately.',
+      category: 'account',
     },
   ];
 
@@ -113,20 +113,18 @@ const TechnicalFAQScreen: React.FC = () => {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={colors.isDark ? "light-content" : "dark-content"} backgroundColor={colors.headerBackground} />
 
-      {/* Header */}
-      {/* <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+          {/* <Ionicons name="arrow-back" size={24} color={colors.text} /> */}
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Technical FAQs</Text>
-          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-            App issues and technical problems
-          </Text>
+          {/* <Text style={[styles.headerTitle, { color: colors.text }]}>Account FAQs</Text> */}
+          {/* <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+            Account management and settings
+          </Text> */}
         </View>
-      </View> */}
+      </View>
 
-      {/* FAQ List */}
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -135,7 +133,6 @@ const TechnicalFAQScreen: React.FC = () => {
 
           {faqData.map(renderFAQItem)}
 
-          {/* Contact Support */}
           <View style={[styles.contactCard, { backgroundColor: colors.card }]}>
             <MaterialIcons name="contact-support" size={24} color={colors.primary} />
             <View style={styles.contactInfo}>
@@ -146,7 +143,7 @@ const TechnicalFAQScreen: React.FC = () => {
             </View>
             <TouchableOpacity
               style={[styles.contactButton, { backgroundColor: colors.primary }]}
-              onPress={() => navigation.navigate('CustomerTabs', { screen: 'Support' })}
+              onPress={() => navigation.navigate('Support')}
             >
               <Text style={styles.contactButtonText}>Get Help</Text>
             </TouchableOpacity>
@@ -272,4 +269,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default TechnicalFAQScreen;
+export default DriverAccountFAQScreen;

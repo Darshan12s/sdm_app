@@ -99,7 +99,7 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
       subtitle: 'Get help and contact us',
       icon: 'help',
       iconType: 'MaterialIcons',
-       onPress: () => navigation.navigate('Support'),
+       onPress: () => navigation.navigate('DriverSupport'),
     },
     {
       title: 'Settings',

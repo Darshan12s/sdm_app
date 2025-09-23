@@ -9,8 +9,9 @@ import {
   StatusBar,
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { useTheme } from '@/contexts/ThemeContext';
+import { CustomerStackParamList } from '@/types/navigation';
 
 interface FAQItem {
   id: string;
@@ -20,7 +21,7 @@ interface FAQItem {
 }
 
 const BookingFAQScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<CustomerStackParamList>>();
   const { colors } = useTheme();
   const [expandedFAQ, setExpandedFAQ] = useState<string | null>(null);
 
@@ -145,7 +146,7 @@ const BookingFAQScreen: React.FC = () => {
             </View>
             <TouchableOpacity
               style={[styles.contactButton, { backgroundColor: colors.primary }]}
-              onPress={() => navigation.navigate('Support' as never)}
+              onPress={() => navigation.navigate('CustomerTabs', { screen: 'Support' })}
             >
               <Text style={styles.contactButtonText}>Get Help</Text>
             </TouchableOpacity>

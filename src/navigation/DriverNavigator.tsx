@@ -4,7 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 
-// Import screensz
+// Import screens
 import DriverHomeScreen from '@/screens/driver/DriverHomeScreen';
 import AvailableRidesScreen from '@/screens/driver/AvailableRidesScreen';
 import ActiveRideScreen from '@/screens/driver/ActiveRideScreen';
@@ -25,7 +25,13 @@ import SettingsScreen from '@/screens/driver/navigation/SettingsScreen';
 import TermsConditionsScreen from '@/screens/driver/navigation/TermsConditionsScreen';
 import PaymentMethodsScreen from '@/screens/driver/navigation/PaymentMethodsScreen';
 import BillingHistoryScreen from '@/screens/driver/navigation/BillingHistoryScreen';
-import SupportScreen from '@/screens/customer/SupportScreen';
+import SupportScreen from '@/screens/driver/faq/DriverSupportScreen';
+import DriverAccountFAQScreen from '@/screens/driver/faq/DriverAccountFAQScreen';
+import DriverVehicleFAQScreen from '@/screens/driver/faq/DriverVehicleFAQScreen';
+import DriverEarningsFAQScreen from '@/screens/driver/faq/DriverEarningsFAQScreen';
+import DriverRidesFAQScreen from '@/screens/driver/faq/DriverRidesFAQScreen';
+import DriverTechnicalFAQScreen from '@/screens/driver/faq/DriverTechnicalFAQScreen';
+import DriverSupportScreen from '@/screens/driver/faq/DriverSupportScreen';
 
 const Tab = createBottomTabNavigator<DriverTabParamList>();
 const Stack = createStackNavigator<DriverStackParamList>();
@@ -204,6 +210,37 @@ export default function DriverNavigator() {
         name="Support"
         component={SupportScreen}
         options={{ title: 'Support' }}
+      />
+      <Stack.Screen
+        name="DriverSupport"
+        component={DriverSupportScreen}
+        options={{ title: 'Support' }}
+      />
+      
+      <Stack.Screen
+        name="DriverAccountFAQ"
+        component={DriverAccountFAQScreen}
+        options={{ title: 'Account FAQs' }}
+      />
+      <Stack.Screen
+        name="DriverVehicleFAQ"
+        component={DriverVehicleFAQScreen}
+        options={{ title: 'Vehicle FAQs' }}
+      />
+      <Stack.Screen
+        name="DriverEarningsFAQ"
+        component={DriverEarningsFAQScreen}
+        options={{ title: 'Earnings FAQs' }}
+      />
+      <Stack.Screen
+        name="DriverRidesFAQ"
+        component={DriverRidesFAQScreen}
+        options={{ title: 'Rides FAQs' }}
+      />
+      <Stack.Screen
+        name="DriverTechnicalFAQ"
+        component={DriverTechnicalFAQScreen}
+        options={{ title: 'Technical FAQs' }}
       />
   
     </Stack.Navigator>

@@ -11,7 +11,7 @@ import {
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { useTheme } from '@/contexts/ThemeContext';
-import { CustomerStackParamList } from '@/types/navigation';
+import { DriverStackParamList } from '@/types/navigation';
 
 interface FAQItem {
   id: string;
@@ -20,59 +20,59 @@ interface FAQItem {
   category: string;
 }
 
-const TechnicalFAQScreen: React.FC = () => {
-  const navigation = useNavigation<NavigationProp<CustomerStackParamList>>();
+const DriverVehicleFAQScreen: React.FC = () => {
+  const navigation = useNavigation<NavigationProp<DriverStackParamList>>();
   const { colors } = useTheme();
   const [expandedFAQ, setExpandedFAQ] = useState<string | null>(null);
 
   const faqData: FAQItem[] = [
     {
-      id: 'app-not-loading',
-      question: 'App not loading properly',
-      answer: 'If the app is not loading, try force closing and reopening it. Clear app cache in device settings. Ensure you have a stable internet connection. Update the app to the latest version from the app store. If issues persist, uninstall and reinstall the app.',
-      category: 'technical',
+      id: 'vehicle-registration',
+      question: 'How to register my vehicle?',
+      answer: 'Go to Profile > Vehicle Information and tap "Add Vehicle". Enter your vehicle details including make, model, year, color, and license plate number. Upload photos of your vehicle registration, insurance, and permit. Your vehicle will be verified within 24-48 hours.',
+      category: 'vehicle',
     },
     {
-      id: 'location-services',
-      question: 'Location services not working',
-      answer: 'Enable location services in your device settings and grant location permission to the app. Ensure GPS is turned on. Try restarting your device. If using Android, check that location accuracy is set to "High accuracy". Clear app cache and restart the app.',
-      category: 'technical',
+      id: 'vehicle-documents',
+      question: 'What documents do I need for vehicle verification?',
+      answer: 'You need: 1) Vehicle Registration Certificate (RC), 2) Valid Insurance Certificate, 3) Pollution Under Control (PUC) Certificate, 4) Driver\'s License, 5) Vehicle Permit, and 6) Recent vehicle photos. All documents must be clear and valid.',
+      category: 'vehicle',
     },
     {
-      id: 'payment-failed',
-      question: 'Payment failed in app',
-      answer: 'Check your internet connection and try again. Ensure your payment method has sufficient funds. Verify payment details are correct. Contact your bank if the issue persists. Try using a different payment method or contact our support team for assistance.',
-      category: 'technical',
+      id: 'multiple-vehicles',
+      question: 'Can I register multiple vehicles?',
+      answer: 'Yes, you can register up to 2 vehicles on your account. However, you can only be online with one vehicle at a time. Switch between vehicles in the app settings. Each vehicle needs separate verification.',
+      category: 'vehicle',
     },
     {
-      id: 'app-update',
-      question: 'How to update the app',
-      answer: 'Go to Google Play Store or Apple App Store, search for "SDM Cab Hailing", and tap "Update" if available. Enable automatic updates in store settings. The app will notify you when updates are available. Keeping the app updated ensures best performance and security.',
-      category: 'technical',
+      id: 'vehicle-inspection',
+      question: 'What happens during vehicle inspection?',
+      answer: 'Our team conducts a physical inspection of your vehicle to ensure it meets safety standards. This includes checking brakes, tires, lights, seatbelts, and overall condition. The inspection is usually done at your location and takes about 30 minutes.',
+      category: 'vehicle',
     },
     {
-      id: 'login-issues',
-      question: 'Login problems',
-      answer: 'Ensure you\'re using the correct phone number and password. Check your internet connection. Try "Forgot Password" if you can\'t remember your password. Clear app cache or reinstall the app. Contact support if you\'re still unable to login.',
-      category: 'technical',
+      id: 'vehicle-maintenance',
+      question: 'How to update vehicle maintenance?',
+      answer: 'Keep your vehicle well-maintained for better ratings. Regularly check and update your PUC certificate. Ensure your vehicle is clean and mechanically sound. Report any maintenance issues to support immediately.',
+      category: 'vehicle',
     },
     {
-      id: 'gps-accuracy',
-      question: 'GPS location inaccurate',
-      answer: 'Ensure you\'re in an open area with clear sky view. Enable high accuracy mode in location settings. Restart GPS services. Clear app cache. The app uses Google Maps for accurate location services. Try restarting your device if accuracy issues persist.',
-      category: 'technical',
+      id: 'vehicle-types',
+      question: 'What vehicle types are accepted?',
+      answer: 'We accept sedans, SUVs, hatchbacks, and premium vehicles. All vehicles must be 2010 or newer, have 4 doors, AC, and seatbelts for all passengers. Commercial vehicles are not accepted.',
+      category: 'vehicle',
     },
     {
-      id: 'notification-issues',
-      question: 'Not receiving notifications',
-      answer: 'Enable notifications for the app in device settings. Check that "Do Not Disturb" mode is off. Ensure the app has background refresh enabled. Restart your device. Update the app to the latest version. Reinstall the app if notifications still don\'t work.',
-      category: 'technical',
+      id: 'insurance-requirements',
+      question: 'What are the insurance requirements?',
+      answer: 'Your vehicle must have comprehensive insurance covering passenger liability. Minimum coverage of ₹15 lakhs for passenger liability is required. Insurance must be valid and renewed annually.',
+      category: 'vehicle',
     },
     {
-      id: 'app-crashing',
-      question: 'App keeps crashing',
-      answer: 'Update the app to the latest version. Clear app cache and data. Restart your device. Ensure your device meets minimum requirements (Android 8.0+ or iOS 12.0+). Free up storage space. If crashes continue, uninstall and reinstall the app.',
-      category: 'technical',
+      id: 'vehicle-rejection',
+      question: 'Why was my vehicle rejected?',
+      answer: 'Vehicles are rejected if they don\'t meet safety standards, have expired documents, or fail inspection. Common reasons include damaged body, faulty brakes, expired insurance, or incomplete documentation. Contact support for specific rejection reasons.',
+      category: 'vehicle',
     },
   ];
 
@@ -113,20 +113,18 @@ const TechnicalFAQScreen: React.FC = () => {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={colors.isDark ? "light-content" : "dark-content"} backgroundColor={colors.headerBackground} />
 
-      {/* Header */}
-      {/* <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+          {/* <Ionicons name="arrow-back" size={24} color={colors.text} /> */}
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Technical FAQs</Text>
-          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-            App issues and technical problems
-          </Text>
+          {/* <Text style={[styles.headerTitle, { color: colors.text }]}>Vehicle FAQs</Text> */}
+          {/* <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
+            Vehicle registration and documents
+          </Text> */}
         </View>
-      </View> */}
+      </View>
 
-      {/* FAQ List */}
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -135,7 +133,6 @@ const TechnicalFAQScreen: React.FC = () => {
 
           {faqData.map(renderFAQItem)}
 
-          {/* Contact Support */}
           <View style={[styles.contactCard, { backgroundColor: colors.card }]}>
             <MaterialIcons name="contact-support" size={24} color={colors.primary} />
             <View style={styles.contactInfo}>
@@ -146,7 +143,7 @@ const TechnicalFAQScreen: React.FC = () => {
             </View>
             <TouchableOpacity
               style={[styles.contactButton, { backgroundColor: colors.primary }]}
-              onPress={() => navigation.navigate('CustomerTabs', { screen: 'Support' })}
+              onPress={() => navigation.navigate('Support')}
             >
               <Text style={styles.contactButtonText}>Get Help</Text>
             </TouchableOpacity>
@@ -272,4 +269,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default TechnicalFAQScreen;
+export default DriverVehicleFAQScreen;

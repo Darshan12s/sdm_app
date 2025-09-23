@@ -21,7 +21,7 @@ export type DriverTabParamList = {
 };
 
 export type CustomerStackParamList = {
-  CustomerTabs: undefined;
+  CustomerTabs: { screen?: string; params?: any };
   RideHistory: undefined;
   Payment: {
     bookingId: string;
@@ -54,6 +54,12 @@ export type DriverStackParamList = {
   BillingHistory: undefined;
   Support: undefined;
   RideDetails: { booking: import('./index').Booking };
+  DriverAccountFAQ: undefined;
+  DriverVehicleFAQ: undefined;
+  DriverEarningsFAQ: undefined;
+  DriverRidesFAQ: undefined;
+  DriverTechnicalFAQ: undefined;
+  DriverSupport: undefined;
 
   // Add other driver screens here
 };

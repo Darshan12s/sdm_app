@@ -11,7 +11,7 @@ import {
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { useTheme } from '@/contexts/ThemeContext';
-import { CustomerStackParamList } from '@/types/navigation';
+import { DriverStackParamList } from '@/types/navigation';
 
 interface FAQItem {
   id: string;
@@ -20,59 +20,59 @@ interface FAQItem {
   category: string;
 }
 
-const TechnicalFAQScreen: React.FC = () => {
-  const navigation = useNavigation<NavigationProp<CustomerStackParamList>>();
+const DriverEarningsFAQScreen: React.FC = () => {
+  const navigation = useNavigation<NavigationProp<DriverStackParamList>>();
   const { colors } = useTheme();
   const [expandedFAQ, setExpandedFAQ] = useState<string | null>(null);
 
   const faqData: FAQItem[] = [
     {
-      id: 'app-not-loading',
-      question: 'App not loading properly',
-      answer: 'If the app is not loading, try force closing and reopening it. Clear app cache in device settings. Ensure you have a stable internet connection. Update the app to the latest version from the app store. If issues persist, uninstall and reinstall the app.',
-      category: 'technical',
+      id: 'earnings-calculation',
+      question: 'How are my earnings calculated?',
+      answer: 'Your earnings are calculated as: Base fare + Distance fare + Time fare - Platform fee - Taxes. You can see the detailed breakdown for each ride in your earnings history. Weekly payouts are processed every Monday.',
+      category: 'earnings',
     },
     {
-      id: 'location-services',
-      question: 'Location services not working',
-      answer: 'Enable location services in your device settings and grant location permission to the app. Ensure GPS is turned on. Try restarting your device. If using Android, check that location accuracy is set to "High accuracy". Clear app cache and restart the app.',
-      category: 'technical',
+      id: 'payment-methods',
+      question: 'What payment methods are available?',
+      answer: 'You can receive payments via Bank Transfer, UPI, or Paytm. Add your preferred payment method in Profile > Payment Methods. Ensure your bank details are accurate to avoid payment delays.',
+      category: 'earnings',
     },
     {
-      id: 'payment-failed',
-      question: 'Payment failed in app',
-      answer: 'Check your internet connection and try again. Ensure your payment method has sufficient funds. Verify payment details are correct. Contact your bank if the issue persists. Try using a different payment method or contact our support team for assistance.',
-      category: 'technical',
+      id: 'weekly-payouts',
+      question: 'When do I get paid?',
+      answer: 'Payments are processed weekly, every Monday for the previous week\'s earnings. You\'ll receive payment within 24-48 hours after processing. Check your transaction status in the Earnings section.',
+      category: 'earnings',
     },
     {
-      id: 'app-update',
-      question: 'How to update the app',
-      answer: 'Go to Google Play Store or Apple App Store, search for "SDM Cab Hailing", and tap "Update" if available. Enable automatic updates in store settings. The app will notify you when updates are available. Keeping the app updated ensures best performance and security.',
-      category: 'technical',
+      id: 'minimum-payout',
+      question: 'Is there a minimum payout amount?',
+      answer: 'Yes, the minimum payout amount is ₹100. If your weekly earnings are below ₹100, they will be carried forward to the next week until the minimum threshold is reached.',
+      category: 'earnings',
     },
     {
-      id: 'login-issues',
-      question: 'Login problems',
-      answer: 'Ensure you\'re using the correct phone number and password. Check your internet connection. Try "Forgot Password" if you can\'t remember your password. Clear app cache or reinstall the app. Contact support if you\'re still unable to login.',
-      category: 'technical',
+      id: 'platform-fees',
+      question: 'What are platform fees?',
+      answer: 'Platform fees vary by city and vehicle type, typically ranging from 15-25% of the ride fare. This covers technology, insurance, and operational costs. Fees are automatically deducted from your earnings.',
+      category: 'earnings',
     },
     {
-      id: 'gps-accuracy',
-      question: 'GPS location inaccurate',
-      answer: 'Ensure you\'re in an open area with clear sky view. Enable high accuracy mode in location settings. Restart GPS services. Clear app cache. The app uses Google Maps for accurate location services. Try restarting your device if accuracy issues persist.',
-      category: 'technical',
+      id: 'incentives-bonuses',
+      question: 'How do incentives and bonuses work?',
+      answer: 'Earn bonuses for completing certain number of rides, maintaining high ratings, or during peak hours. Bonuses are added to your weekly earnings and are paid out along with regular earnings.',
+      category: 'earnings',
     },
     {
-      id: 'notification-issues',
-      question: 'Not receiving notifications',
-      answer: 'Enable notifications for the app in device settings. Check that "Do Not Disturb" mode is off. Ensure the app has background refresh enabled. Restart your device. Update the app to the latest version. Reinstall the app if notifications still don\'t work.',
-      category: 'technical',
+      id: 'taxes-deductions',
+      question: 'What taxes are deducted?',
+      answer: 'TDS (Tax Deducted at Source) of 1% is deducted on earnings above ₹50,000 per year. GST is also applicable on platform fees. All deductions are as per government regulations.',
+      category: 'earnings',
     },
     {
-      id: 'app-crashing',
-      question: 'App keeps crashing',
-      answer: 'Update the app to the latest version. Clear app cache and data. Restart your device. Ensure your device meets minimum requirements (Android 8.0+ or iOS 12.0+). Free up storage space. If crashes continue, uninstall and reinstall the app.',
-      category: 'technical',
+      id: 'payment-issues',
+      question: 'What if I don\'t receive payment?',
+      answer: 'Check your payment method details and ensure they are correct. If payment is delayed beyond 48 hours, contact support with your transaction ID. Payments may be held for verification in case of suspicious activity.',
+      category: 'earnings',
     },
   ];
 
@@ -113,20 +113,18 @@ const TechnicalFAQScreen: React.FC = () => {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar barStyle={colors.isDark ? "light-content" : "dark-content"} backgroundColor={colors.headerBackground} />
 
-      {/* Header */}
       {/* <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Technical FAQs</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Earnings FAQs</Text>
           <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-            App issues and technical problems
+            Payment methods and earnings
           </Text>
         </View>
       </View> */}
 
-      {/* FAQ List */}
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
@@ -135,7 +133,6 @@ const TechnicalFAQScreen: React.FC = () => {
 
           {faqData.map(renderFAQItem)}
 
-          {/* Contact Support */}
           <View style={[styles.contactCard, { backgroundColor: colors.card }]}>
             <MaterialIcons name="contact-support" size={24} color={colors.primary} />
             <View style={styles.contactInfo}>
@@ -146,7 +143,7 @@ const TechnicalFAQScreen: React.FC = () => {
             </View>
             <TouchableOpacity
               style={[styles.contactButton, { backgroundColor: colors.primary }]}
-              onPress={() => navigation.navigate('CustomerTabs', { screen: 'Support' })}
+              onPress={() => navigation.navigate('Support')}
             >
               <Text style={styles.contactButtonText}>Get Help</Text>
             </TouchableOpacity>
@@ -272,4 +269,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default TechnicalFAQScreen;
+export default DriverEarningsFAQScreen;
