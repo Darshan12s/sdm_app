@@ -112,7 +112,6 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         advance_amount: currentPaymentAmount,
         remaining_amount: remainingAmount,
         luggage_count: bookingData.luggageCount,
-        has_pet: bookingData.hasPet,
       };
 
       const { data: booking, error: bookingError } = await supabase

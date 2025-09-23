@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Toast from 'react-native-toast-message';
+import { RazorpayTest } from '@/components/RazorpayTest';
 
 // Import types and navigation
 import { CustomerTabParamList } from '@/types/navigation';
@@ -33,6 +34,7 @@ export default function BookRideScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ flexGrow: 1 }}>
       <BookingFlow onBookingComplete={handleBookingComplete} />
+      {/* <RazorpayTest /> */}
     </ScrollView>
   );
 }

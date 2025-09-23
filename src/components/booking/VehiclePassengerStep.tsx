@@ -1,11 +1,23 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { VehicleType } from '@/types';
+import { VehicleType, ServiceType } from '@/types';
+import { useFareCalculation } from '@/hooks/useFareCalculation';
+
+interface LocationData {
+  lat: number;
+  lng: number;
+  address: string;
+}
 
 interface VehiclePassengerStepProps {
   passengers: number;
   vehicleType: VehicleType;
+  serviceType: ServiceType;
+  pickupCoords: LocationData | null;
+  dropoffCoords: LocationData | null;
+  scheduledDate?: Date;
+  scheduledTime?: string;
   onPassengersChange: (count: number) => void;
   onVehicleTypeChange: (type: VehicleType) => void;
   onNext: () => void;
@@ -15,14 +27,94 @@ interface VehiclePassengerStepProps {
 export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
   passengers,
   vehicleType,
+  serviceType,
+  pickupCoords,
+  dropoffCoords,
+  scheduledDate,
+  scheduledTime,
   onPassengersChange,
   onVehicleTypeChange,
   onNext,
   onBack,
 }) => {
   const [showPassengerModal, setShowPassengerModal] = useState(false);
+  const [showFareBreakdown, setShowFareBreakdown] = useState<string | null>(null);
 
-  // Vehicle type options with prices
+  // Calculate distance and duration from coordinates
+  const calculateDistanceAndDuration = () => {
+    if (!pickupCoords || !dropoffCoords) return { distanceKm: 0, durationMinutes: 0 };
+
+    const R = 6371; // Earth's radius in km
+    const dLat = (dropoffCoords.lat - pickupCoords.lat) * Math.PI / 180;
+    const dLng = (dropoffCoords.lng - pickupCoords.lng) * Math.PI / 180;
+
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(pickupCoords.lat * Math.PI / 180) * Math.cos(dropoffCoords.lat * Math.PI / 180) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distanceKm = R * c;
+
+    // Estimate duration (rough calculation: 30 km/h average speed)
+    const durationMinutes = (distanceKm / 30) * 60;
+
+    return { distanceKm, durationMinutes };
+  };
+
+  const { distanceKm, durationMinutes } = calculateDistanceAndDuration();
+
+  // Create scheduled dateTime string for fare calculation
+  const scheduledDateTime = scheduledDate && scheduledTime
+    ? `${scheduledDate.toISOString().split('T')[0]}T${scheduledTime}:00`
+    : undefined;
+
+  // Calculate fares for each vehicle type with passenger multiplier
+  const passengerMultiplier = passengers > 4 ? 1.1 : 1; // 10% surcharge for >4 passengers
+
+  const sedanFare = useFareCalculation({
+    serviceType,
+    vehicleType: 'sedan',
+    distanceKm,
+    durationMinutes,
+    scheduledDateTime,
+  });
+
+  const suvFare = useFareCalculation({
+    serviceType,
+    vehicleType: 'suv',
+    distanceKm,
+    durationMinutes,
+    scheduledDateTime,
+  });
+
+  const premiumFare = useFareCalculation({
+    serviceType,
+    vehicleType: 'premium',
+    distanceKm,
+    durationMinutes,
+    scheduledDateTime,
+  });
+
+  // Apply passenger multiplier to fares
+  const adjustedSedanFare = sedanFare ? {
+    ...sedanFare,
+    totalFare: Math.round(sedanFare.totalFare * passengerMultiplier),
+    passengerSurcharge: passengerMultiplier > 1 ? Math.round(sedanFare.totalFare * (passengerMultiplier - 1)) : 0
+  } : null;
+
+  const adjustedSuvFare = suvFare ? {
+    ...suvFare,
+    totalFare: Math.round(suvFare.totalFare * passengerMultiplier),
+    passengerSurcharge: passengerMultiplier > 1 ? Math.round(suvFare.totalFare * (passengerMultiplier - 1)) : 0
+  } : null;
+
+  const adjustedPremiumFare = premiumFare ? {
+    ...premiumFare,
+    totalFare: Math.round(premiumFare.totalFare * passengerMultiplier),
+    passengerSurcharge: passengerMultiplier > 1 ? Math.round(premiumFare.totalFare * (passengerMultiplier - 1)) : 0
+  } : null;
+
+  // Vehicle type options with dynamic pricing
   const vehicleTypes = [
     {
       type: 'sedan' as VehicleType,
@@ -31,9 +123,9 @@ export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
       icon: 'directions-car',
       iconType: 'MaterialIcons',
       description: 'Comfortable and economical',
-      price: 3346,
-      distance: '189.12 km',
-      duration: '204.50 min',
+      fareData: adjustedSedanFare,
+      distance: distanceKm > 0 ? `${distanceKm.toFixed(1)} km` : 'Calculating...',
+      duration: durationMinutes > 0 ? `${Math.round(durationMinutes)} min` : 'Calculating...',
       features: ['AC', 'Music System', 'GPS'],
     },
     {
@@ -43,9 +135,9 @@ export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
       icon: 'airport-shuttle',
       iconType: 'MaterialIcons',
       description: 'Spacious for groups',
-      price: 4065,
-      distance: '189.12 km',
-      duration: '204.50 min',
+      fareData: adjustedSuvFare,
+      distance: distanceKm > 0 ? `${distanceKm.toFixed(1)} km` : 'Calculating...',
+      duration: durationMinutes > 0 ? `${Math.round(durationMinutes)} min` : 'Calculating...',
       features: ['AC', 'Extra Space', 'GPS'],
     },
     {
@@ -55,9 +147,9 @@ export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
       icon: 'local-taxi',
       iconType: 'MaterialIcons',
       description: 'Luxury experience',
-      price: 5542,
-      distance: '189.12 km',
-      duration: '204.50 min',
+      fareData: adjustedPremiumFare,
+      distance: distanceKm > 0 ? `${distanceKm.toFixed(1)} km` : 'Calculating...',
+      duration: durationMinutes > 0 ? `${Math.round(durationMinutes)} min` : 'Calculating...',
       comingSoon: true,
       features: ['AC', 'Leather Seats', 'Music System', 'GPS'],
     },
@@ -149,9 +241,67 @@ export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
                     </View>
                   </View>
                   
-                  <View style={styles.vehiclePriceContainer}>
-                    <Text style={styles.vehiclePrice}>₹{vehicle.price}</Text>
-                  </View>
+                  <TouchableOpacity
+                    style={styles.vehiclePriceContainer}
+                    onPress={() => setShowFareBreakdown(showFareBreakdown === vehicle.type ? null : vehicle.type)}
+                  >
+                    {vehicle.fareData ? (
+                      <>
+                        <Text style={styles.vehiclePrice}>₹{vehicle.fareData.totalFare}</Text>
+                        {vehicle.fareData.surgeMultiplier > 1 && (
+                          <Text style={styles.surgeText}>
+                            {vehicle.fareData.surgeReason}
+                          </Text>
+                        )}
+                        <MaterialIcons
+                          name={showFareBreakdown === vehicle.type ? "expand-less" : "expand-more"}
+                          size={16}
+                          color="#64748b"
+                          style={styles.expandIcon}
+                        />
+                      </>
+                    ) : distanceKm > 0 ? (
+                      <Text style={styles.errorText}>Price unavailable</Text>
+                    ) : (
+                      <ActivityIndicator size="small" color="#3ccfa0" />
+                    )}
+                  </TouchableOpacity>
+
+                  {/* Fare Breakdown */}
+                  {showFareBreakdown === vehicle.type && vehicle.fareData && (
+                    <View style={styles.fareBreakdown}>
+                      <View style={styles.breakdownRow}>
+                        <Text style={styles.breakdownLabel}>Base Fare</Text>
+                        <Text style={styles.breakdownValue}>₹{vehicle.fareData.baseFare}</Text>
+                      </View>
+                      <View style={styles.breakdownRow}>
+                        <Text style={styles.breakdownLabel}>Distance ({vehicle.distance})</Text>
+                        <Text style={styles.breakdownValue}>₹{vehicle.fareData.distanceFare}</Text>
+                      </View>
+                      <View style={styles.breakdownRow}>
+                        <Text style={styles.breakdownLabel}>Time ({vehicle.duration})</Text>
+                        <Text style={styles.breakdownValue}>₹{vehicle.fareData.timeFare}</Text>
+                      </View>
+                      {vehicle.fareData.surgeMultiplier > 1 && (
+                        <View style={styles.breakdownRow}>
+                          <Text style={styles.breakdownLabel}>Surge ({vehicle.fareData.surgeMultiplier}x)</Text>
+                          <Text style={styles.breakdownValue}>
+                            ₹{Math.round((vehicle.fareData.baseFare + vehicle.fareData.distanceFare + vehicle.fareData.timeFare) * (vehicle.fareData.surgeMultiplier - 1))}
+                          </Text>
+                        </View>
+                      )}
+                      {vehicle.fareData.passengerSurcharge > 0 && (
+                        <View style={styles.breakdownRow}>
+                          <Text style={styles.breakdownLabel}>Passenger surcharge ({passengers} guests)</Text>
+                          <Text style={styles.breakdownValue}>₹{vehicle.fareData.passengerSurcharge}</Text>
+                        </View>
+                      )}
+                      <View style={[styles.breakdownRow, styles.totalRow]}>
+                        <Text style={styles.totalLabel}>Total</Text>
+                        <Text style={styles.totalValue}>₹{vehicle.fareData.totalFare}</Text>
+                      </View>
+                    </View>
+                  )}
                 </View>
               </TouchableOpacity>
             ))}
@@ -380,6 +530,60 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#3ccfa0',
+  },
+  surgeText: {
+    fontSize: 10,
+    color: '#f59e0b',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  expandIcon: {
+    marginTop: 2,
+  },
+  fareBreakdown: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  breakdownLabel: {
+    fontSize: 12,
+    color: '#64748b',
+    flex: 1,
+  },
+  breakdownValue: {
+    fontSize: 12,
+    color: '#1e293b',
+    fontWeight: '500',
+  },
+  totalRow: {
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    paddingTop: 8,
+    marginTop: 8,
+  },
+  totalLabel: {
+    fontSize: 14,
+    color: '#1e293b',
+    fontWeight: '600',
+  },
+  totalValue: {
+    fontSize: 14,
+    color: '#3ccfa0',
+    fontWeight: 'bold',
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#dc2626',
+    fontStyle: 'italic',
   },
   modalOverlay: {
     flex: 1,

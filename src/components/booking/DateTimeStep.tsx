@@ -38,6 +38,66 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
   const [activePicker, setActivePicker] = useState<'scheduled' | 'return'>('scheduled');
   const [tempDate, setTempDate] = useState(new Date());
 
+  // Helper functions for date/time constraints
+  const getMinimumDate = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to start of today
+    return today;
+  };
+
+  const getMinimumTimeForDate = (selectedDate: Date) => {
+    const now = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const selectedDateStart = new Date(selectedDate);
+    selectedDateStart.setHours(0, 0, 0, 0);
+
+    // If selected date is today, minimum time is 2 hours from now
+    if (selectedDateStart.getTime() === today.getTime()) {
+      const minTime = new Date(now.getTime() + 2 * 60 * 60 * 1000); // Add 2 hours
+
+      // Handle midnight wrap-around: if 2 hours from now is tomorrow,
+      // then for today we allow all times (since the constraint moves to tomorrow)
+      if (minTime.getDate() !== now.getDate()) {
+        // 2 hours from now is tomorrow, so for today allow any time
+        return new Date(selectedDateStart);
+      }
+
+      return minTime;
+    }
+
+    // For future dates, allow any time (return start of day)
+    return new Date(selectedDateStart);
+  };
+
+  const isTimeValid = (selectedTime: Date, selectedDate: Date) => {
+    const now = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const selectedDateStart = new Date(selectedDate);
+    selectedDateStart.setHours(0, 0, 0, 0);
+
+    // If selected date is today
+    if (selectedDateStart.getTime() === today.getTime()) {
+      const minTime = new Date(now.getTime() + 2 * 60 * 60 * 1000); // 2 hours from now
+
+      // If 2 hours from now is tomorrow, then all times today are valid
+      if (minTime.getDate() !== now.getDate()) {
+        return true;
+      }
+
+      // Otherwise, check against the minimum time
+      const selectedDateTime = new Date(selectedDate);
+      selectedDateTime.setHours(selectedTime.getHours(), selectedTime.getMinutes(), 0, 0);
+      return selectedDateTime >= minTime;
+    }
+
+    // For future dates, all times are valid
+    return true;
+  };
+
 
   // Quick date options
   const quickDateOptions = [
@@ -49,6 +109,19 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
   const handleQuickDateSelect = (daysFromNow: number) => {
     const date = new Date();
     date.setDate(date.getDate() + daysFromNow);
+
+    // For today, check if we can still schedule within 2 hours
+    if (daysFromNow === 0) {
+      const now = new Date();
+      const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+
+      // If it's too late to schedule for today (less than 2 hours left), don't allow
+      if (twoHoursFromNow.getDate() !== now.getDate()) {
+        alert('Too late to schedule for today. Please select tomorrow or later.');
+        return;
+      }
+    }
+
     if (activePicker === 'scheduled') {
       onScheduledDateChange(date);
     } else {
@@ -59,6 +132,13 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
   const handleDateChange = (event: any, selectedDate?: Date) => {
     setShowDatePicker(Platform.OS === 'ios');
     if (selectedDate) {
+      // Ensure selected date is not in the past
+      const minDate = getMinimumDate();
+      if (selectedDate < minDate) {
+        alert('Cannot select past dates');
+        return;
+      }
+
       if (activePicker === 'scheduled') {
         onScheduledDateChange(selectedDate);
         // If return date exists and is before new pickup date, clear it
@@ -71,7 +151,6 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
         if (validateReturnDate(selectedDate, scheduledDate)) {
           onReturnDateChange(selectedDate);
         } else {
-          // Show error or keep previous date
           alert('Return date must be after pickup date');
         }
       } else {
@@ -83,11 +162,31 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
   const handleTimeChange = (event: any, selectedTime?: Date) => {
     setShowTimePicker(Platform.OS === 'ios');
     if (selectedTime) {
+      // Get the selected date for validation
+      const selectedDate = activePicker === 'scheduled' ? scheduledDate : returnDate;
+      if (!selectedDate) {
+        alert('Please select a date first');
+        return;
+      }
+
+      // Validate time constraints
+      if (!isTimeValid(selectedTime, selectedDate)) {
+        const minTime = getMinimumTimeForDate(selectedDate);
+        const minTimeString = minTime.toLocaleTimeString('en-IN', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        });
+        alert(`Please select a time at least 2 hours from now. Minimum time: ${minTimeString}`);
+        return;
+      }
+
       const timeString = selectedTime.toLocaleTimeString('en-IN', {
         hour: '2-digit',
         minute: '2-digit',
         hour12: false
       });
+
       if (activePicker === 'scheduled') {
         onScheduledTimeChange(timeString);
       } else {
@@ -106,12 +205,25 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
 
   const openTimePicker = (picker: 'scheduled' | 'return') => {
     setActivePicker(picker);
+    const selectedDate = picker === 'scheduled' ? scheduledDate : returnDate;
+
+    if (!selectedDate) {
+      alert('Please select a date first');
+      return;
+    }
+
     const currentTime = picker === 'scheduled' ? scheduledTime : returnTime;
-    const timeDate = new Date();
+    const timeDate = new Date(selectedDate); // Use selected date as base
+
     if (currentTime) {
       const [hours, minutes] = currentTime.split(':');
       timeDate.setHours(parseInt(hours), parseInt(minutes));
+    } else {
+      // Set to minimum allowed time if no current time
+      const minTime = getMinimumTimeForDate(selectedDate);
+      timeDate.setHours(minTime.getHours(), minTime.getMinutes());
     }
+
     setTempDate(timeDate);
     setShowTimePicker(true);
   };
@@ -134,12 +246,42 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
 
   const formatTime = (time: string | undefined) => {
     if (!time) return 'Select time';
+    // Ensure time is in HH:MM format
+    const timeRegex = /^(\d{1,2}):(\d{2})$/;
+    const match = time.match(timeRegex);
+    if (match) {
+      const hours = parseInt(match[1]);
+      const minutes = match[2];
+      const period = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = hours % 12 || 12;
+      return `${displayHours}:${minutes} ${period}`;
+    }
     return time;
   };
 
   // Validation for return date (must be after pickup date)
   const validateReturnDate = (returnDate: Date, pickupDate: Date) => {
     return returnDate >= pickupDate;
+  };
+
+  // Check if "Today" option should be disabled
+  const isTodayDisabled = () => {
+    const now = new Date();
+    const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+    return twoHoursFromNow.getDate() !== now.getDate();
+  };
+
+  // Get minimum time display for today
+  const getTodayMinTimeDisplay = () => {
+    if (!isTodayDisabled()) {
+      const minTime = new Date(Date.now() + 2 * 60 * 60 * 1000);
+      return formatTime(minTime.toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      }));
+    }
+    return '';
   };
 
   return (
@@ -156,26 +298,41 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
 
           {/* Quick Date Selection */}
           <View style={styles.quickDateContainer}>
-            {quickDateOptions.map((option) => (
-              <TouchableOpacity
-                key={option.value}
-                style={[
-                  styles.quickDateButton,
-                  (activePicker === 'scheduled' && scheduledDate?.toDateString() === new Date(Date.now() + option.value * 24 * 60 * 60 * 1000).toDateString()) && styles.quickDateButtonActive
-                ]}
-                onPress={() => {
-                  setActivePicker('scheduled');
-                  handleQuickDateSelect(option.value);
-                }}
-              >
-                <Text style={[
-                  styles.quickDateText,
-                  (activePicker === 'scheduled' && scheduledDate?.toDateString() === new Date(Date.now() + option.value * 24 * 60 * 60 * 1000).toDateString()) && styles.quickDateTextActive
-                ]}>
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {quickDateOptions.map((option) => {
+              const isDisabled = option.value === 0 && isTodayDisabled();
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.quickDateButton,
+                    isDisabled && styles.quickDateButtonDisabled,
+                    (activePicker === 'scheduled' && scheduledDate?.toDateString() === new Date(Date.now() + option.value * 24 * 60 * 60 * 1000).toDateString()) && styles.quickDateButtonActive
+                  ]}
+                  onPress={() => {
+                    if (isDisabled) {
+                      alert('Too late to schedule for today. Minimum booking time is 2 hours from now.');
+                      return;
+                    }
+                    setActivePicker('scheduled');
+                    handleQuickDateSelect(option.value);
+                  }}
+                  disabled={isDisabled}
+                >
+                  <Text style={[
+                    styles.quickDateText,
+                    isDisabled && styles.quickDateTextDisabled,
+                    (activePicker === 'scheduled' && scheduledDate?.toDateString() === new Date(Date.now() + option.value * 24 * 60 * 60 * 1000).toDateString()) && styles.quickDateTextActive
+                  ]}>
+                    {option.label}
+                  </Text>
+                  {option.value === 0 && !isDisabled && (
+                    <Text style={styles.minTimeText}>
+                      from {getTodayMinTimeDisplay()}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           {/* Date & Time Selection */}
@@ -219,26 +376,37 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
 
             {/* Quick Date Selection for Return */}
             <View style={styles.quickDateContainer}>
-              {quickDateOptions.map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.quickDateButton,
-                    (activePicker === 'return' && returnDate?.toDateString() === new Date(Date.now() + option.value * 24 * 60 * 60 * 1000).toDateString()) && styles.quickDateButtonActive
-                  ]}
-                  onPress={() => {
-                    setActivePicker('return');
-                    handleQuickDateSelect(option.value);
-                  }}
-                >
-                  <Text style={[
-                    styles.quickDateText,
-                    (activePicker === 'return' && returnDate?.toDateString() === new Date(Date.now() + option.value * 24 * 60 * 60 * 1000).toDateString()) && styles.quickDateTextActive
-                  ]}>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {quickDateOptions.map((option) => {
+                const isDisabled = option.value === 0 && isTodayDisabled();
+                const returnDateOption = scheduledDate ? new Date(scheduledDate.getTime() + option.value * 24 * 60 * 60 * 1000) : new Date(Date.now() + option.value * 24 * 60 * 60 * 1000);
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.quickDateButton,
+                      isDisabled && styles.quickDateButtonDisabled,
+                      (activePicker === 'return' && returnDate?.toDateString() === returnDateOption.toDateString()) && styles.quickDateButtonActive
+                    ]}
+                    onPress={() => {
+                      if (isDisabled) {
+                        alert('Cannot select today for return trip due to time constraints.');
+                        return;
+                      }
+                      setActivePicker('return');
+                      handleQuickDateSelect(option.value);
+                    }}
+                    disabled={isDisabled}
+                  >
+                    <Text style={[
+                      styles.quickDateText,
+                      isDisabled && styles.quickDateTextDisabled,
+                      (activePicker === 'return' && returnDate?.toDateString() === returnDateOption.toDateString()) && styles.quickDateTextActive
+                    ]}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             {/* Return Date & Time Selection */}
@@ -283,7 +451,7 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
             mode="date"
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             onChange={handleDateChange}
-            minimumDate={activePicker === 'return' && scheduledDate ? scheduledDate : new Date()}
+            minimumDate={getMinimumDate()}
             maximumDate={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)} // 30 days from now
           />
         )}
@@ -296,6 +464,15 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             onChange={handleTimeChange}
             minuteInterval={30}
+            minimumDate={
+              (() => {
+                const selectedDate = activePicker === 'scheduled' ? scheduledDate : returnDate;
+                if (selectedDate) {
+                  return getMinimumTimeForDate(selectedDate);
+                }
+                return new Date();
+              })()
+            }
           />
         )}
       </ScrollView>
@@ -372,6 +549,11 @@ const styles = StyleSheet.create({
     borderColor: '#3ccfa0',
     backgroundColor: '#ecfdf5',
   },
+  quickDateButtonDisabled: {
+    backgroundColor: '#f1f5f9',
+    borderColor: '#cbd5e1',
+    opacity: 0.6,
+  },
   quickDateText: {
     fontSize: 12,
     fontWeight: '500',
@@ -379,6 +561,14 @@ const styles = StyleSheet.create({
   },
   quickDateTextActive: {
     color: '#3ccfa0',
+  },
+  quickDateTextDisabled: {
+    color: '#94a3b8',
+  },
+  minTimeText: {
+    fontSize: 10,
+    color: '#64748b',
+    marginTop: 2,
   },
   dateTimeContainer: {
     flexDirection: 'row',

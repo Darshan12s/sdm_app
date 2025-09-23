@@ -31,16 +31,42 @@
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
+        "FOREGROUND_SERVICE",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
         "FOREGROUND_SERVICE"
       ],
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyAejqe2t4TAptcLnkpoFTTNMhm0SFHFJgQ"
         }
-      }
+      },
+      "package": "com.rankbooktech.sdmapp",
+      "versionCode": 1
     },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34,
+            "buildToolsVersion": "34.0.0",
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "-keepattributes *Annotation*"
+          },
+          "ios": {}
+        }
+      ]
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "001068a2-64ea-4ea8-90a2-2ddc1c97bcb8"
+      }
     }
   }
 }

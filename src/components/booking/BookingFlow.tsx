@@ -6,7 +6,6 @@ import { ServiceTypeStep } from '@/components/booking/ServiceTypeStep';
 import { LocationStep } from '@/components/booking/LocationStep';
 import { DateTimeStep } from '@/components/booking/DateTimeStep';
 import { VehiclePassengerStep } from '@/components/booking/VehiclePassengerStep';
-import { ConfirmationStep } from '@/components/booking/ConfirmationStep';
 import { PaymentStep } from '@/components/booking/PaymentStep';
 
 interface LocationData {
@@ -43,7 +42,7 @@ const validateLocationRadius = (lat: number, lng: number) => {
 
 export const BookingFlow: React.FC<BookingFlowProps> = ({ onBookingComplete }) => {
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 6;
+  const totalSteps = 5;
 
   // Animation refs
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -157,7 +156,6 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ onBookingComplete }) =
     'Locations',
     'Date & Time',
     'Vehicle',
-    'Confirm',
     'Payment'
   ];
 
@@ -276,6 +274,11 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ onBookingComplete }) =
           <VehiclePassengerStep
             passengers={passengers}
             vehicleType={vehicleType}
+            serviceType={serviceType}
+            pickupCoords={pickupCoords}
+            dropoffCoords={dropoffCoords}
+            scheduledDate={scheduledDate}
+            scheduledTime={scheduledTime}
             onPassengersChange={setPassengers}
             onVehicleTypeChange={setVehicleType}
             onNext={handleNext}
@@ -283,29 +286,6 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ onBookingComplete }) =
           />
         );
       case 5:
-        return (
-          <ConfirmationStep
-            serviceType={serviceType}
-            tripType={tripType}
-            isRoundTrip={isRoundTrip}
-            pickupLocation={pickupLocation}
-            dropoffLocation={dropoffLocation}
-            pickupCoords={pickupCoords}
-            dropoffCoords={dropoffCoords}
-            scheduledDate={scheduledDate}
-            scheduledTime={scheduledTime}
-            returnDate={returnDate}
-            returnTime={returnTime}
-            passengers={passengers}
-            vehicleType={vehicleType}
-            onLuggageCountChange={setLuggageCount}
-            onHasPetChange={setHasPet}
-            onAdditionalInstructionsChange={setAdditionalInstructions}
-            onConfirm={handleConfirmBooking}
-            onBack={handleBack}
-          />
-        );
-      case 6:
         return (
           <PaymentStep
             bookingData={{

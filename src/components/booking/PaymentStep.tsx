@@ -8,10 +8,13 @@ import {
   ActivityIndicator,
   Platform,
   ScrollView,
+  TextInput,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { RazorpayService, PaymentData } from '@/services/payment/razorpay';
+import { RazorpayExpoService, PaymentData } from '@/services/payment/razorpay-expo';
 import { supabase } from '@/services/supabase/client';
+import { useFareCalculation } from '@/hooks/useFareCalculation';
+import { RazorpaySDKService } from '@/services/payment/razorpay-sdk';
 
 interface PaymentStepProps {
   bookingData: any;
@@ -28,9 +31,63 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   const [paymentAmount, setPaymentAmount] = useState<'partial' | 'full'>('partial');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showFareBreakdown, setShowFareBreakdown] = useState<string | null>(null);
+  const [isSpecialInstructionsExpanded, setIsSpecialInstructionsExpanded] = useState(false);
+  const [specialInstructions, setSpecialInstructions] = useState(bookingData.additionalInstructions || '');
+  const [luggageCount, setLuggageCount] = useState(bookingData.luggageCount || 0);
+  const [hasPet, setHasPet] = useState(bookingData.hasPet || false);
 
-  // Calculate payment amounts based on vehicle type
-  const estimatedFare = getEstimatedFare(bookingData.vehicleType); 
+  // SDK integration state
+  const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
+
+
+  // Calculate distance and duration from coordinates
+  const calculateDistanceAndDuration = () => {
+    if (!bookingData.pickupCoords || !bookingData.dropoffCoords) return { distanceKm: 0, durationMinutes: 0 };
+
+    const R = 6371; // Earth's radius in km
+    const dLat = (bookingData.dropoffCoords.lat - bookingData.pickupCoords.lat) * Math.PI / 180;
+    const dLng = (bookingData.dropoffCoords.lng - bookingData.pickupCoords.lng) * Math.PI / 180;
+
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(bookingData.pickupCoords.lat * Math.PI / 180) * Math.cos(bookingData.dropoffCoords.lat * Math.PI / 180) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distanceKm = R * c;
+
+    // Estimate duration (rough calculation: 30 km/h average speed)
+    const durationMinutes = (distanceKm / 30) * 60;
+
+    return { distanceKm, durationMinutes };
+  };
+
+  const { distanceKm, durationMinutes } = calculateDistanceAndDuration();
+
+  // Create scheduled dateTime string for fare calculation
+  const scheduledDateTime = bookingData.scheduledDate && bookingData.scheduledTime
+    ? `${bookingData.scheduledDate.toISOString().split('T')[0]}T${bookingData.scheduledTime}:00`
+    : undefined;
+
+  // Use fare calculation hook
+  const fareData = useFareCalculation({
+    serviceType: bookingData.serviceType,
+    vehicleType: bookingData.vehicleType,
+    distanceKm,
+    durationMinutes,
+    scheduledDateTime,
+  });
+
+  // Apply passenger multiplier
+  const passengerMultiplier = bookingData.passengers > 4 ? 1.1 : 1;
+  const adjustedFare = fareData ? {
+    ...fareData,
+    totalFare: Math.round(fareData.totalFare * passengerMultiplier),
+    passengerSurcharge: passengerMultiplier > 1 ? Math.round(fareData.totalFare * (passengerMultiplier - 1)) : 0
+  } : null;
+
+  // Calculate payment amounts
+  const estimatedFare = adjustedFare?.totalFare || getEstimatedFare(bookingData.vehicleType);
   const partialPayment = Math.ceil(estimatedFare * 0.25); // 25% advance
   const currentPaymentAmount = paymentAmount === 'full' ? estimatedFare : partialPayment;
   const remainingAmount = paymentAmount === 'full' ? 0 : estimatedFare - partialPayment;
@@ -47,6 +104,36 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         return 3346;
     }
   }
+
+  const toggleSpecialInstructions = () => {
+    setIsSpecialInstructionsExpanded(!isSpecialInstructionsExpanded);
+  };
+
+  const updateSpecialInstructions = () => {
+    // If special instructions section is hidden, clear the instructions
+    if (!isSpecialInstructionsExpanded) {
+      setSpecialInstructions("");
+      return "";
+    }
+
+    const parts = [];
+
+    if (luggageCount > 0) {
+      parts.push(`${luggageCount} luggage item${luggageCount !== 1 ? 's' : ''}`);
+    }
+
+    if (hasPet) {
+      parts.push("Traveling with pet");
+    }
+
+    if (specialInstructions.trim()) {
+      parts.push(specialInstructions.trim());
+    }
+
+    const combined = parts.join(", ");
+    setSpecialInstructions(combined);
+    return combined;
+  };
 
   const paymentMethods = [
     {
@@ -69,12 +156,8 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
     },
   ];
 
-  const handlePayment = async () => {
-    if (!acceptedTerms) {
-      Alert.alert('Terms Required', 'Please accept the Terms and Conditions to proceed.');
-      return;
-    }
-
+  const proceedWithMockPayment = async () => {
+    console.log('💳 Proceeding with mock payment...');
     setIsProcessing(true);
 
     try {
@@ -86,7 +169,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         return;
       }
 
-      // Create booking in database first
+      // Create booking with mock payment
       const bookingPayload = {
         user_id: user.id,
         pickup_address: bookingData.pickupLocation,
@@ -98,21 +181,15 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         fare_amount: estimatedFare,
         status: 'pending',
         payment_status: 'pending',
-        scheduled_time: bookingData.scheduledDate ? 
+        scheduled_time: bookingData.scheduledDate ?
           new Date(`${bookingData.scheduledDate.toISOString().split('T')[0]}T${bookingData.scheduledTime}:00`).toISOString() : null,
         service_type: bookingData.serviceType,
         is_scheduled: bookingData.scheduledDate ? true : false,
         is_round_trip: bookingData.isRoundTrip || false,
-        return_scheduled_time: bookingData.returnDate && bookingData.returnTime ?
-          new Date(`${bookingData.returnDate.toISOString().split('T')[0]}T${bookingData.returnTime}:00`).toISOString() : null,
-        trip_type: bookingData.tripType,
         vehicle_type: bookingData.vehicleType,
         passengers: bookingData.passengers || 1,
-        special_instructions: bookingData.additionalInstructions,
         advance_amount: currentPaymentAmount,
         remaining_amount: remainingAmount,
-        luggage_count: bookingData.luggageCount,
-        has_pet: bookingData.hasPet,
       };
 
       const { data: booking, error: bookingError } = await supabase
@@ -128,26 +205,180 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         return;
       }
 
-      console.log('Booking created:', booking.id);
+      console.log('Mock booking created:', booking.id);
 
-      // Prepare payment data
-      const paymentData: PaymentData = {
-        amount: RazorpayService.formatAmount(currentPaymentAmount),
-        currency: 'INR',
+      // Mock payment success
+      const mockPaymentId = `mock_pay_${Date.now()}`;
+      const mockOrderId = `mock_order_${Date.now()}`;
+
+      // Update booking status
+      const { error: updateError } = await supabase
+        .from('bookings')
+        .update({
+          payment_status: paymentAmount === 'full' ? 'completed' : 'pending',
+          status: 'confirmed',
+        })
+        .eq('id', booking.id);
+
+      if (updateError) {
+        console.error('Booking update error:', updateError);
+      }
+
+      // Call success handler
+      onPaymentSuccess({
         bookingId: booking.id,
-        customerId: user.id,
-        customerName: user.user_metadata?.full_name || user.email?.split('@')[0] || '',
-        customerEmail: user.email || '',
-        customerPhone: user.user_metadata?.phone || '',
-        description: `${bookingData.vehicleType.charAt(0).toUpperCase() + bookingData.vehicleType.slice(1)} - ${bookingData.serviceType.charAt(0).toUpperCase() + bookingData.serviceType.slice(1)} Ride`,
-        paymentMethod: paymentMethod,
-        paymentAmount: paymentAmount,
+        paymentId: mockPaymentId,
+        orderId: mockOrderId,
+        amount: currentPaymentAmount,
+        paymentType: paymentAmount,
+        remainingAmount: remainingAmount,
+      });
+
+      Alert.alert(
+        'Test Payment Successful!',
+        `Mock payment completed. ${paymentAmount === 'partial' ? `Remaining amount: ₹${remainingAmount}` : ''}`,
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Mock payment error:', error);
+      Alert.alert('Error', 'Mock payment failed. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handlePayment = async () => {
+    if (!acceptedTerms) {
+      Alert.alert('Terms Required', 'Please accept the Terms and Conditions to proceed.');
+      return;
+    }
+
+    // Test SDK integration first
+    console.log('🧪 Testing Razorpay SDK integration...');
+    const sdkTest = await RazorpaySDKService.testSDKIntegration();
+    if (!sdkTest.success) {
+      console.warn('SDK test failed:', sdkTest.message);
+      Alert.alert('Payment Setup Issue', sdkTest.message);
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        Alert.alert('Authentication Error', 'Please login to continue booking.');
+        setIsProcessing(false);
+        return;
+      }
+
+      // Get service type ID with mapping
+      const serviceTypeMapping: Record<string, string> = {
+        'ride_later': 'ride_later',
+        'airport': 'airport_transfer',
+        'outstation': 'outstation',
+        'car_rental': 'car_rental'
       };
 
-      // Initiate payment
-      const paymentResult = await RazorpayService.initiatePayment(paymentData, bookingData);
+      const mappedServiceType = serviceTypeMapping[bookingData.serviceType] || bookingData.serviceType;
+
+      const { data: serviceType, error: serviceTypeError } = await supabase
+        .from('service_types')
+        .select('id')
+        .eq('name', mappedServiceType)
+        .maybeSingle();
+
+      if (serviceTypeError) {
+        console.warn('Service type fetch error:', serviceTypeError);
+      }
+
+      // Combine special instructions before creating booking
+      const combinedSpecialInstructions = updateSpecialInstructions();
+
+      // Create booking in database first
+      const bookingPayload = {
+        user_id: user.id,
+        pickup_address: bookingData.pickupLocation,
+        dropoff_address: bookingData.dropoffLocation,
+        pickup_latitude: bookingData.pickupCoords?.lat,
+        pickup_longitude: bookingData.pickupCoords?.lng,
+        dropoff_latitude: bookingData.dropoffCoords?.lat,
+        dropoff_longitude: bookingData.dropoffCoords?.lng,
+        fare_amount: estimatedFare,
+        status: 'pending',
+        payment_status: 'pending',
+        scheduled_time: bookingData.scheduledDate ?
+          new Date(`${bookingData.scheduledDate.toISOString().split('T')[0]}T${bookingData.scheduledTime}:00`).toISOString() : null,
+        service_type_id: serviceType?.id || null,
+        service_type: bookingData.serviceType,
+        is_scheduled: bookingData.scheduledDate ? true : false,
+        is_round_trip: bookingData.isRoundTrip || false,
+        return_scheduled_time: bookingData.returnDate && bookingData.returnTime ?
+          new Date(`${bookingData.returnDate.toISOString().split('T')[0]}T${bookingData.returnTime}:00`).toISOString() : null,
+        trip_type: bookingData.tripType,
+        vehicle_type: bookingData.vehicleType,
+        passengers: bookingData.passengers || 1,
+        special_instructions: combinedSpecialInstructions,
+        advance_amount: currentPaymentAmount,
+        remaining_amount: remainingAmount,
+      };
+
+      const { data: booking, error: bookingError } = await supabase
+        .from('bookings')
+        .insert(bookingPayload)
+        .select()
+        .single();
+
+      if (bookingError) {
+        console.error('Booking creation error:', bookingError);
+        Alert.alert('Booking Error', 'Failed to create booking. Please try again.');
+        setIsProcessing(false);
+        return;
+      }
+
+      console.log('✅ Booking created:', booking.id);
+
+      // Create payment order
+      console.log('📝 Creating payment order...');
+      const orderData = await RazorpaySDKService.createOrder(
+        bookingData,
+        RazorpaySDKService.formatAmount(currentPaymentAmount),
+        paymentMethod
+      );
+
+      if (!orderData) {
+        Alert.alert('Payment Error', 'Failed to create payment order. Please try again.');
+        setIsProcessing(false);
+        return;
+      }
+
+      console.log('✅ Order created:', orderData.order_id);
+
+      // Prepare payment details
+      const customerName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Customer';
+      const customerEmail = user.email || '';
+      const customerPhone = user.user_metadata?.phone || '';
+      const description = `${bookingData.vehicleType.charAt(0).toUpperCase() + bookingData.vehicleType.slice(1)} - ${bookingData.serviceType.charAt(0).toUpperCase() + bookingData.serviceType.slice(1)} Ride`;
+
+      console.log('💳 Initiating Razorpay SDK payment...');
+
+      // Initiate payment with SDK
+      const paymentResult = await RazorpaySDKService.initiatePayment(
+        orderData.amount,
+        'INR',
+        orderData.order_id,
+        customerName,
+        customerEmail,
+        customerPhone,
+        description
+      );
+
+      setIsProcessing(false);
 
       if (paymentResult.success) {
+        console.log('✅ Payment successful:', paymentResult);
+
         // Update booking status
         const { error: updateError } = await supabase
           .from('bookings')
@@ -158,8 +389,12 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           .eq('id', booking.id);
 
         if (updateError) {
-          console.error('Booking update error:', updateError);
+          console.error('❌ Booking update error:', updateError);
+          Alert.alert('Error', 'Payment successful but booking update failed. Please contact support.');
+          return;
         }
+
+        console.log('✅ Booking updated successfully');
 
         // Call success handler
         onPaymentSuccess({
@@ -176,16 +411,30 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           `Your booking has been confirmed. ${paymentAmount === 'partial' ? `Remaining amount: ₹${remainingAmount}` : ''}`,
           [{ text: 'OK' }]
         );
+
       } else {
-        Alert.alert('Payment Failed', paymentResult.error || 'Payment could not be processed.');
+        console.error('❌ Payment failed:', paymentResult.error);
+
+        // Handle specific error types
+        let errorMessage = 'Payment failed';
+        if (paymentResult.error?.code === 'PAYMENT_CANCELLED') {
+          errorMessage = 'Payment was cancelled';
+        } else if (paymentResult.error?.code === 'NETWORK_ERROR') {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else {
+          errorMessage = paymentResult.error?.message || 'Payment failed';
+        }
+
+        Alert.alert('Payment Failed', errorMessage);
       }
-    } catch (error) {
-      console.error('Payment processing error:', error);
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
-    } finally {
+
+    } catch (error: any) {
+      console.error('❌ Payment processing error:', error);
       setIsProcessing(false);
+      Alert.alert('Error', error.message || 'An unexpected error occurred. Please try again.');
     }
   };
+
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -201,41 +450,70 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           <MaterialIcons name="location-on" size={20} color="#3ccfa0" />
           <Text style={styles.summaryTitle}>Trip Summary</Text>
         </View>
-        
+
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Service</Text>
+          <Text style={styles.summaryLabel}>Service Type</Text>
           <View style={styles.serviceBadge}>
-            <Text style={styles.serviceBadgeText}>Airport Taxi</Text>
+            <Text style={styles.serviceBadgeText}>
+              {bookingData.serviceType.charAt(0).toUpperCase() + bookingData.serviceType.slice(1)} {bookingData.tripType}
+            </Text>
           </View>
         </View>
-        
+
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Vehicle</Text>
-          <Text style={styles.summaryValue}>{bookingData.vehicleType.charAt(0).toUpperCase() + bookingData.vehicleType.slice(1)}</Text>
+          <Text style={styles.summaryValue}>
+              {bookingData.vehicleType.charAt(0).toUpperCase() + bookingData.vehicleType.slice(1)}
+            </Text>
+          
         </View>
-        
+
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Pickup</Text>
+          <Text style={styles.summaryLabel}>Pickup Location</Text>
           <Text style={styles.summaryValue}>{bookingData.pickupLocation}</Text>
         </View>
-        
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Drop-off</Text>
-          <Text style={styles.summaryValue}>{bookingData.dropoffLocation}</Text>
-        </View>
-        
+
+        {bookingData.serviceType !== 'hourly' && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Drop-off Location</Text>
+            <Text style={styles.summaryValue}>{bookingData.dropoffLocation}</Text>
+          </View>
+        )}
+
         <View style={styles.summaryRow}>
           <View style={styles.summaryIconLabel}>
             <MaterialIcons name="event" size={16} color="#64748b" />
-            <Text style={styles.summaryLabel}>Scheduled</Text>
+            <Text style={styles.summaryLabel}>Scheduled Time</Text>
           </View>
           <Text style={styles.summaryValue}>
-            {bookingData.scheduledDate ? 
-              `${bookingData.scheduledDate.toLocaleDateString()}, ${bookingData.scheduledTime}` : 
-              'Now'}
+            {bookingData.scheduledDate ?
+              `${bookingData.scheduledDate.toLocaleDateString('en-IN', {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+              })}, ${bookingData.scheduledTime}` :
+              'Immediate pickup'}
           </Text>
         </View>
-        
+
+        {bookingData.isRoundTrip && bookingData.returnDate && (
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryIconLabel}>
+              <MaterialIcons name="event" size={16} color="#64748b" />
+              <Text style={styles.summaryLabel}>Return Time</Text>
+            </View>
+            <Text style={styles.summaryValue}>
+              {`${bookingData.returnDate.toLocaleDateString('en-IN', {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+              })}, ${bookingData.returnTime}`}
+            </Text>
+          </View>
+        )}
+
         <View style={styles.summaryRow}>
           <View style={styles.summaryIconLabel}>
             <MaterialIcons name="people" size={16} color="#64748b" />
@@ -243,18 +521,164 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           </View>
           <Text style={styles.summaryValue}>{bookingData.passengers}</Text>
         </View>
-        
+
+        {distanceKm > 0 && (
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryIconLabel}>
+              <MaterialIcons name="map" size={16} color="#64748b" />
+              <Text style={styles.summaryLabel}>Distance</Text>
+            </View>
+            <Text style={styles.summaryValue}>{distanceKm.toFixed(1)} km</Text>
+          </View>
+        )}
+
+        {durationMinutes > 0 && (
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryIconLabel}>
+              <MaterialIcons name="schedule" size={16} color="#64748b" />
+              <Text style={styles.summaryLabel}>Duration</Text>
+            </View>
+            <Text style={styles.summaryValue}>{Math.round(durationMinutes)} min</Text>
+          </View>
+        )}
+
         <View style={styles.fareRow}>
           <Text style={styles.fareLabel}>Total Fare</Text>
           <Text style={styles.fareAmount}>₹{estimatedFare}</Text>
         </View>
-        
+
         <View style={styles.fareNote}>
           <MaterialIcons name="info-outline" size={14} color="#3ccfa0" />
           <Text style={styles.fareNoteText}>
             (Includes driver allowance, toll fee, and other applicable charges)
           </Text>
+          <TouchableOpacity
+            style={styles.vehiclePriceContainer}
+            onPress={() => setShowFareBreakdown(showFareBreakdown === bookingData.vehicleType ? null : bookingData.vehicleType)}
+          >
+            <MaterialIcons
+              name={showFareBreakdown === bookingData.vehicleType ? "expand-less" : "expand-more"}
+              size={16}
+              color="#64748b"
+              style={styles.expandIcon}
+            />
+            
+            
+          </TouchableOpacity>
+          
         </View>
+
+        {/* Fare Breakdown */}
+        {showFareBreakdown === bookingData.vehicleType && adjustedFare && (
+          <View style={styles.fareBreakdown}>
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>Base Fare</Text>
+              <Text style={styles.breakdownValue}>₹{adjustedFare.baseFare}</Text>
+            </View>
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>Distance ({distanceKm.toFixed(1)} km)</Text>
+              <Text style={styles.breakdownValue}>₹{adjustedFare.distanceFare}</Text>
+            </View>
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>Time ({Math.round(durationMinutes)} min)</Text>
+              <Text style={styles.breakdownValue}>₹{adjustedFare.timeFare}</Text>
+            </View>
+            {adjustedFare.surgeMultiplier > 1 && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Surge ({adjustedFare.surgeMultiplier}x)</Text>
+                <Text style={styles.breakdownValue}>
+                  ₹{Math.round((adjustedFare.baseFare + adjustedFare.distanceFare + adjustedFare.timeFare) * (adjustedFare.surgeMultiplier - 1))}
+                </Text>
+              </View>
+            )}
+            {adjustedFare.passengerSurcharge > 0 && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>Passenger surcharge ({bookingData.passengers} guests)</Text>
+                <Text style={styles.breakdownValue}>₹{adjustedFare.passengerSurcharge}</Text>
+              </View>
+            )}
+            <View style={[styles.breakdownRow, styles.totalRow]}>
+              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={styles.totalValue}>₹{adjustedFare.totalFare}</Text>
+            </View>
+          </View>
+        )}
+      </View>
+      {/* Special Instructions */}
+      <View style={styles.card}>
+        <TouchableOpacity
+          style={styles.specialInstructionsHeader}
+          onPress={toggleSpecialInstructions}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: isSpecialInstructionsExpanded }}
+          accessibilityLabel={`${isSpecialInstructionsExpanded ? 'Collapse' : 'Expand'} special instructions section`}
+        >
+          <Text style={styles.cardTitle}>Special Instructions</Text>
+          <View style={styles.expandIcon}>
+            <MaterialIcons
+              name={isSpecialInstructionsExpanded ? "expand-less" : "expand-more"}
+              size={16}
+              color="#64748b"
+            />
+          </View>
+        </TouchableOpacity>
+
+        {isSpecialInstructionsExpanded && (
+          <View style={styles.specialInstructionsSection}>
+            <View style={styles.instructionRow}>
+              <Text style={styles.instructionLabel}>Luggage Items</Text>
+              <View style={styles.counterContainer}>
+                <TouchableOpacity
+                  style={styles.counterButton}
+                  onPress={() => setLuggageCount(Math.max(0, luggageCount - 1))}
+                  accessibilityRole="button"
+                  accessibilityLabel="Decrease luggage count"
+                >
+                  <Text style={styles.counterButtonText}>−</Text>
+                </TouchableOpacity>
+                <Text style={styles.counterValue} accessibilityLabel={`Luggage count: ${luggageCount}`}>
+                  {luggageCount}
+                </Text>
+                <TouchableOpacity
+                  style={styles.counterButton}
+                  onPress={() => setLuggageCount(Math.min(5, luggageCount + 1))}
+                  accessibilityRole="button"
+                  accessibilityLabel="Increase luggage count"
+                >
+                  <Text style={styles.counterButtonText}>+</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.instructionRow}>
+              <Text style={styles.instructionLabel}>Traveling with Pet</Text>
+              <TouchableOpacity
+                style={styles.checkboxContainer}
+                onPress={() => setHasPet(!hasPet)}
+                accessibilityRole="button"
+                accessibilityState={{ checked: hasPet }}
+                accessibilityLabel={`Traveling with pet: ${hasPet ? 'Yes' : 'No'}`}
+              >
+                <View style={[styles.instructionCheckbox, hasPet && styles.instructionCheckboxChecked]}>
+                  {hasPet && <MaterialIcons name="check" size={16} color="#ffffff" />}
+                </View>
+                <Text style={styles.checkboxLabel}>{hasPet ? 'Yes' : 'No'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              style={styles.instructionsInput}
+              placeholder="Any additional requirements or instructions..."
+              value={specialInstructions}
+              onChangeText={setSpecialInstructions}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+              accessibilityLabel="Additional instructions text input"
+              accessibilityHint="Enter any special requirements or instructions for your ride"
+            />
+          </View>
+        )}
       </View>
 
       {/* Payment Amount Selection */}
@@ -303,11 +727,13 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
             <Text style={styles.paymentAmountValue}>₹{estimatedFare}</Text>
           </TouchableOpacity>
         </View>
-        
+
         <Text style={styles.remainingNote}>
           Remaining ₹{remainingAmount} will be collected after ride completion
         </Text>
       </View>
+
+      
 
       {/* Payment Method Selection */}
       <View style={styles.card}>
@@ -359,10 +785,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           style={styles.termsContainer}
           onPress={() => setAcceptedTerms(!acceptedTerms)}
         >
-          <View style={[
-            styles.checkbox,
-            acceptedTerms && styles.checkboxChecked
-          ]}>
+          <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
             {acceptedTerms && <MaterialIcons name="check" size={16} color="#ffffff" />}
           </View>
           <Text style={styles.termsText}>
@@ -408,6 +831,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           <Text style={styles.backButtonText}>Back</Text>
         </View>
       </TouchableOpacity>
+
     </ScrollView>
   );
 };
@@ -436,7 +860,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#ffffff',
     marginHorizontal: 16,
-    marginBottom: 16,
+    marginBottom:16,
     padding: 16,
     borderRadius: 16,
     shadowColor: '#000',
@@ -713,4 +1137,129 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#64748b',
   },
+  vehiclePriceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  expandIcon: {
+    marginLeft: 4,
+  },
+  fareBreakdown: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  breakdownLabel: {
+    fontSize: 12,
+    color: '#64748b',
+    flex: 1,
+  },
+  breakdownValue: {
+    fontSize: 12,
+    color: '#1e293b',
+    fontWeight: '500',
+  },
+  totalRow: {
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    paddingTop: 8,
+    marginTop: 8,
+  },
+  totalLabel: {
+    fontSize: 14,
+    color: '#1e293b',
+    fontWeight: '600',
+  },
+  totalValue: {
+    fontSize: 14,
+    color: '#3ccfa0',
+    fontWeight: 'bold',
+  },
+  specialInstructionsHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  specialInstructionsSection: {
+    gap: 16,
+  },
+  instructionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  instructionLabel: {
+    fontSize: 14,
+    color: '#1e293b',
+    fontWeight: '500',
+  },
+  counterContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  counterButton: {
+    width: 32,
+    height: 32,
+    backgroundColor: '#e2e8f0',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  counterButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#475569',
+  },
+  counterValue: {
+    width: 32,
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1e293b',
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  instructionCheckbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  instructionCheckboxChecked: {
+    backgroundColor: '#3ccfa0',
+    borderColor: '#3ccfa0',
+  },
+  checkboxLabel: {
+    fontSize: 14,
+    color: '#64748b',
+  },
+  instructionsInput: {
+    padding: 12,
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    fontSize: 14,
+    color: '#1e293b',
+    minHeight: 80,
+  },
 });
+
+export default PaymentStep;

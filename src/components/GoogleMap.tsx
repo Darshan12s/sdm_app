@@ -41,18 +41,11 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
   activeMarker = 'pickup',
   showLocationButtons = false,
 }) => {
-  // Debug: Log prop changes (only when props actually change)
-  console.log('GoogleMap: Props - pickup:', pickupLocation ? `${pickupLocation.lat}, ${pickupLocation.lng}` : 'null', 'dropoff:', dropoffLocation ? `${dropoffLocation.lat}, ${dropoffLocation.lng}` : 'null');
-
   // Detect if running on physical device
   const isPhysicalDevice = Platform.OS === 'android' || Platform.OS === 'ios';
 
   // Try forcing Google Maps provider on physical devices to see if it resolves rendering
   const mapProvider = PROVIDER_GOOGLE;
-
-  console.log('GoogleMap: Platform:', Platform.OS, 'isPhysicalDevice:', isPhysicalDevice, 'using mapProvider:', mapProvider || 'default');
-
-  console.log('GoogleMap: Environment - isPhysicalDevice:', isPhysicalDevice, 'mapProvider:', mapProvider || 'default');
 
   const mapRef = useRef<MapView>(null);
   const [routeCoordinates, setRouteCoordinates] = useState<any[]>([]);
@@ -68,9 +61,8 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
 
   // Debug component lifecycle
   useEffect(() => {
-    console.log('GoogleMap: Component mounted/updated');
     return () => {
-      console.log('GoogleMap: Component will unmount');
+      // Cleanup
     };
   }, []);
   const [mapActiveMarker, setMapActiveMarker] = useState<'pickup' | 'dropoff'>(activeMarker);
@@ -85,17 +77,12 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
   const getCurrentLocation = async () => {
     setIsLocationLoading(true);
     try {
-      console.log('Requesting location permissions...');
       const { status } = await Location.requestForegroundPermissionsAsync();
-      console.log('Location permission status:', status);
 
       if (status === 'granted') {
-        console.log('Getting current position...');
         const location = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.High,
         });
-
-        console.log('Current location:', location.coords);
 
         const locationData: LocationData = {
           lat: location.coords.latitude,
@@ -113,9 +100,7 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
           longitudeDelta: 0.01,
         };
         setRegion(newRegion);
-        console.log('Set region to current location:', newRegion);
       } else {
-        console.log('Location permission denied');
         // Fallback to Bangalore coordinates if permission denied
         const fallbackRegion = {
           latitude: 12.9716,
@@ -126,7 +111,6 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
         setRegion(fallbackRegion);
       }
     } catch (error) {
-      console.error('Error getting current location:', error);
       // Fallback to Bangalore coordinates if location fails
       const fallbackRegion = {
         latitude: 12.9716,
@@ -136,7 +120,6 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
       };
       setRegion(fallbackRegion);
     } finally {
-      console.log('GoogleMap: getCurrentLocation finally block - setting isLocationLoading to false');
       setIsLocationLoading(false);
     }
   };
@@ -148,7 +131,6 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
     // Set timeout for map loading (30 seconds)
     const timeout = setTimeout(() => {
       if (!isMapReady) {
-        console.log('GoogleMap: Map loading timeout - showing error state');
         setMapLoadError(true);
         setIsLocationLoading(false);
       }
@@ -156,7 +138,6 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
 
     // Also set a failsafe timeout to hide loading after 10 seconds
     const loadingTimeout = setTimeout(() => {
-      console.log('GoogleMap: Failsafe loading timeout - forcing hide loading');
       setIsLocationLoading(false);
       setIsLoading(false);
     }, 10000);
@@ -185,36 +166,17 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
     }
   }, [pickupLocation, dropoffLocation]);
 
-  // Debug: Log prop changes
+  // Force a re-render to ensure markers update when locations change
   useEffect(() => {
-    console.log('GoogleMap: useEffect triggered - pickupLocation:', pickupLocation, 'dropoffLocation:', dropoffLocation);
-    console.log('GoogleMap: Prop types - pickupLocation type:', typeof pickupLocation, 'dropoffLocation type:', typeof dropoffLocation);
-
-    // Check if markers should be rendered
-    const shouldRenderPickupMarker = pickupLocation && typeof pickupLocation.lat === 'number' && typeof pickupLocation.lng === 'number' && !isNaN(pickupLocation.lat) && !isNaN(pickupLocation.lng);
-    const shouldRenderDropoffMarker = dropoffLocation && typeof dropoffLocation.lat === 'number' && typeof dropoffLocation.lng === 'number' && !isNaN(dropoffLocation.lat) && !isNaN(dropoffLocation.lng);
-
-    console.log('GoogleMap: Should render pickup marker:', shouldRenderPickupMarker, 'pickupLocation exists:', !!pickupLocation);
-    console.log('GoogleMap: Should render dropoff marker:', shouldRenderDropoffMarker, 'dropoffLocation exists:', !!dropoffLocation);
-    console.log('GoogleMap: Force render value:', forceRender);
-
-    // Force a re-render to ensure markers update
-    setForceRender(prev => {
-      const newValue = prev + 1;
-      console.log('GoogleMap: Setting forceRender to:', newValue);
-      return newValue;
-    });
+    setForceRender(prev => prev + 1);
   }, [pickupLocation, dropoffLocation]);
 
   // Update region when locations change
   useEffect(() => {
-    console.log('GoogleMap: Locations changed:', { pickupLocation, dropoffLocation });
-
     if (pickupLocation || dropoffLocation) {
       const coordinates: any[] = [];
 
       if (pickupLocation && typeof pickupLocation.lat === 'number' && typeof pickupLocation.lng === 'number' && !isNaN(pickupLocation.lat) && !isNaN(pickupLocation.lng)) {
-        console.log('GoogleMap: Adding pickup coordinate:', pickupLocation);
         coordinates.push({
           latitude: pickupLocation.lat,
           longitude: pickupLocation.lng,
@@ -222,7 +184,6 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
       }
 
       if (dropoffLocation && typeof dropoffLocation.lat === 'number' && typeof dropoffLocation.lng === 'number' && !isNaN(dropoffLocation.lat) && !isNaN(dropoffLocation.lng)) {
-        console.log('GoogleMap: Adding dropoff coordinate:', dropoffLocation);
         coordinates.push({
           latitude: dropoffLocation.lat,
           longitude: dropoffLocation.lng,
@@ -252,13 +213,10 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
           longitudeDelta,
         };
 
-        console.log('GoogleMap: Setting new region:', newRegion);
         setRegion(newRegion);
 
         // Animate to region if map is ready
         if (mapRef.current) {
-          console.log('GoogleMap: Animating to region:', newRegion);
-          // Use setTimeout to ensure the map is fully ready
           setTimeout(() => {
             if (mapRef.current) {
               mapRef.current.animateToRegion(newRegion, 1000);
@@ -267,28 +225,17 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
         }
 
         // Also fit to coordinates if map is ready
-        const fitToCoords = () => {
-          if (mapRef.current) {
-            console.log('GoogleMap: Fitting to coordinates:', coordinates);
-            // Use setTimeout to ensure the map is fully ready
-            setTimeout(() => {
-              if (mapRef.current) {
-                mapRef.current.fitToCoordinates(coordinates, {
-                  edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-                  animated: true,
-                });
-              }
-            }, 200);
-          } else {
-            console.log('GoogleMap: Map not ready, retrying...');
-            // Retry after a short delay if map is not ready
-            setTimeout(fitToCoords, 100);
-          }
-        };
-
-        fitToCoords();
+        if (mapRef.current) {
+          setTimeout(() => {
+            if (mapRef.current) {
+              mapRef.current.fitToCoordinates(coordinates, {
+                edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+                animated: true,
+              });
+            }
+          }, 200);
+        }
       } else {
-        console.log('GoogleMap: No valid coordinates to display, resetting to default region');
         // Reset to default region when no valid coordinates
         const defaultRegion = {
           latitude: 12.9716,
@@ -299,7 +246,6 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
         setRegion(defaultRegion);
 
         if (mapRef.current) {
-          console.log('GoogleMap: Animating to default region');
           setTimeout(() => {
             if (mapRef.current) {
               mapRef.current.animateToRegion(defaultRegion, 1000);
@@ -307,8 +253,6 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
           }, 100);
         }
       }
-    } else {
-      console.log('GoogleMap: No locations provided');
     }
   }, [pickupLocation, dropoffLocation]);
 
@@ -528,7 +472,6 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
         rotateEnabled={interactive || showLocationButtons}
         loadingEnabled={false}
         onMapReady={() => {
-          console.log('Map is ready - Google Maps interface loaded');
           setIsMapReady(true);
           setMapLoadError(false);
           // Clear timeout since map loaded successfully
@@ -542,22 +485,15 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
 
           // Check if map tiles are actually rendering after a delay
           const renderCheckTimeout = setTimeout(() => {
-            console.log('Map render check - verifying if tiles are visible');
             // On physical devices, if Google Maps tiles don't load due to API restrictions,
             // we should fall back to a static map or alternative
             if (isPhysicalDevice) {
-              console.log('Physical device detected - checking for map tile rendering issues');
-              // Add a user prompt to check if map is visible
+              // If map is still not visible after 10 seconds, show fallback
               setTimeout(() => {
-                console.log('Prompting user to check map visibility');
-                // If map is still not visible after 10 seconds, show fallback
-                setTimeout(() => {
-                  if (!mapLoadError) {
-                    console.log('Map may not be rendering tiles - showing fallback option');
-                    setUseStaticMap(true);
-                  }
-                }, 10000);
-              }, 3000);
+                if (!mapLoadError) {
+                  setUseStaticMap(true);
+                }
+              }, 10000);
             }
           }, 3000);
 
@@ -626,7 +562,6 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
       {/* Loading Indicator */}
       {(() => {
         const shouldShowLoading = isLoading || isLocationLoading;
-        console.log('GoogleMap: Loading overlay check - isLoading:', isLoading, 'isLocationLoading:', isLocationLoading, 'shouldShow:', shouldShowLoading);
         return shouldShowLoading ? (
           <View style={styles.loadingOverlay}>
             <View style={styles.loadingContainer}>
