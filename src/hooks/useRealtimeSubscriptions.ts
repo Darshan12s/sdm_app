@@ -2,14 +2,15 @@ import { useEffect, useCallback } from 'react';
 import { RealtimeService, BookingUpdateCallback, NotificationCallback } from '../services/supabase/realtime';
 import { useAppStore, useUser } from '../stores/appStore';
 import { Database } from '../services/supabase/client';
+import { User } from '../types';
 import { Alert } from 'react-native';
 
 type Booking = Database['public']['Tables']['bookings']['Row'];
 type Notification = Database['public']['Tables']['notifications']['Row'];
 
 export const useRealtimeSubscriptions = () => {
-  const user = useUser();
-  const { addNotification } = useAppStore();
+  const user = useUser() as User | null;
+  const addNotification = useAppStore((state) => state.addNotification);
 
   // Handle booking status updates
   const handleBookingUpdate = useCallback((booking: Booking) => {
@@ -30,18 +31,18 @@ export const useRealtimeSubscriptions = () => {
     // Add to local notifications store
     addNotification({
       id: notification.id,
-      user_id: notification.user_id,
-      title: notification.title,
-      message: notification.message,
-      type: notification.type,
-      is_read: notification.is_read,
-      created_at: notification.created_at,
-      data: notification.data,
+      user_id: notification.user_id ?? '',
+      title: notification.title ?? 'Notification',
+      message: notification.message ?? '',
+      type: 'system', // Default type since DB doesn't have type field
+      is_read: notification.read,
+      created_at: notification.sent_at,
+      data: notification.metadata,
     });
 
     // Show alert for important notifications
-    if (notification.type === 'booking' || notification.type === 'system') {
-      Alert.alert(notification.title, notification.message);
+    if (notification.channel === 'booking' || notification.channel === 'system') {
+      Alert.alert(notification.title ?? 'Notification', notification.message ?? '');
     }
   }, [addNotification]);
 
@@ -52,7 +53,7 @@ export const useRealtimeSubscriptions = () => {
     // Show alert for new booking
     Alert.alert(
       'New Ride Request',
-      `New booking from ${booking.pickup_location?.address || 'Unknown location'}`,
+      'New booking request received',
       [
         { text: 'View Details', onPress: () => {
           // Navigate to available rides screen
@@ -99,7 +100,7 @@ export const useRealtimeSubscriptions = () => {
       }
       RealtimeService.unsubscribeFromNotifications();
     };
-  }, [user, handleBookingUpdate, handleNotification, handleNewBooking]);
+  }, [user, handleBookingUpdate, handleNotification, handleNewBooking, addNotification]);
 
   // Return functions for manual subscription management
   return {

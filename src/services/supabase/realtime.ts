@@ -49,8 +49,11 @@ export class RealtimeService {
           }
         }
       )
-      .subscribe((status) => {
+      .subscribe((status, err) => {
         console.log(`Booking subscription status for ${userId}:`, status);
+        if (err) {
+          console.error('Booking subscription error:', err);
+        }
       });
 
     this.bookingChannels.set(userId, channel);
@@ -86,8 +89,11 @@ export class RealtimeService {
           }
         }
       )
-      .subscribe((status) => {
+      .subscribe((status, err) => {
         console.log(`Notification subscription status for ${userId}:`, status);
+        if (err) {
+          console.error('Notification subscription error:', err);
+        }
       });
 
     this.notificationChannel = channel;
@@ -119,8 +125,11 @@ export class RealtimeService {
           }
         }
       )
-      .subscribe((status) => {
+      .subscribe((status, err) => {
         console.log('New bookings subscription status:', status);
+        if (err) {
+          console.error('New bookings subscription error:', err);
+        }
       });
 
     return channelName;
@@ -152,8 +161,11 @@ export class RealtimeService {
           }
         }
       )
-      .subscribe((status) => {
+      .subscribe((status, err) => {
         console.log(`Payment subscription status for ${bookingId}:`, status);
+        if (err) {
+          console.error('Payment subscription error:', err);
+        }
       });
 
     return channelName;

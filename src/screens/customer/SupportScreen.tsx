@@ -9,36 +9,69 @@ import {
   Linking,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useNavigation, useNavigationState } from '@react-navigation/native';
+
+// Import theme
+import { useTheme } from '../../contexts/ThemeContext';
 
 export default function SupportScreen() {
+  const { colors } = useTheme();
+  const navigation = useNavigation();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  // Check if we're in driver context by examining navigation state
+  const isDriverContext = useNavigationState((state) => {
+    if (!state) return false;
+    // Check if any route in the state contains driver-specific screens
+    const hasDriverRoutes = state.routes.some(route =>
+      route.name === 'DriverTabs' ||
+      route.name === 'DriverHome' ||
+      route.name === 'AvailableRides' ||
+      route.name === 'ActiveRide' ||
+      route.name === 'Earnings' ||
+      route.name === 'DriverProfile'
+    );
+    return hasDriverRoutes;
+  });
 
   const supportCategories = [
     {
       id: 'booking',
-      title: 'Booking Issues',
-      description: 'Problems with booking rides',
+      title: isDriverContext ? 'Ride Management' : 'Booking Issues',
+      description: isDriverContext ? 'Managing rides and passenger requests' : 'Problems with booking rides',
       icon: 'event-note',
       iconType: 'MaterialIcons',
-      faqs: [
+      faqs: isDriverContext ? [
+        'How to accept ride requests?',
+        'What to do if passenger doesn\'t show up?',
+        'How to cancel a ride?',
+        'Managing ride status updates',
+      ] : [
         'How do I cancel a booking?',
         'Can I modify my booking?',
         'What if my driver is late?',
         'How to change pickup location?',
       ],
+      hasNavigation: !isDriverContext, // Only allow navigation for customers
     },
     {
       id: 'payment',
-      title: 'Payment & Billing',
-      description: 'Payment methods and billing questions',
+      title: 'Payment & Earnings',
+      description: isDriverContext ? 'Payment methods and earnings tracking' : 'Payment methods and billing questions',
       icon: 'credit-card',
       iconType: 'MaterialIcons',
-      faqs: [
+      faqs: isDriverContext ? [
+        'How to receive payments?',
+        'Earnings calculation',
+        'Payment methods setup',
+        'Commission structure',
+      ] : [
         'How do I add a payment method?',
         'Can I get a refund?',
         'Why was I charged extra?',
         'How to update payment details?',
       ],
+      hasNavigation: !isDriverContext, // Only allow navigation for customers
     },
     {
       id: 'account',
@@ -52,6 +85,7 @@ export default function SupportScreen() {
         'How to update my profile?',
         'Forgot password recovery',
       ],
+      hasNavigation: !isDriverContext, // Only allow navigation for customers
     },
     {
       id: 'safety',
@@ -65,6 +99,7 @@ export default function SupportScreen() {
         'How to report an incident?',
         'Safety tips for riders',
       ],
+      hasNavigation: !isDriverContext, // Only allow navigation for customers
     },
     {
       id: 'technical',
@@ -78,6 +113,7 @@ export default function SupportScreen() {
         'Payment failed in app',
         'How to update the app',
       ],
+      hasNavigation: !isDriverContext, // Only allow navigation for customers
     },
   ];
 
@@ -137,30 +173,56 @@ export default function SupportScreen() {
   ];
 
   const handleCategorySelect = (categoryId: string) => {
-    setSelectedCategory(selectedCategory === categoryId ? null : categoryId);
+    // Find the selected category
+    const selectedCategoryData = supportCategories.find(cat => cat.id === categoryId);
+
+    if (!selectedCategoryData?.hasNavigation) {
+      // For drivers or when navigation is disabled, show FAQ content directly
+      Alert.alert(
+        selectedCategoryData?.title || 'Support',
+        'This feature is currently under development. Please contact support directly for assistance.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    // Navigate to the appropriate FAQ screen based on category (only for customers)
+    const faqRoutes = {
+      booking: 'BookingFAQ',
+      payment: 'PaymentFAQ',
+      account: 'AccountFAQ',
+      safety: 'SafetyFAQ',
+      technical: 'TechnicalFAQ',
+    };
+
+    const routeName = faqRoutes[categoryId as keyof typeof faqRoutes];
+    if (routeName) {
+      navigation.navigate(routeName as never);
+    }
   };
 
   const handleFAQPress = (question: string) => {
+    // This function is now deprecated since we navigate to full FAQ screens
     Alert.alert('FAQ', `${question}\n\nThis is a placeholder answer. Full FAQ system coming soon!`);
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Help & Support</Text>
-        <Text style={styles.headerSubtitle}>
+      <View style={[styles.header, { backgroundColor: colors.surface }]}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Help & Support</Text>
+        <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
           Get help with your SDM Cab Hailing experience
         </Text>
       </View>
 
       {/* Support Categories */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Browse by Category</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Browse by Category</Text>
         {supportCategories.map((category) => (
           <View key={category.id}>
             <TouchableOpacity
-              style={styles.categoryCard}
+              style={[styles.categoryCard, { backgroundColor: colors.card }]}
               onPress={() => handleCategorySelect(category.id)}
             >
               <View style={styles.categoryHeader}>
@@ -168,8 +230,8 @@ export default function SupportScreen() {
                   <MaterialIcons name={category.icon as any} size={24} color="#64748b" />
                 </View>
                 <View style={styles.categoryInfo}>
-                  <Text style={styles.categoryTitle}>{category.title}</Text>
-                  <Text style={styles.categoryDescription}>
+                  <Text style={[styles.categoryTitle, { color: colors.text }]}>{category.title}</Text>
+                  <Text style={[styles.categoryDescription, { color: colors.textSecondary }]}>
                     {category.description}
                   </Text>
                 </View>
@@ -180,15 +242,15 @@ export default function SupportScreen() {
             </TouchableOpacity>
 
             {selectedCategory === category.id && (
-              <View style={styles.faqContainer}>
+              <View style={[styles.faqContainer, { backgroundColor: colors.surface }]}>
                 {category.faqs.map((faq, index) => (
                   <TouchableOpacity
                     key={index}
                     style={styles.faqItem}
                     onPress={() => handleFAQPress(faq)}
                   >
-                    <Text style={styles.faqText}>{faq}</Text>
-                    <Text style={styles.faqArrow}>›</Text>
+                    <Text style={[styles.faqText, { color: colors.text }]}>{faq}</Text>
+                    <Text style={[styles.faqArrow, { color: colors.textSecondary }]}>›</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -199,11 +261,11 @@ export default function SupportScreen() {
 
       {/* Contact Options */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Contact Us</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Contact Us</Text>
         {contactOptions.map((option, index) => (
           <TouchableOpacity
             key={index}
-            style={styles.contactCard}
+            style={[styles.contactCard, { backgroundColor: colors.card }]}
             onPress={option.action}
           >
             <View style={styles.contactLeft}>
@@ -211,11 +273,11 @@ export default function SupportScreen() {
                 <MaterialIcons name={option.icon as any} size={20} color="#64748b" />
               </View>
               <View style={styles.contactInfo}>
-                <Text style={styles.contactTitle}>{option.title}</Text>
-                <Text style={styles.contactSubtitle}>{option.subtitle}</Text>
+                <Text style={[styles.contactTitle, { color: colors.text }]}>{option.title}</Text>
+                <Text style={[styles.contactSubtitle, { color: colors.textSecondary }]}>{option.subtitle}</Text>
               </View>
             </View>
-            <Text style={styles.contactArrow}>›</Text>
+            <Text style={[styles.contactArrow, { color: colors.textSecondary }]}>›</Text>
           </TouchableOpacity>
         ))}
       </View>

@@ -21,6 +21,9 @@ import AppNavigator from '@/navigation/AppNavigator';
 // Import toast configuration
 import { toastConfig } from '@/utils/toastConfig';
 
+// Import theme provider
+import ThemeProvider from '@/contexts/ThemeContext';
+
 export default function App() {
   const { isLoading, isAuthenticated } = useAppStore();
 
@@ -52,11 +55,13 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
-        <AppNavigator />
-        <StatusBar style="dark" />
-      </NavigationContainer>
-      <Toast config={toastConfig} />
+      <ThemeProvider>
+        <NavigationContainer>
+          <AppNavigator />
+          <StatusBar style="auto" />
+        </NavigationContainer>
+        <Toast config={toastConfig} />
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
@@ -64,7 +69,7 @@ export default function App() {
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#f5f5f5', // Light theme background
     alignItems: 'center',
     justifyContent: 'center',
   },

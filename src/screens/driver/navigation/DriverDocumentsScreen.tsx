@@ -18,8 +18,10 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useUser } from '@/stores/appStore';
 import { supabase } from '@/services/supabase/client';
 import { uploadWithRestAPI } from '@/utils/storageTest';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function DriverDocumentsScreen({ navigation }: { navigation: any }) {
+  const { colors } = useTheme();
   const user = useUser();
   const [isLoading, setIsLoading] = useState(true);
   
@@ -347,10 +349,10 @@ export default function DriverDocumentsScreen({ navigation }: { navigation: any 
 
   const getKycStatusColor = () => {
     switch (kycStatus) {
-      case 'approved': return '#10b981';
-      case 'rejected': return '#ef4444';
-      case 'pending': return '#f59e0b';
-      default: return '#64748b';
+      case 'approved': return colors.success;
+      case 'rejected': return colors.error;
+      case 'pending': return colors.warning;
+      default: return colors.textSecondary;
     }
   };
 
@@ -365,25 +367,24 @@ export default function DriverDocumentsScreen({ navigation }: { navigation: any 
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#3b82f6" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container}>
-        <View style={styles.header}>
-          
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+      <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <View style={styles.headerSpacer} />
         </View>
 
         {/* KYC Status Card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Verification Status</Text>
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Verification Status</Text>
           <View style={styles.kycStatusContainer}>
             <View style={[styles.kycStatusBadge, { backgroundColor: getKycStatusColor() + '20' }]}>
               <Text style={[styles.kycStatusText, { color: getKycStatusColor() }]}>
@@ -391,31 +392,31 @@ export default function DriverDocumentsScreen({ navigation }: { navigation: any 
               </Text>
             </View>
             {rejectionReason && (
-              <View style={styles.rejectionContainer}>
-                <Text style={styles.rejectionTitle}>Reason for rejection:</Text>
-                <Text style={styles.rejectionReason}>{rejectionReason}</Text>
+              <View style={[styles.rejectionContainer, { backgroundColor: colors.error + '20' }]}>
+                <Text style={[styles.rejectionTitle, { color: colors.error }]}>Reason for rejection:</Text>
+                <Text style={[styles.rejectionReason, { color: colors.error }]}>{rejectionReason}</Text>
               </View>
             )}
           </View>
         </View>
 
         {/* License Document Card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Driver's License</Text>
-          <Text style={styles.cardSubtitle}>
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Driver's License</Text>
+          <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
             Upload a clear photo or scan of your driver's license (JPEG, PNG, or PDF)
           </Text>
 
           {licenseDocument ? (
             <View style={styles.documentContainer}>
-              <View style={styles.documentPreview}>
-                <Ionicons name="document-text" size={40} color="#3b82f6" />
-                <Text style={styles.documentText}>License Document</Text>
-                <TouchableOpacity 
+              <View style={[styles.documentPreview, { backgroundColor: colors.surface }]}>
+                <Ionicons name="document-text" size={40} color={colors.primary} />
+                <Text style={[styles.documentText, { color: colors.textSecondary }]}>License Document</Text>
+                <TouchableOpacity
                   onPress={() => licenseDocument && Linking.openURL(licenseDocument)}
-                  style={styles.viewButton}
+                  style={[styles.viewButton, { backgroundColor: colors.primary + '20' }]}
                 >
-                  <Text style={styles.viewButtonText}>View Document</Text>
+                  <Text style={[styles.viewButtonText, { color: colors.primary }]}>View Document</Text>
                 </TouchableOpacity>
               </View>
               <TouchableOpacity 
@@ -431,17 +432,17 @@ export default function DriverDocumentsScreen({ navigation }: { navigation: any 
               </TouchableOpacity>
             </View>
           ) : (
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => showUploadOptions('license')}
-              style={styles.uploadButton}
+              style={[styles.uploadButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
               disabled={licenseUploading}
             >
               {licenseUploading ? (
-                <ActivityIndicator size="small" color="#3b82f6" />
+                <ActivityIndicator size="small" color={colors.primary} />
               ) : (
                 <>
-                  <Ionicons name="cloud-upload" size={24} color="#3b82f6" />
-                  <Text style={styles.uploadButtonText}>Upload License</Text>
+                  <Ionicons name="cloud-upload" size={24} color={colors.primary} />
+                  <Text style={[styles.uploadButtonText, { color: colors.primary }]}>Upload License</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -449,27 +450,27 @@ export default function DriverDocumentsScreen({ navigation }: { navigation: any 
         </View>
 
         {/* ID Proof Document Card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>ID Proof</Text>
-          <Text style={styles.cardSubtitle}>
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>ID Proof</Text>
+          <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
             Upload a government-issued ID (Aadhaar, PAN, Passport, etc.) - JPEG, PNG, or PDF
           </Text>
 
           {idProofDocument ? (
             <View style={styles.documentContainer}>
-              <View style={styles.documentPreview}>
-                <Ionicons name="document-text" size={40} color="#3b82f6" />
-                <Text style={styles.documentText}>ID Proof Document</Text>
-                <TouchableOpacity 
+              <View style={[styles.documentPreview, { backgroundColor: colors.surface }]}>
+                <Ionicons name="document-text" size={40} color={colors.primary} />
+                <Text style={[styles.documentText, { color: colors.textSecondary }]}>ID Proof Document</Text>
+                <TouchableOpacity
                   onPress={() => idProofDocument && Linking.openURL(idProofDocument)}
-                  style={styles.viewButton}
+                  style={[styles.viewButton, { backgroundColor: colors.primary + '20' }]}
                 >
-                  <Text style={styles.viewButtonText}>View Document</Text>
+                  <Text style={[styles.viewButtonText, { color: colors.primary }]}>View Document</Text>
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => removeDocument('id_proof')}
-                style={styles.removeButton}
+                style={[styles.removeButton, { backgroundColor: colors.error }]}
                 disabled={idProofUploading}
               >
                 {idProofUploading ? (
@@ -480,17 +481,17 @@ export default function DriverDocumentsScreen({ navigation }: { navigation: any 
               </TouchableOpacity>
             </View>
           ) : (
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => showUploadOptions('id_proof')}
-              style={styles.uploadButton}
+              style={[styles.uploadButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
               disabled={idProofUploading}
             >
               {idProofUploading ? (
-                <ActivityIndicator size="small" color="#3b82f6" />
+                <ActivityIndicator size="small" color={colors.primary} />
               ) : (
                 <>
-                  <Ionicons name="cloud-upload" size={24} color="#3b82f6" />
-                  <Text style={styles.uploadButtonText}>Upload ID Proof</Text>
+                  <Ionicons name="cloud-upload" size={24} color={colors.primary} />
+                  <Text style={[styles.uploadButtonText, { color: colors.primary }]}>Upload ID Proof</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -498,29 +499,29 @@ export default function DriverDocumentsScreen({ navigation }: { navigation: any 
         </View>
 
         {/* Information Card */}
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>Important Information</Text>
+        <View style={[styles.infoCard, { backgroundColor: colors.primary + '10' }]}>
+          <Text style={[styles.infoTitle, { color: colors.text }]}>Important Information</Text>
           <View style={styles.infoItem}>
-            <Ionicons name="information-circle" size={20} color="#3b82f6" />
-            <Text style={styles.infoText}>
+            <Ionicons name="information-circle" size={20} color={colors.primary} />
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>
               Supported formats: JPEG, PNG images or PDF documents
             </Text>
           </View>
           <View style={styles.infoItem}>
-            <Ionicons name="information-circle" size={20} color="#3b82f6" />
-            <Text style={styles.infoText}>
+            <Ionicons name="information-circle" size={20} color={colors.primary} />
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>
               Documents must be clear and valid. Blurry or expired documents will be rejected.
             </Text>
           </View>
           <View style={styles.infoItem}>
-            <Ionicons name="information-circle" size={20} color="#3b82f6" />
-            <Text style={styles.infoText}>
+            <Ionicons name="information-circle" size={20} color={colors.primary} />
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>
               Verification usually takes 24-48 hours. You'll be notified once completed.
             </Text>
           </View>
           <View style={styles.infoItem}>
-            <Ionicons name="information-circle" size={20} color="#3b82f6" />
-            <Text style={styles.infoText}>
+            <Ionicons name="information-circle" size={20} color={colors.primary} />
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>
               You cannot accept rides until your documents are approved.
             </Text>
           </View>
@@ -533,7 +534,6 @@ export default function DriverDocumentsScreen({ navigation }: { navigation: any 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   centered: {
     flex: 1,
@@ -542,7 +542,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   header: {
     flexDirection: 'row',
@@ -550,9 +549,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
   },
   backButton: {
     padding: 8,
@@ -560,13 +557,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1e293b',
   },
   headerSpacer: {
     width: 40,
   },
   card: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
     marginHorizontal: 16,
@@ -580,12 +575,10 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1e293b',
     marginBottom: 4,
   },
   cardSubtitle: {
     fontSize: 14,
-    color: '#64748b',
     marginBottom: 16,
   },
   kycStatusContainer: {
@@ -604,19 +597,16 @@ const styles = StyleSheet.create({
   rejectionContainer: {
     marginTop: 12,
     padding: 12,
-    backgroundColor: '#fef2f2',
     borderRadius: 8,
     width: '100%',
   },
   rejectionTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#dc2626',
     marginBottom: 4,
   },
   rejectionReason: {
     fontSize: 14,
-    color: '#dc2626',
   },
   documentContainer: {
     flexDirection: 'row',
@@ -627,31 +617,26 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#f8fafc',
     borderRadius: 8,
     marginRight: 12,
   },
   documentText: {
     fontSize: 14,
-    color: '#64748b',
     marginTop: 8,
     marginBottom: 12,
   },
   viewButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: '#eff6ff',
     borderRadius: 6,
   },
   viewButtonText: {
-    color: '#3b82f6',
     fontSize: 12,
     fontWeight: '500',
   },
   removeButton: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#ef4444',
     borderRadius: 8,
     minWidth: 80,
     alignItems: 'center',
@@ -667,18 +652,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 16,
     borderWidth: 2,
-    borderColor: '#e2e8f0',
     borderStyle: 'dashed',
     borderRadius: 8,
-    backgroundColor: '#f8fafc',
   },
   uploadButtonText: {
     marginLeft: 8,
-    color: '#3b82f6',
     fontWeight: '500',
   },
   infoCard: {
-    backgroundColor: '#eff6ff',
     borderRadius: 12,
     padding: 16,
     marginHorizontal: 16,
@@ -687,7 +668,6 @@ const styles = StyleSheet.create({
   infoTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#1e293b',
     marginBottom: 12,
   },
   infoItem: {
@@ -699,6 +679,5 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 8,
     fontSize: 14,
-    color: '#64748b',
   },
 });

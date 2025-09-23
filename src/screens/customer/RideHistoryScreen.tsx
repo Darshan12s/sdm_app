@@ -2,13 +2,18 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
-  ScrollView,
-  RefreshControl,
-  Alert,
   StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import Toast from 'react-native-toast-message';
 
 // Import services and stores
 import { supabase } from '../../services/supabase/client';
@@ -16,194 +21,323 @@ import { useUser } from '../../stores/appStore';
 
 // Import types
 import { Booking } from '../../types';
+import { CustomerTabParamList, CustomerStackParamList } from '../../types/navigation';
 
-export default function RideHistoryScreen() {
+// Import theme
+import { useTheme } from '../../contexts/ThemeContext';
+
+const RideHistoryScreen = ({ navigation }: { navigation: CompositeNavigationProp<BottomTabNavigationProp<CustomerTabParamList>, StackNavigationProp<CustomerStackParamList>> }) => {
+  const { colors } = useTheme();
   const user = useUser();
-  const [refreshing, setRefreshing] = useState(false);
-  const [rides, setRides] = useState<Booking[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelBookingId, setCancelBookingId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
-  const fetchRideHistory = async () => {
-    if (!user) return;
+  useEffect(() => {
+    if (user) {
+      fetchTripHistory();
+    }
+  }, [user]);
 
+  const fetchTripHistory = async () => {
     try {
       const { data, error } = await supabase
         .from('bookings')
-        .select(`
-          *,
-          driver:drivers!bookings_driver_id_fkey (
-            id,
-            user:users!drivers_id_fkey (
-              full_name
-            )
-          )
-        `)
-        .eq('user_id', user.id)
-        .eq('status', 'completed')
+        .select('*')
+        .eq('user_id', user?.id)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching ride history:', error);
-        Alert.alert('Error', 'Failed to load ride history');
-      } else {
-        setRides(data || []);
-      }
+      if (error) throw error;
+      
+      const bookingsWithDrivers = await Promise.all(
+        (data || []).map(async (booking) => {
+          if (booking.driver_id) {
+            const { data: driverData } = await supabase
+              .from('users')
+              .select('full_name')
+              .eq('id', booking.driver_id)
+              .single();
+            
+            return {
+              ...booking,
+              driver: {
+                user: driverData
+              }
+            };
+          }
+          return booking;
+        })
+      );
+      
+      setBookings(bookingsWithDrivers);
     } catch (error) {
-      console.error('Error fetching ride history:', error);
-      Alert.alert('Error', 'Failed to load ride history');
+      console.error('Error fetching trip history:', error);
+      Toast.show({ type: 'error', text1: 'Failed to load trip history' });
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  useEffect(() => {
-    fetchRideHistory();
-  }, [user]);
+  const handleCancelBooking = async () => {
+    if (!cancelBookingId || !cancelReason.trim()) {
+      Toast.show({ type: 'error', text1: 'Please provide a cancellation reason' });
+      return;
+    }
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchRideHistory();
-    setRefreshing(false);
+    try {
+      const { error: bookingError } = await supabase
+        .from('bookings')
+        .update({ 
+          status: 'cancelled',
+          cancellation_reason: cancelReason.trim()
+        })
+        .eq('id', cancelBookingId);
+
+      if (bookingError) throw bookingError;
+
+      const { error: cancellationError } = await supabase
+        .from('booking_cancellations')
+        .insert({
+          booking_id: cancelBookingId,
+          user_id: user?.id,
+          reason: cancelReason.trim()
+        });
+
+      if (cancellationError) throw cancellationError;
+
+      Toast.show({ type: 'success', text1: 'Booking cancelled successfully' });
+      setCancelDialogOpen(false);
+      setCancelBookingId(null);
+      setCancelReason('');
+      fetchTripHistory();
+    } catch (error) {
+      console.error('Error cancelling booking:', error);
+      Toast.show({ type: 'error', text1: 'Failed to cancel booking' });
+    }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
-        return '#16a34a';
+        return { backgroundColor: colors.success + '20', color: colors.success, borderColor: colors.success + '50' };
       case 'cancelled':
-        return '#dc2626';
-      case 'in_progress':
-        return '#ca8a04';
+        return { backgroundColor: colors.error + '20', color: colors.error, borderColor: colors.error + '50' };
+      case 'pending':
+        return { backgroundColor: colors.warning + '20', color: colors.warning, borderColor: colors.warning + '50' };
+      case 'started':
+        return { backgroundColor: colors.info + '20', color: colors.info, borderColor: colors.info + '50' };
       default:
-        return '#6b7280';
+        return { backgroundColor: colors.textMuted + '20', color: colors.textMuted, borderColor: colors.textMuted + '50' };
     }
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'Completed';
-      case 'cancelled':
-        return 'Cancelled';
-      case 'in_progress':
-        return 'In Progress';
-      default:
-        return 'Unknown';
-    }
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
-  return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Ride History</Text>
-        <Text style={styles.headerSubtitle}>
-          {rides.length} {rides.length === 1 ? 'ride' : 'rides'} completed
-        </Text>
+  const handleRateTrip = (booking: Booking) => {
+    if (!booking.driver_id || !booking.driver?.user?.full_name) {
+      Toast.show({ type: 'error', text1: 'Driver information not available' });
+      return;
+    }
+
+    navigation.navigate('ReviewModal', {
+      bookingId: booking.id,
+      driverId: booking.driver_id,
+      driverName: booking.driver.user.full_name
+    });
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchTripHistory();
+  };
+
+  const renderBookingItem = ({ item }: { item: Booking }) => (
+    <View style={[styles.bookingCard, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
+      <View style={styles.bookingHeader}>
+        <View style={styles.statusContainer}>
+          <View style={[styles.statusBadge, getStatusColor(item.status)]}>
+            <Text style={[styles.statusText, { color: getStatusColor(item.status).color }]}>
+              {item.status}
+            </Text>
+          </View>
+          <View style={[styles.paymentBadge, { borderColor: colors.border }]}>
+            <Text style={[styles.paymentText, { color: colors.textSecondary }]}>{item.payment_status}</Text>
+          </View>
+        </View>
+        <View style={styles.dateContainer}>
+          <MaterialIcons name="event" size={14} color={colors.textSecondary} />
+          <Text style={[styles.dateText, { color: colors.textSecondary }]}>{formatDate(item.created_at)}</Text>
+        </View>
       </View>
 
-      {/* Ride List */}
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading ride history...</Text>
+      <View style={styles.locationContainer}>
+        <View style={styles.locationRow}>
+          <MaterialIcons name="location-on" size={14} color={colors.success} />
+          <View>
+            <Text style={[styles.locationLabel, { color: colors.textSecondary }]}>Pickup</Text>
+            <Text style={[styles.locationText, { color: colors.text }]}>{item.pickup_address || 'N/A'}</Text>
+          </View>
         </View>
-      ) : rides.length > 0 ? (
-        <View style={styles.rideList}>
-          {rides.map((ride) => (
-            <TouchableOpacity key={ride.id} style={styles.rideCard}>
-              {/* Header */}
-              <View style={styles.rideHeader}>
-                <View style={styles.rideHeaderLeft}>
-                  <Text style={styles.rideDate}>
-                    {new Date(ride.created_at).toLocaleDateString()} • {new Date(ride.created_at).toLocaleTimeString()}
-                  </Text>
-                  <Text style={styles.rideService}>
-                    {ride.service_type} Service
-                  </Text>
-                </View>
-                <View
-                  style={[styles.statusBadge, { backgroundColor: getStatusColor(ride.status) }]}
-                >
-                  <Text style={styles.statusText}>
-                    {getStatusText(ride.status)}
-                  </Text>
-                </View>
-              </View>
+        <View style={styles.locationRow}>
+          <MaterialIcons name="location-on" size={14} color={colors.error} />
+          <View>
+            <Text style={[styles.locationLabel, { color: colors.textSecondary }]}>Dropoff</Text>
+            <Text style={[styles.locationText, { color: colors.text }]}>{item.dropoff_address || 'N/A'}</Text>
+          </View>
+        </View>
+      </View>
 
-              {/* Route */}
-              <View style={styles.routeContainer}>
-                <View style={styles.routeStep}>
-                  <Text style={styles.routeDot}>●</Text>
-                  <Text style={styles.routeText}>
-                    {ride.pickup_address || 'Pickup Location'}
-                  </Text>
-                </View>
-                <View style={styles.routeLine} />
-                <View style={styles.routeStep}>
-                  <Text style={styles.routeDot}>●</Text>
-                  <Text style={styles.routeText}>
-                    {ride.dropoff_address || 'Drop Location'}
-                  </Text>
-                </View>
-              </View>
+      <View style={styles.detailsContainer}>
+        <View style={styles.detailRow}>
+          <MaterialIcons name="directions-car" size={14} color={colors.primary} />
+          <Text style={[styles.detailText, { color: colors.text }]}>{item.vehicle_type || 'Standard'}</Text>
+        </View>
+        <View style={styles.detailRow}>
+          <MaterialIcons name="attach-money" size={14} color={colors.primary} />
+          <Text style={[styles.detailText, { color: colors.text }]}>₹{item.fare_amount}</Text>
+        </View>
+        {item.started_at && item.completed_at && (
+          <View style={styles.detailRow}>
+            <MaterialIcons name="schedule" size={14} color={colors.primary} />
+            <Text style={[styles.detailText, { color: colors.text }]}>
+              {Math.round((new Date(item.completed_at).getTime() - new Date(item.started_at).getTime()) / (1000 * 60))} mins
+            </Text>
+          </View>
+        )}
+      </View>
 
-              {/* Details */}
-              <View style={styles.detailsCard}>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Vehicle:</Text>
-                  <Text style={styles.detailValue}>
-                    {ride.vehicle_type}
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Driver:</Text>
-                  <Text style={styles.detailValue}>
-                    {ride.driver?.user?.full_name || 'Not assigned'}
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Fare:</Text>
-                  <Text style={styles.detailValue}>
-                    ₹{ride.fare_amount || ride.estimated_fare || 0}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Actions */}
-              <View style={styles.actionsContainer}>
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.actionButtonPrimary]}
-                  onPress={() => Alert.alert('View Details', 'Detailed ride information coming soon')}
-                >
-                  <Text style={styles.actionButtonText}>View Details</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.actionButtonSecondary]}
-                  onPress={() => Alert.alert('Book Again', 'Quick booking feature coming soon')}
-                >
-                  <Text style={[styles.actionButtonText, styles.actionButtonTextSecondary]}>Book Again</Text>
-                </TouchableOpacity>
-              </View>
+      <View style={[styles.footer, { borderTopColor: colors.border }]}>
+        <Text style={[styles.tripId, { color: colors.textSecondary }]}>Trip ID: {item.id.slice(0, 8)}...</Text>
+        <View style={styles.actionButtons}>
+          {(item.status === 'pending' || item.status === 'accepted') && (
+            <TouchableOpacity
+              style={[styles.cancelButton, { backgroundColor: colors.error + '20', borderColor: colors.error }]}
+              onPress={() => {
+                setCancelBookingId(item.id);
+                setCancelDialogOpen(true);
+              }}
+            >
+              <Text style={[styles.cancelButtonText, { color: colors.error }]}>Cancel</Text>
             </TouchableOpacity>
-          ))}
+          )}
+          {item.status === 'completed' && item.driver_id && (
+            <TouchableOpacity
+              style={[styles.rateButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              onPress={() => handleRateTrip(item)}
+            >
+              <MaterialIcons name="star" size={14} color={colors.warning} />
+              <Text style={[styles.rateButtonText, { color: colors.warning }]}>Rate Trip</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[styles.detailsButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={() => navigation.navigate('TripDetails', { bookingId: item.id })}
+          >
+            <Text style={[styles.detailsButtonText, { color: colors.primary }]}>View Details</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Trip History</Text>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Trip History</Text>
+        <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>View all your past and current bookings</Text>
+      </View>
+
+      {bookings.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <MaterialIcons name="directions-car" size={48} color={colors.textSecondary} />
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>No trips yet</Text>
+          <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>Book your first ride to see your trip history</Text>
+          <TouchableOpacity style={[styles.bookButton, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('BookRide')}>
+            <Text style={[styles.bookButtonText, { color: colors.surface }]}>Book a Ride</Text>
+          </TouchableOpacity>
         </View>
       ) : (
-        <View style={styles.emptyContainer}>
-          <MaterialIcons name="directions-car" size={60} color="#cbd5e1" />
-          <Text style={styles.emptyTitle}>No rides yet</Text>
-          <Text style={styles.emptyText}>
-            Your completed rides will appear here
-          </Text>
-        </View>
+        <FlatList
+          data={bookings}
+          renderItem={renderBookingItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContainer}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+        />
       )}
-    </ScrollView>
+
+      {/* Cancel Booking Modal */}
+      <Modal
+        visible={cancelDialogOpen}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setCancelDialogOpen(false)}
+      >
+        <View style={[styles.modalOverlay, { backgroundColor: colors.modal }]}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Cancel Booking</Text>
+            <Text style={[styles.modalDescription, { color: colors.textSecondary }]}>
+              Are you sure you want to cancel this booking? Please provide a reason for cancellation.
+            </Text>
+            <TextInput
+              style={[styles.reasonInput, { backgroundColor: colors.inputBackground, borderColor: colors.inputBorder, color: colors.text }]}
+              placeholder="Please provide a reason for cancellation..."
+              placeholderTextColor={colors.inputPlaceholder}
+              value={cancelReason}
+              onChangeText={setCancelReason}
+              multiline={true}
+              numberOfLines={4}
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelModalButton, { backgroundColor: colors.surface }]}
+                onPress={() => {
+                  setCancelReason('');
+                  setCancelBookingId(null);
+                  setCancelDialogOpen(false);
+                }}
+              >
+                <Text style={[styles.cancelModalButtonText, { color: colors.textSecondary }]}>Keep Booking</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmCancelButton, { backgroundColor: colors.error }]}
+                onPress={handleCancelBooking}
+              >
+                <Text style={[styles.confirmCancelButtonText, { color: colors.surface }]}>Cancel Booking</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -211,182 +345,258 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   header: {
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    marginHorizontal: 20,
-    marginTop: 20,
-    padding: 24,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 8,
+    padding: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#1e293b',
-    marginBottom: 4,
+    textAlign: 'center',
   },
   headerSubtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#64748b',
+    textAlign: 'center',
+    marginTop: 4,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 80,
   },
-  loadingText: {
-    color: '#64748b',
+  listContainer: {
+    padding: 16,
   },
-  rideList: {
-    paddingHorizontal: 20,
-    marginTop: 20,
-  },
-  rideCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+  bookingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
     padding: 16,
     marginBottom: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  rideHeader: {
+  bookingHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 16,
   },
-  rideHeaderLeft: {
-    flex: 1,
-  },
-  rideDate: {
-    fontSize: 14,
-    color: '#64748b',
-    marginBottom: 4,
-  },
-  rideService: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1e293b',
-    textTransform: 'capitalize',
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   statusBadge: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
+    borderWidth: 1,
+    marginRight: 8,
   },
   statusText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#ffffff',
   },
-  routeContainer: {
-    marginBottom: 16,
+  paymentBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
-  routeStep: {
+  paymentText: {
+    fontSize: 12,
+    color: '#64748b',
+  },
+  dateContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  dateText: {
+    fontSize: 12,
+    color: '#64748b',
+    marginLeft: 4,
+  },
+  locationContainer: {
+    marginBottom: 16,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     marginBottom: 8,
   },
-  routeDot: {
-    fontSize: 14,
-    color: '#2563eb',
-    marginRight: 12,
-    width: 16,
-    textAlign: 'center',
+  locationLabel: {
+    fontSize: 12,
+    color: '#64748b',
+    marginLeft: 8,
   },
-  routeText: {
+  locationText: {
     fontSize: 14,
+    fontWeight: '500',
     color: '#1e293b',
-    flex: 1,
+    marginLeft: 8,
   },
-  routeLine: {
-    height: 20,
-    width: 1,
-    backgroundColor: '#e2e8f0',
-    marginLeft: 7,
-    marginBottom: 8,
-  },
-  detailsCard: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 8,
-    padding: 12,
+  detailsContainer: {
     marginBottom: 16,
   },
   detailRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
+    alignItems: 'center',
+    marginBottom: 4,
   },
-  detailLabel: {
+  detailText: {
     fontSize: 14,
+    color: '#1e293b',
+    marginLeft: 8,
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+  },
+  tripId: {
+    fontSize: 12,
     color: '#64748b',
   },
-  detailValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1e293b',
-    textTransform: 'capitalize',
-  },
-  actionsContainer: {
+  actionButtons: {
     flexDirection: 'row',
-    gap: 12,
   },
-  actionButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
+  cancelButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#fef2f2',
+    borderRadius: 6,
+    marginRight: 8,
   },
-  actionButtonPrimary: {
-    backgroundColor: '#2563eb',
-  },
-  actionButtonSecondary: {
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  actionButtonText: {
-    fontSize: 14,
+  cancelButtonText: {
+    color: '#dc2626',
+    fontSize: 12,
     fontWeight: '500',
-    color: '#ffffff',
   },
-  actionButtonTextSecondary: {
-    color: '#1e293b',
+  rateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  rateButtonText: {
+    color: '#ca8a04',
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  detailsButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 6,
+  },
+  detailsButtonText: {
+    color: '#3b82f6',
+    fontSize: 12,
+    fontWeight: '500',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
-    paddingVertical: 80,
+    padding: 32,
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: 'bold',
+    color: '#1e293b',
+    marginTop: 16,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  bookButton: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  bookButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    width: '100%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
     color: '#1e293b',
     marginBottom: 8,
   },
-  emptyText: {
-    fontSize: 16,
+  modalDescription: {
+    fontSize: 14,
     color: '#64748b',
-    textAlign: 'center',
-    lineHeight: 24,
+    marginBottom: 16,
+  },
+  reasonInput: {
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    padding: 12,
+    minHeight: 100,
+    textAlignVertical: 'top',
+    marginBottom: 24,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  modalButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  cancelModalButton: {
+    backgroundColor: '#f1f5f9',
+  },
+  cancelModalButtonText: {
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  confirmCancelButton: {
+    backgroundColor: '#dc2626',
+  },
+  confirmCancelButtonText: {
+    color: '#fff',
+    fontWeight: '500',
   },
 });
+
+export default RideHistoryScreen;
