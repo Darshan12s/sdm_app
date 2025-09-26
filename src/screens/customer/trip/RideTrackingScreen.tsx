@@ -407,10 +407,10 @@ const RideTrackingScreen: React.FC<RideTrackingScreenProps> = ({ route }) => {
               strokeWidth={4}
               strokeColor="#1e40af"
               mode="DRIVING"
-              onReady={result => {
+              onReady={(result: any) => {
                 setRouteCoords(result.coordinates);
               }}
-              onError={(errorMessage) => {
+              onError={(errorMessage: string) => {
                 console.log('Directions error:', errorMessage);
                 // Fallback to straight line if directions API fails
                 setRouteCoords([
@@ -430,7 +430,7 @@ const RideTrackingScreen: React.FC<RideTrackingScreenProps> = ({ route }) => {
               strokeWidth={3}
               strokeColor="#3b82f6"
               mode="DRIVING"
-              onError={(errorMessage) => {
+              onError={(errorMessage: string) => {
                 console.log('Driver to pickup directions error:', errorMessage);
                 // Fallback to straight line if directions API fails
               }}

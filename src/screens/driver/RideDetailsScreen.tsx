@@ -396,7 +396,7 @@ const RideDetailsScreen: React.FC<RideDetailsScreenProps> = ({ route, navigation
               optimizeWaypoints={true}
               precision="high"
               timePrecision="now"
-              onReady={result => {
+              onReady={(result: any) => {
                 console.log('Route calculated successfully:', {
                   distance: result.distance,
                   duration: result.duration,
@@ -411,7 +411,7 @@ const RideDetailsScreen: React.FC<RideDetailsScreenProps> = ({ route, navigation
                 });
                 setRouteLoading(false);
               }}
-              onError={(errorMessage) => {
+              onError={(errorMessage: string) => {
                 console.error('Route calculation failed:', errorMessage);
                 setRouteLoading(false);
                 // Fallback: draw straight line if route calculation fails

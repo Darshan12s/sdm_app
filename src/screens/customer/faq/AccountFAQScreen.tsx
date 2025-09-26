@@ -22,7 +22,7 @@ interface FAQItem {
 
 const AccountFAQScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp<CustomerStackParamList>>();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const [expandedFAQ, setExpandedFAQ] = useState<string | null>(null);
 
   const faqData: FAQItem[] = [
@@ -111,7 +111,7 @@ const AccountFAQScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar barStyle={colors.isDark ? "light-content" : "dark-content"} backgroundColor={colors.headerBackground} />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.headerBackground} />
 
       {/* Header */}
       {/* <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>

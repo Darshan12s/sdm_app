@@ -6,7 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 
 // Import global styles
-import './src/global.css';
+// import './src/global.css'; // Not needed in React Native
 
 // Import our services and stores
 import { AuthService } from '@/services/supabase/auth';

@@ -22,7 +22,7 @@ interface FAQItem {
 
 const DriverRidesFAQScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp<DriverStackParamList>>();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const [expandedFAQ, setExpandedFAQ] = useState<string | null>(null);
 
   const faqData: FAQItem[] = [
@@ -111,7 +111,7 @@ const DriverRidesFAQScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar barStyle={colors.isDark ? "light-content" : "dark-content"} backgroundColor={colors.headerBackground} />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.headerBackground} />
 
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
