@@ -296,13 +296,6 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ route, navigation
           </View>
         </View>
 
-        {/* Track Ride Button - Only show for active trips
-        {(booking.status === 'pending' || booking.status === 'started') && (
-          <TouchableOpacity style={styles.trackButton} onPress={handleTrackRide}>
-            <MaterialIcons name="my-location" size={20} color="#fff" />
-            <Text style={styles.trackButtonText}>Track Ride</Text>
-          </TouchableOpacity>
-        )} */}
 
         {/* Vehicle & Driver Information */}
         {booking.driver && (
@@ -441,8 +434,8 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ route, navigation
         <View style={styles.tripIdContainer}>
           <Text style={[styles.tripIdText, { color: colors.textSecondary }]}>Trip ID: {booking.id}</Text>
         </View>
-          {/* Track Ride Button - Only show for active trips */}
-        {(booking.status === 'pending' || booking.status === 'started') && (
+        {/* Track Ride Button - Only show for active trips */}
+        {(booking.status === 'accepted' || booking.status === 'started') && (
           <TouchableOpacity style={[styles.trackButton, { backgroundColor: colors.primary }]} onPress={handleTrackRide}>
             <MaterialIcons name="my-location" size={20} color={colors.surface} />
             <Text style={[styles.trackButtonText, { color: colors.surface }]}>Track Ride</Text>
