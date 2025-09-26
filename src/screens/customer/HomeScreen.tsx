@@ -101,14 +101,14 @@ export default function HomeScreen() {
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Top Navigation Bar */}
-      <View style={[styles.topBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      {/* <View style={[styles.topBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={styles.logoContainer}>
           <Text style={[styles.logoText, { color: colors.text }]}>SDM</Text>
         </View>
         <TouchableOpacity style={[styles.profileButton, { backgroundColor: colors.card }]} onPress={handleViewProfile}>
           <MaterialIcons name="account-circle" size={28} color={colors.primary} />
         </TouchableOpacity>
-      </View>
+      </View> */}
 
       {/* Welcome Header */}
       <View style={styles.header}>

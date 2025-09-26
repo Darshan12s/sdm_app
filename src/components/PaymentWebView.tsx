@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text, TouchableOpacity, Alert } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface PaymentWebViewProps {
   paymentUrl: string;
@@ -18,6 +19,7 @@ export const PaymentWebView: React.FC<PaymentWebViewProps> = ({
   onPaymentFailure,
   onClose,
 }) => {
+  const { colors } = useTheme();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const webViewRef = useRef<WebView>(null);
@@ -72,28 +74,28 @@ export const PaymentWebView: React.FC<PaymentWebViewProps> = ({
 
   if (error) {
     return (
-      <View style={styles.errorContainer}>
+      <View style={[styles.errorContainer, { backgroundColor: colors.background }]}>
         <MaterialIcons name="error-outline" size={48} color="#dc2626" />
-        <Text style={styles.errorTitle}>Payment Error</Text>
-        <Text style={styles.errorMessage}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={() => setError(null)}>
-          <Text style={styles.retryButtonText}>Retry</Text>
+        <Text style={[styles.errorTitle, { color: colors.text }]}>Payment Error</Text>
+        <Text style={[styles.errorMessage, { color: colors.textSecondary }]}>{error}</Text>
+        <TouchableOpacity style={[styles.retryButton, { backgroundColor: colors.primary }]} onPress={() => setError(null)}>
+          <Text style={[styles.retryButtonText, { color: colors.surface }]}>Retry</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-          <Text style={styles.closeButtonText}>Close</Text>
+          <Text style={[styles.closeButtonText, { color: colors.textSecondary }]}>Close</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-          <MaterialIcons name="close" size={24} color="#64748b" />
+          <MaterialIcons name="close" size={24} color={colors.textSecondary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Complete Payment</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Complete Payment</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -117,9 +119,9 @@ export const PaymentWebView: React.FC<PaymentWebViewProps> = ({
 
       {/* Loading Overlay */}
       {isLoading && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#3ccfa0" />
-          <Text style={styles.loadingText}>Loading payment page...</Text>
+        <View style={[styles.loadingOverlay, { backgroundColor: colors.background }]}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading payment page...</Text>
         </View>
       )}
     </View>
@@ -129,7 +131,6 @@ export const PaymentWebView: React.FC<PaymentWebViewProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
   },
   header: {
     flexDirection: 'row',
@@ -138,13 +139,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    backgroundColor: '#ffffff',
   },
   headerTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1e293b',
   },
   closeButton: {
     padding: 4,
@@ -154,49 +152,41 @@ const styles = StyleSheet.create({
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#64748b',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
-    backgroundColor: '#ffffff',
   },
   errorTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#1e293b',
     marginTop: 16,
     marginBottom: 8,
   },
   errorMessage: {
     fontSize: 14,
-    color: '#64748b',
     textAlign: 'center',
     marginBottom: 24,
   },
   retryButton: {
-    backgroundColor: '#3ccfa0',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
     marginBottom: 12,
   },
   retryButtonText: {
-    color: '#ffffff',
     fontSize: 14,
     fontWeight: '600',
   },
   closeButtonText: {
-    color: '#64748b',
     fontSize: 14,
     fontWeight: '500',
   },

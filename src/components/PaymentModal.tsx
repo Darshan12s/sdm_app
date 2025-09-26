@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, Modal, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { PaymentWebView } from './PaymentWebView';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface PaymentModalProps {
   visible: boolean;
@@ -20,6 +21,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   onPaymentFailure,
   onClose,
 }) => {
+  const { colors } = useTheme();
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handlePaymentSuccess = (paymentId: string, orderId: string) => {
@@ -54,30 +56,30 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       presentationStyle="pageSheet"
       onRequestClose={handleClose}
     >
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
           <TouchableOpacity
-            style={styles.closeButton}
+            style={[styles.closeButton, { backgroundColor: colors.surface }]}
             onPress={handleClose}
             disabled={isProcessing}
           >
             <MaterialIcons
               name="close"
               size={24}
-              color={isProcessing ? "#cccccc" : "#64748b"}
+              color={isProcessing ? colors.textMuted : colors.textSecondary}
             />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Secure Payment</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Secure Payment</Text>
           <View style={{ width: 24 }} />
         </View>
 
         {/* Processing Overlay */}
         {isProcessing && (
-          <View style={styles.processingOverlay}>
-            <ActivityIndicator size="large" color="#3ccfa0" />
-            <Text style={styles.processingText}>Processing payment...</Text>
-            <Text style={styles.processingSubtext}>Please wait</Text>
+          <View style={[styles.processingOverlay, { backgroundColor: colors.background }]}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.processingText, { color: colors.text }]}>Processing payment...</Text>
+            <Text style={[styles.processingSubtext, { color: colors.textSecondary }]}>Please wait</Text>
           </View>
         )}
 
@@ -97,7 +99,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
   },
   header: {
     flexDirection: 'row',
@@ -106,23 +107,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    backgroundColor: '#ffffff',
     paddingTop: 50, // Account for status bar
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
   },
   closeButton: {
     padding: 8,
     borderRadius: 20,
-    backgroundColor: '#f8f9fa',
   },
   processingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
@@ -131,11 +127,9 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     fontWeight: '600',
-    color: '#1e293b',
   },
   processingSubtext: {
     marginTop: 8,
     fontSize: 14,
-    color: '#64748b',
   },
 });

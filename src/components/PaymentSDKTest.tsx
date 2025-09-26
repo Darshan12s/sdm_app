@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, Platform } from 'react-native';
 import { RazorpaySDKService } from '@/services/payment/razorpay-sdk';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export const PaymentSDKTest: React.FC = () => {
+  const { colors } = useTheme();
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleSDKTest = async () => {
     console.log('🧪 Testing Razorpay SDK integration...');
     const result = await RazorpaySDKService.testSDKIntegration();
     Alert.alert(
-      result.success ? 'SDK Test Passed' : 'SDK Test Failed',
+      result.success ? 'Payment System Ready!' : 'SDK Test Failed - Using Fallback',
       result.message
     );
   };
@@ -39,9 +41,13 @@ export const PaymentSDKTest: React.FC = () => {
       );
 
       if (result.success) {
+        const successMessage = result.fallback
+          ? `Payment processed via web integration!\n\nPayment ID: ${result.paymentId}\nOrder ID: ${result.orderId}\n\n${result.message || ''}`
+          : `Payment ID: ${result.paymentId}\nOrder ID: ${result.orderId}`;
+
         Alert.alert(
           'Payment Successful!',
-          `Payment ID: ${result.paymentId}\nOrder ID: ${result.orderId}`,
+          successMessage,
           [{ text: 'OK' }]
         );
       } else {
@@ -87,50 +93,59 @@ export const PaymentSDKTest: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Razorpay SDK Test</Text>
-      <Text style={styles.subtitle}>Test the official Razorpay React Native SDK integration</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.title, { color: colors.primary }]}>Payment System Test</Text>
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Test Razorpay integration with automatic fallback support</Text>
 
-      <View style={styles.testSection}>
-        <Text style={styles.sectionTitle}>SDK Integration Tests</Text>
+      <View style={[styles.testSection, { backgroundColor: colors.card }]}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Payment System Tests</Text>
 
-        <TouchableOpacity style={styles.testButton} onPress={handleSDKTest}>
-          <Text style={styles.testButtonText}>Test SDK Setup</Text>
+        <TouchableOpacity style={[styles.testButton, { backgroundColor: colors.primary }]} onPress={handleSDKTest}>
+          <Text style={[styles.testButtonText, { color: colors.surface }]}>Test SDK Setup</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.testButton} onPress={handleCreateOrderTest}>
-          <Text style={styles.testButtonText}>Test Order Creation</Text>
+        <TouchableOpacity style={[styles.testButton, { backgroundColor: colors.primary }]} onPress={handleCreateOrderTest}>
+          <Text style={[styles.testButtonText, { color: colors.surface }]}>Test Order Creation</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.testButton, isProcessing && styles.testButtonDisabled]}
+          style={[
+            styles.testButton,
+            { backgroundColor: colors.primary },
+            isProcessing && [styles.testButtonDisabled, { backgroundColor: colors.border }]
+          ]}
           onPress={handleTestPayment}
           disabled={isProcessing}
         >
-          <Text style={styles.testButtonText}>
+          <Text style={[
+            styles.testButtonText,
+            { color: colors.surface },
+            isProcessing && [styles.testButtonTextDisabled, { color: colors.textMuted }]
+          ]}>
             {isProcessing ? 'Processing...' : 'Test Payment (₹1.00)'}
           </Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.infoSection}>
-        <Text style={styles.infoTitle}>Test Information</Text>
-        <Text style={styles.infoText}>
-          • Uses official Razorpay React Native SDK{'\n'}
-          • No WebView - direct native integration{'\n'}
+      <View style={[styles.infoSection, { backgroundColor: colors.primaryLight }]}>
+        <Text style={[styles.infoTitle, { color: colors.primary }]}>Test Information</Text>
+        <Text style={[styles.infoText, { color: colors.primary }]}>
+          • Smart payment system with automatic fallback{'\n'}
+          • Uses native SDK when available, web integration otherwise{'\n'}
           • Platform: {Platform.OS}{'\n'}
           • Test Card: 4111 1111 1111 1111{'\n'}
           • Expiry: 12/25, CVV: 123
         </Text>
       </View>
 
-      <View style={styles.warningSection}>
-        <Text style={styles.warningTitle}>⚠️ Important Notes</Text>
-        <Text style={styles.warningText}>
-          • SDK requires proper native setup{'\n'}
-          • May need additional configuration for production{'\n'}
+      <View style={[styles.warningSection, { backgroundColor: colors.primaryLight }]}>
+        <Text style={[styles.warningTitle, { color: colors.primary }]}>⚠️ Important Notes</Text>
+        <Text style={[styles.warningText, { color: colors.primary }]}>
+          • SDK requires proper native setup for Expo development builds{'\n'}
+          • If SDK fails, payment automatically falls back to web integration{'\n'}
           • Test payments use Razorpay test environment{'\n'}
-          • Check console logs for detailed error information
+          • Check console logs for detailed error information{'\n'}
+          • For production, ensure proper Expo configuration
         </Text>
       </View>
     </View>
@@ -141,23 +156,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#f8f9fa',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#3ccfa0',
     textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#64748b',
     textAlign: 'center',
     marginBottom: 30,
   },
   testSection: {
-    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 20,
     marginBottom: 20,
@@ -170,11 +181,9 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
     marginBottom: 16,
   },
   testButton: {
-    backgroundColor: '#3ccfa0',
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -182,15 +191,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   testButtonDisabled: {
-    backgroundColor: '#e2e8f0',
+    // Colors applied inline with theme
   },
   testButtonText: {
-    color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
   },
+  testButtonTextDisabled: {
+    // Colors applied inline with theme
+  },
   infoSection: {
-    backgroundColor: '#eff6ff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
@@ -198,28 +208,23 @@ const styles = StyleSheet.create({
   infoTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1e40af',
     marginBottom: 8,
   },
   infoText: {
     fontSize: 14,
-    color: '#3730a3',
     lineHeight: 20,
   },
   warningSection: {
-    backgroundColor: '#fef3c7',
     borderRadius: 12,
     padding: 16,
   },
   warningTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#d97706',
     marginBottom: 8,
   },
   warningText: {
     fontSize: 14,
-    color: '#92400e',
     lineHeight: 20,
   },
 });

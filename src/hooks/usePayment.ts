@@ -29,9 +29,9 @@ export const usePayment = () => {
         currency: 'INR',
         bookingId,
         customerId: user.id,
-        customerName: user.full_name,
-        customerEmail: user.email,
-        customerPhone: user.phone || '',
+        customerName: user.full_name || '',
+        customerEmail: user.email || '',
+        customerPhone: user.phone_no || '',
         description: description || 'Cab booking payment',
       };
 

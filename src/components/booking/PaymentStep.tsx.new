@@ -152,7 +152,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           .from('bookings')
           .update({
             payment_status: paymentAmount === 'full' ? 'completed' : 'partial',
-            status: 'confirmed',
+            status: 'accepted',
           })
           .eq('id', booking.id);
 

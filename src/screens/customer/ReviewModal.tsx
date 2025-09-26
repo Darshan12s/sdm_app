@@ -55,7 +55,19 @@ const ReviewModal: React.FC<Props> = ({ navigation, route }) => {
           created_at: new Date().toISOString(),
         });
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '42501') {
+          // RLS policy error - review submission blocked by security policy
+          console.log('RLS policy prevents review submission');
+          Toast.show({
+            type: 'error',
+            text1: 'Unable to submit review',
+            text2: 'Review submission is currently restricted. Please contact support.',
+          });
+          return;
+        }
+        throw error;
+      }
 
       Toast.show({
         type: 'success',

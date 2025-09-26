@@ -394,64 +394,6 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
   // Removed dynamic key to prevent unnecessary MapView re-mounts
   // Markers should update properly through React's normal re-rendering
 
-  // Show simplified fallback if Google Maps tiles don't load
-  if (useStaticMap) {
-    return (
-      <View style={[styles.container, styles.errorContainer]}>
-        <View style={styles.errorContent}>
-          <Text style={styles.errorTitle}>Map View Unavailable</Text>
-          <Text style={styles.errorText}>
-            The interactive map is not loading properly on this device. This may be due to Google Maps API restrictions for development environments.
-          </Text>
-          <Text style={styles.errorText}>
-            You can still use the location input fields above to set your pickup and drop-off locations.
-          </Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={() => {
-              setUseStaticMap(false);
-              setIsMapReady(false);
-              // Retry with interactive map
-            }}
-          >
-            <Text style={styles.retryButtonText}>Try Again</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  // Show error state if map failed to load
-  if (mapLoadError) {
-    return (
-      <View style={[styles.container, styles.errorContainer]}>
-        <View style={styles.errorContent}>
-          <Text style={styles.errorTitle}>Map Unavailable</Text>
-          <Text style={styles.errorText}>
-            {isPhysicalDevice
-              ? 'Map functionality may be limited on physical devices. Using default map provider.'
-              : 'Unable to load map. Please check your internet connection and try again.'}
-          </Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={() => {
-              setMapLoadError(false);
-              setIsMapReady(false);
-              // Retry loading
-              const timeout = setTimeout(() => {
-                if (!isMapReady) {
-                  setMapLoadError(true);
-                }
-              }, 30000);
-              setMapLoadTimeout(timeout);
-            }}
-          >
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>

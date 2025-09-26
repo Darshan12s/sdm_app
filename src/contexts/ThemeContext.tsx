@@ -3,7 +3,6 @@ import { useColorScheme, StatusBar } from 'react-native';
 import { useIsDarkMode } from '@/stores/appStore';
 
 interface ThemeColors {
-  isDark: any;
   // Background colors
   background: string;
   surface: string;
@@ -61,14 +60,14 @@ const lightTheme: ThemeColors = {
   border: '#e0e0e0',
   borderLight: '#f0f0f0',
 
-  primary: '#007AFF',
-  primaryLight: '#4DA3FF',
-  primaryDark: '#0056CC',
+  primary: '#3ace9f',
+  primaryLight: '#5ed4a8',
+  primaryDark: '#2ab086',
 
   success: '#4CAF50',
   error: '#FF3B30',
   warning: '#FF9800',
-  info: '#007AFF',
+  info: '#22c55e',
 
   inputBackground: '#ffffff',
   inputBorder: '#cccccc',
@@ -97,14 +96,14 @@ const darkTheme: ThemeColors = {
   border: '#333333',
   borderLight: '#404040',
 
-  primary: '#0A84FF',
-  primaryLight: '#4DA3FF',
-  primaryDark: '#0056CC',
+  primary: '#3ace9f',
+  primaryLight: '#5ed4a8',
+  primaryDark: '#2ab086',
 
   success: '#30D158',
   error: '#FF453A',
   warning: '#FF9F0A',
-  info: '#0A84FF',
+  info: '#22c55e',
 
   inputBackground: '#2a2a2a',
   inputBorder: '#555555',

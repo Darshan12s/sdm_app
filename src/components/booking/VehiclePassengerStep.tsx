@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, ActivityIn
 import { MaterialIcons } from '@expo/vector-icons';
 import { VehicleType, ServiceType } from '@/types';
 import { useFareCalculation } from '@/hooks/useFareCalculation';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface LocationData {
   lat: number;
@@ -37,6 +38,7 @@ export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
   onNext,
   onBack,
 }) => {
+  const { colors } = useTheme();
   const [showPassengerModal, setShowPassengerModal] = useState(false);
   const [showFareBreakdown, setShowFareBreakdown] = useState<string | null>(null);
 
@@ -165,31 +167,31 @@ export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.title}>Choose Your Vehicle</Text>
-          <Text style={styles.subtitle}>Select the perfect vehicle for your journey</Text>
+          <Text style={[styles.title, { color: colors.primary }]}>Choose Your Vehicle</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Select the perfect vehicle for your journey</Text>
         </View>
 
         {/* Passenger Selection */}
         <TouchableOpacity
-          style={styles.passengerSelector}
+          style={[styles.passengerSelector, { backgroundColor: colors.surface, borderColor: colors.border }]}
           onPress={() => setShowPassengerModal(true)}
         >
           <View style={styles.passengerContent}>
-            <MaterialIcons name="people" size={20} color="#3ccfa0" />
-            <Text style={styles.passengerText}>
+            <MaterialIcons name="people" size={20} color={colors.primary} />
+            <Text style={[styles.passengerText, { color: colors.text }]}>
               {passengers} Guests
             </Text>
           </View>
-          <MaterialIcons name="chevron-right" size={20} color="#64748b" />
+          <MaterialIcons name="chevron-right" size={20} color={colors.textSecondary} />
         </TouchableOpacity>
 
         {/* Vehicle Type Selection */}
-        <View style={styles.vehicleContainer}>
-          <Text style={styles.containerTitle}>Choose Your Vehicle</Text>
-          <Text style={styles.containerSubtitle}>Select the perfect ride for your journey</Text>
+        <View style={[styles.vehicleContainer, { backgroundColor: colors.card }]}>
+          <Text style={[styles.containerTitle, { color: colors.text }]}>Choose Your Vehicle</Text>
+          <Text style={[styles.containerSubtitle, { color: colors.textSecondary }]}>Select the perfect ride for your journey</Text>
           
           <View style={styles.vehicleGrid}>
             {vehicleTypes.map((vehicle) => (
@@ -197,46 +199,47 @@ export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
                 key={vehicle.type}
                 style={[
                   styles.vehicleCard,
-                  vehicleType === vehicle.type && styles.vehicleCardActive,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                  vehicleType === vehicle.type && [styles.vehicleCardActive, { borderColor: colors.primary, backgroundColor: colors.primaryLight }],
                 ]}
                 onPress={() => onVehicleTypeChange(vehicle.type)}
                 disabled={vehicle.comingSoon}
               >
                 <View style={styles.vehicleCardContent}>
-                  <View style={styles.vehicleIconContainer}>
-                    <MaterialIcons 
-                      name={vehicle.icon as any} 
-                      size={24} 
-                      color="#3ccfa0" 
+                  <View style={[styles.vehicleIconContainer, { backgroundColor: colors.primaryLight }]}>
+                    <MaterialIcons
+                      name={vehicle.icon as any}
+                      size={24}
+                      color={colors.primary}
                     />
                   </View>
                   
                   <View style={styles.vehicleDetails}>
                     <View style={styles.vehicleNameRow}>
-                      <Text style={styles.vehicleName}>
+                      <Text style={[styles.vehicleName, { color: colors.text }]}>
                         {vehicle.label}
                       </Text>
                       {vehicle.comingSoon && (
-                        <View style={styles.comingSoonBadge}>
-                          <Text style={styles.comingSoonText}>Coming Soon</Text>
+                        <View style={[styles.comingSoonBadge, { backgroundColor: colors.primary }]}>
+                          <Text style={[styles.comingSoonText, { color: colors.surface }]}>Coming Soon</Text>
                         </View>
                       )}
                     </View>
-                    <Text style={styles.vehicleDescription}>
+                    <Text style={[styles.vehicleDescription, { color: colors.textSecondary }]}>
                       {vehicle.description}
                     </Text>
                     <View style={styles.vehicleMetaRow}>
                       <View style={styles.vehicleMeta}>
-                        <MaterialIcons name="person" size={14} color="#64748b" />
-                        <Text style={styles.vehicleMetaText}>{vehicle.capacity.split(' ')[0]}</Text>
+                        <MaterialIcons name="person" size={14} color={colors.textSecondary} />
+                        <Text style={[styles.vehicleMetaText, { color: colors.textSecondary }]}>{vehicle.capacity.split(' ')[0]}</Text>
                       </View>
                       <View style={styles.vehicleMeta}>
-                        <MaterialIcons name="map" size={14} color="#64748b" />
-                        <Text style={styles.vehicleMetaText}>{vehicle.distance}</Text>
+                        <MaterialIcons name="map" size={14} color={colors.textSecondary} />
+                        <Text style={[styles.vehicleMetaText, { color: colors.textSecondary }]}>{vehicle.distance}</Text>
                       </View>
                       <View style={styles.vehicleMeta}>
-                        <MaterialIcons name="schedule" size={14} color="#64748b" />
-                        <Text style={styles.vehicleMetaText}>{vehicle.duration}</Text>
+                        <MaterialIcons name="schedule" size={14} color={colors.textSecondary} />
+                        <Text style={[styles.vehicleMetaText, { color: colors.textSecondary }]}>{vehicle.duration}</Text>
                       </View>
                     </View>
                   </View>
@@ -256,7 +259,7 @@ export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
                         <MaterialIcons
                           name={showFareBreakdown === vehicle.type ? "expand-less" : "expand-more"}
                           size={16}
-                          color="#64748b"
+                          color={colors.textSecondary}
                           style={styles.expandIcon}
                         />
                       </>
@@ -269,36 +272,36 @@ export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
 
                   {/* Fare Breakdown */}
                   {showFareBreakdown === vehicle.type && vehicle.fareData && (
-                    <View style={styles.fareBreakdown}>
+                    <View style={[styles.fareBreakdown, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                       <View style={styles.breakdownRow}>
-                        <Text style={styles.breakdownLabel}>Base Fare</Text>
-                        <Text style={styles.breakdownValue}>₹{vehicle.fareData.baseFare}</Text>
+                        <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Base Fare</Text>
+                        <Text style={[styles.breakdownValue, { color: colors.text }]}>₹{vehicle.fareData.baseFare}</Text>
                       </View>
                       <View style={styles.breakdownRow}>
-                        <Text style={styles.breakdownLabel}>Distance ({vehicle.distance})</Text>
-                        <Text style={styles.breakdownValue}>₹{vehicle.fareData.distanceFare}</Text>
+                        <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Distance ({vehicle.distance})</Text>
+                        <Text style={[styles.breakdownValue, { color: colors.text }]}>₹{vehicle.fareData.distanceFare}</Text>
                       </View>
                       <View style={styles.breakdownRow}>
-                        <Text style={styles.breakdownLabel}>Time ({vehicle.duration})</Text>
-                        <Text style={styles.breakdownValue}>₹{vehicle.fareData.timeFare}</Text>
+                        <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Time ({vehicle.duration})</Text>
+                        <Text style={[styles.breakdownValue, { color: colors.text }]}>₹{vehicle.fareData.timeFare}</Text>
                       </View>
                       {vehicle.fareData.surgeMultiplier > 1 && (
                         <View style={styles.breakdownRow}>
-                          <Text style={styles.breakdownLabel}>Surge ({vehicle.fareData.surgeMultiplier}x)</Text>
-                          <Text style={styles.breakdownValue}>
+                          <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Surge ({vehicle.fareData.surgeMultiplier}x)</Text>
+                          <Text style={[styles.breakdownValue, { color: colors.text }]}>
                             ₹{Math.round((vehicle.fareData.baseFare + vehicle.fareData.distanceFare + vehicle.fareData.timeFare) * (vehicle.fareData.surgeMultiplier - 1))}
                           </Text>
                         </View>
                       )}
                       {vehicle.fareData.passengerSurcharge > 0 && (
                         <View style={styles.breakdownRow}>
-                          <Text style={styles.breakdownLabel}>Passenger surcharge ({passengers} guests)</Text>
-                          <Text style={styles.breakdownValue}>₹{vehicle.fareData.passengerSurcharge}</Text>
+                          <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Passenger surcharge ({passengers} guests)</Text>
+                          <Text style={[styles.breakdownValue, { color: colors.text }]}>₹{vehicle.fareData.passengerSurcharge}</Text>
                         </View>
                       )}
-                      <View style={[styles.breakdownRow, styles.totalRow]}>
-                        <Text style={styles.totalLabel}>Total</Text>
-                        <Text style={styles.totalValue}>₹{vehicle.fareData.totalFare}</Text>
+                      <View style={[styles.breakdownRow, styles.totalRow, { borderTopColor: colors.border }]}>
+                        <Text style={[styles.totalLabel, { color: colors.text }]}>Total</Text>
+                        <Text style={[styles.totalValue, { color: colors.primary }]}>₹{vehicle.fareData.totalFare}</Text>
                       </View>
                     </View>
                   )}
@@ -312,8 +315,8 @@ export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
       {/* Passenger Modal */}
       <Modal visible={showPassengerModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Passengers</Text>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Select Passengers</Text>
 
             <View style={styles.passengerGrid}>
               {[1, 2, 3, 4, 5, 6].map((count) => (
@@ -321,19 +324,22 @@ export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
                   key={count}
                   style={[
                     styles.passengerOption,
-                    passengers === count && styles.passengerOptionActive,
+                    { borderColor: colors.border },
+                    passengers === count && [styles.passengerOptionActive, { borderColor: colors.primary, backgroundColor: colors.primaryLight }],
                   ]}
                   onPress={() => handlePassengerSelect(count)}
                 >
                   <Text style={[
                     styles.passengerOptionText,
-                    passengers === count && styles.passengerOptionTextActive,
+                    { color: colors.text },
+                    passengers === count && [styles.passengerOptionTextActive, { color: colors.primary }],
                   ]}>
                     {count}
                   </Text>
                   <Text style={[
                     styles.passengerOptionLabel,
-                    passengers === count && styles.passengerOptionLabelActive,
+                    { color: colors.textSecondary },
+                    passengers === count && [styles.passengerOptionLabelActive, { color: colors.primary }],
                   ]}>
                     {count === 1 ? 'Guest' : 'Guests'}
                   </Text>
@@ -342,29 +348,37 @@ export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
             </View>
 
             <TouchableOpacity
-              style={styles.modalCancelButton}
+              style={[styles.modalCancelButton, { backgroundColor: colors.border }]}
               onPress={() => setShowPassengerModal(false)}
             >
-              <Text style={styles.modalCancelText}>Cancel</Text>
+              <Text style={[styles.modalCancelText, { color: colors.textSecondary }]}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
       {/* Navigation */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.backButton} onPress={onBack}>
-            <Text style={styles.backButtonText}>Back</Text>
+          <TouchableOpacity
+            style={[styles.backButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
+            onPress={onBack}
+          >
+            <Text style={[styles.backButtonText, { color: colors.textSecondary }]}>Back</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.nextButton, !isFormValid() && styles.nextButtonDisabled]}
+            style={[
+              styles.nextButton,
+              { backgroundColor: colors.primary },
+              !isFormValid() && [styles.nextButtonDisabled, { backgroundColor: colors.border }]
+            ]}
             onPress={onNext}
             disabled={!isFormValid()}
           >
             <Text style={[
               styles.nextButtonText,
-              !isFormValid() && styles.nextButtonTextDisabled,
+              { color: colors.surface },
+              !isFormValid() && [styles.nextButtonTextDisabled, { color: colors.textMuted }],
             ]}>
               Continue
             </Text>
@@ -378,7 +392,6 @@ export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   header: {
     padding: 16,
@@ -388,19 +401,16 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#3ccfa0',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: '#64748b',
     textAlign: 'center',
   },
   passengerSelector: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#ffffff',
     padding: 16,
     marginHorizontal: 16,
     marginBottom: 16,
@@ -422,10 +432,8 @@ const styles = StyleSheet.create({
   passengerText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1e293b',
   },
   vehicleContainer: {
-    backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 16,
     margin: 16,
@@ -441,12 +449,10 @@ const styles = StyleSheet.create({
   containerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1e293b',
     marginBottom: 4,
   },
   containerSubtitle: {
     fontSize: 14,
-    color: '#64748b',
     marginBottom: 16,
   },
   vehicleGrid: {
@@ -454,15 +460,12 @@ const styles = StyleSheet.create({
   },
   vehicleCard: {
     borderWidth: 1,
-    borderColor: '#e2e8f0',
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#ffffff',
     marginBottom: 8,
   },
   vehicleCardActive: {
-    borderColor: '#3ccfa0',
-    backgroundColor: '#ecfdf5',
+    // Colors applied inline with theme
   },
   vehicleCardContent: {
     flexDirection: 'row',
@@ -473,7 +476,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: '#ecfdf5',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -490,10 +492,8 @@ const styles = StyleSheet.create({
   vehicleName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1e293b',
   },
   comingSoonBadge: {
-    backgroundColor: '#3ccfa0',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
@@ -501,11 +501,9 @@ const styles = StyleSheet.create({
   comingSoonText: {
     fontSize: 10,
     fontWeight: '500',
-    color: '#ffffff',
   },
   vehicleDescription: {
     fontSize: 12,
-    color: '#64748b',
     marginBottom: 8,
   },
   vehicleMetaRow: {
@@ -519,7 +517,6 @@ const styles = StyleSheet.create({
   },
   vehicleMetaText: {
     fontSize: 12,
-    color: '#64748b',
   },
   vehiclePriceContainer: {
     marginLeft: 'auto',
@@ -529,7 +526,6 @@ const styles = StyleSheet.create({
   vehiclePrice: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#3ccfa0',
   },
   surgeText: {
     fontSize: 10,
@@ -541,12 +537,10 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   fareBreakdown: {
-    backgroundColor: '#f8fafc',
     borderRadius: 8,
     padding: 12,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
   breakdownRow: {
     flexDirection: 'row',
@@ -556,28 +550,23 @@ const styles = StyleSheet.create({
   },
   breakdownLabel: {
     fontSize: 12,
-    color: '#64748b',
     flex: 1,
   },
   breakdownValue: {
     fontSize: 12,
-    color: '#1e293b',
     fontWeight: '500',
   },
   totalRow: {
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
     paddingTop: 8,
     marginTop: 8,
   },
   totalLabel: {
     fontSize: 14,
-    color: '#1e293b',
     fontWeight: '600',
   },
   totalValue: {
     fontSize: 14,
-    color: '#3ccfa0',
     fontWeight: 'bold',
   },
   errorText: {
@@ -591,7 +580,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    backgroundColor: '#ffffff',
     padding: 24,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
@@ -599,7 +587,6 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
     marginBottom: 20,
     textAlign: 'center',
   },
@@ -615,32 +602,27 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
   },
   passengerOptionActive: {
-    borderColor: '#3ccfa0',
-    backgroundColor: '#ecfdf5',
+    // Colors applied inline with theme
   },
   passengerOptionText: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1e293b',
   },
   passengerOptionTextActive: {
-    color: '#3ccfa0',
+    // Colors applied inline with theme
   },
   passengerOptionLabel: {
     fontSize: 12,
-    color: '#64748b',
     marginTop: 4,
   },
   passengerOptionLabelActive: {
-    color: '#3ccfa0',
+    // Colors applied inline with theme
   },
   modalCancelButton: {
-    backgroundColor: '#f1f5f9',
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
@@ -648,14 +630,11 @@ const styles = StyleSheet.create({
   modalCancelText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#64748b',
   },
   footer: {
     padding: 16,
     paddingBottom: 24,
-    backgroundColor: '#ffffff',
     borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -667,30 +646,25 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#ffffff',
   },
   backButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#64748b',
   },
   nextButton: {
     flex: 2,
-    backgroundColor: '#3ccfa0',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
   },
   nextButtonDisabled: {
-    backgroundColor: '#e2e8f0',
+    // Colors applied inline with theme
   },
   nextButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
   },
   nextButtonTextDisabled: {
-    color: '#94a3b8',
+    // Colors applied inline with theme
   },
 });

@@ -2,11 +2,10 @@ import React, { useCallback } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import Toast from 'react-native-toast-message';
 import { RazorpayTest } from '@/components/RazorpayTest';
 
 // Import types and navigation
-import { CustomerTabParamList } from '@/types/navigation';
+import { CustomerStackParamList } from '@/types/navigation';
 
 // Import components
 import { BookingFlow } from '@/components/booking/BookingFlow';
@@ -14,7 +13,7 @@ import { BookingFlow } from '@/components/booking/BookingFlow';
 // Import theme
 import { useTheme } from '../../contexts/ThemeContext';
 
-type BookRideScreenNavigationProp = StackNavigationProp<CustomerTabParamList, 'BookRide'>;
+type BookRideScreenNavigationProp = StackNavigationProp<CustomerStackParamList>;
 
 export default function BookRideScreen() {
   const { colors } = useTheme();
@@ -24,15 +23,8 @@ export default function BookRideScreen() {
     // Here you would typically send the booking data to your backend
     console.log('Booking completed:', bookingData);
 
-    // Show success toast and navigate back
-    Toast.show({
-      type: 'success',
-      text1: 'Booking Confirmed!',
-      text2: 'Your ride has been booked successfully.',
-      onPress: () => {
-        navigation.navigate('Home');
-      },
-    });
+    // Navigate to thank you page
+    navigation.navigate('ThankYou', { bookingData });
   }, [navigation]);
 
   return (

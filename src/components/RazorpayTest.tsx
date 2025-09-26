@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
 import { RazorpayExpoService } from '@/services/payment/razorpay-expo';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export const RazorpayTest: React.FC = () => {
+  const { colors } = useTheme();
   const [testResults, setTestResults] = useState<any>(null);
   const [isTesting, setIsTesting] = useState(false);
 
@@ -73,56 +75,66 @@ export const RazorpayTest: React.FC = () => {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Razorpay Android Test</Text>
-        <Text style={styles.subtitle}>Test and fix Android Razorpay linking issues</Text>
+        <Text style={[styles.title, { color: colors.primary }]}>Razorpay Android Test</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Test and fix Android Razorpay linking issues</Text>
       </View>
 
       <View style={styles.buttonContainer}>
         <TouchableOpacity
-          style={[styles.button, isTesting && styles.buttonDisabled]}
+          style={[styles.button, { backgroundColor: colors.primary }, isTesting && [styles.buttonDisabled, { backgroundColor: colors.border }]]}
           onPress={runMobileTest}
           disabled={isTesting}
         >
-          <Text style={styles.buttonText}>
+          <Text style={[styles.buttonText, { color: colors.surface }]}>
             {isTesting ? 'Testing...' : 'Test Mobile Setup'}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.button, styles.buttonSecondary, isTesting && styles.buttonDisabled]}
+          style={[
+            styles.button,
+            { backgroundColor: colors.surface, borderColor: colors.primary },
+            styles.buttonSecondary,
+            isTesting && [styles.buttonDisabled, { backgroundColor: colors.border }]
+          ]}
           onPress={runPaymentFlowTest}
           disabled={isTesting}
         >
-          <Text style={styles.buttonTextSecondary}>
+          <Text style={[styles.buttonTextSecondary, { color: colors.primary }]}>
             {isTesting ? 'Testing...' : 'Test Payment Flow'}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.button, styles.buttonFix, isTesting && styles.buttonDisabled]}
+          style={[
+            styles.button,
+            { backgroundColor: '#f59e0b' },
+            styles.buttonFix,
+            isTesting && [styles.buttonDisabled, { backgroundColor: colors.border }]
+          ]}
           onPress={runAutoFix}
           disabled={isTesting}
         >
-          <Text style={styles.buttonText}>
+          <Text style={[styles.buttonText, { color: colors.surface }]}>
             {isTesting ? 'Fixing...' : 'Auto-Fix Android Linking'}
           </Text>
         </TouchableOpacity>
       </View>
 
       {testResults && (
-        <View style={styles.resultsContainer}>
-          <Text style={styles.resultsTitle}>Test Results:</Text>
-          <Text style={styles.resultsText}>
+        <View style={[styles.resultsContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.resultsTitle, { color: colors.text }]}>Test Results:</Text>
+          <Text style={[styles.resultsText, { color: colors.textSecondary }]}>
             {JSON.stringify(testResults, null, 2)}
           </Text>
         </View>
       )}
 
-      <View style={styles.instructionsContainer}>
-        <Text style={styles.instructionsTitle}>Instructions:</Text>
-        <Text style={styles.instructionsText}>
+      <View style={[styles.instructionsContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.instructionsTitle, { color: colors.text }]}>Instructions:</Text>
+        <Text style={[styles.instructionsText, { color: colors.textSecondary }]}>
           1. Run "Test Mobile Setup" to check if Razorpay is properly linked{'\n'}
           2. If it fails, run "Auto-Fix Android Linking"{'\n'}
           3. Run "Test Payment Flow" to verify everything works{'\n'}
@@ -141,7 +153,6 @@ export const RazorpayTest: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
     padding: 16,
   },
   header: {
@@ -151,12 +162,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#3ccfa0',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#64748b',
     textAlign: 'center',
   },
   buttonContainer: {
@@ -164,18 +173,15 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   button: {
-    backgroundColor: '#3ccfa0',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
   },
   buttonSecondary: {
-    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#3ccfa0',
   },
   buttonFix: {
-    backgroundColor: '#f59e0b',
+    // Colors applied inline with theme
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -183,48 +189,38 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
   },
   buttonTextSecondary: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#3ccfa0',
   },
   resultsContainer: {
-    backgroundColor: '#ffffff',
     padding: 16,
     borderRadius: 12,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
   resultsTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
     marginBottom: 12,
   },
   resultsText: {
     fontSize: 12,
-    color: '#64748b',
     fontFamily: 'monospace',
   },
   instructionsContainer: {
-    backgroundColor: '#ffffff',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
   instructionsTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
     marginBottom: 12,
   },
   instructionsText: {
     fontSize: 14,
-    color: '#64748b',
     lineHeight: 20,
   },
 });

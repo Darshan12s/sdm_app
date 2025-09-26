@@ -35,6 +35,7 @@ const RideHistoryScreen = ({ navigation }: { navigation: CompositeNavigationProp
   const [cancelBookingId, setCancelBookingId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<'pending' | 'accepted' | 'started' | 'cancelled' | 'completed'>('pending');
 
   useEffect(() => {
     if (user) {
@@ -128,6 +129,8 @@ const RideHistoryScreen = ({ navigation }: { navigation: CompositeNavigationProp
         return { backgroundColor: colors.error + '20', color: colors.error, borderColor: colors.error + '50' };
       case 'pending':
         return { backgroundColor: colors.warning + '20', color: colors.warning, borderColor: colors.warning + '50' };
+      case 'accepted':
+        return { backgroundColor: colors.primary + '20', color: colors.primary, borderColor: colors.primary + '50' };
       case 'started':
         return { backgroundColor: colors.info + '20', color: colors.info, borderColor: colors.info + '50' };
       default:
@@ -163,6 +166,10 @@ const RideHistoryScreen = ({ navigation }: { navigation: CompositeNavigationProp
     fetchTripHistory();
   };
 
+  const getFilteredBookings = () => {
+    return bookings.filter(booking => booking.status === activeTab);
+  };
+
   const renderBookingItem = ({ item }: { item: Booking }) => (
     <View style={[styles.bookingCard, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
       <View style={styles.bookingHeader}>
@@ -172,9 +179,9 @@ const RideHistoryScreen = ({ navigation }: { navigation: CompositeNavigationProp
               {item.status}
             </Text>
           </View>
-          <View style={[styles.paymentBadge, { borderColor: colors.border }]}>
+          {/* <View style={[styles.paymentBadge, { borderColor: colors.border }]}>
             <Text style={[styles.paymentText, { color: colors.textSecondary }]}>{item.payment_status}</Text>
-          </View>
+          </View> */}
         </View>
         <View style={styles.dateContainer}>
           <MaterialIcons name="event" size={14} color={colors.textSecondary} />
@@ -203,6 +210,12 @@ const RideHistoryScreen = ({ navigation }: { navigation: CompositeNavigationProp
         <View style={styles.detailRow}>
           <MaterialIcons name="directions-car" size={14} color={colors.primary} />
           <Text style={[styles.detailText, { color: colors.text }]}>{item.vehicle_type || 'Standard'}</Text>
+        </View>
+        <View style={styles.detailRow}>
+          <MaterialIcons name="payment" size={14} color={item.payment_status === 'paid' ? colors.success : colors.warning} />
+          <Text style={[styles.detailText, { color: colors.text }]}>
+            {item.payment_status === 'paid' ? 'Paid' : 'Pending'}
+          </Text>
         </View>
         <View style={styles.detailRow}>
           <MaterialIcons name="attach-money" size={14} color={colors.primary} />
@@ -257,6 +270,28 @@ const RideHistoryScreen = ({ navigation }: { navigation: CompositeNavigationProp
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Trip History</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>View all your past and current bookings</Text>
+        </View>
+        <View style={[styles.tabsContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          {(['pending', 'accepted', 'started', 'cancelled', 'completed'] as const).map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              style={[
+                styles.tab,
+                { borderBottomColor: colors.primary },
+                activeTab === tab && [styles.activeTab, { borderBottomColor: colors.primary }]
+              ]}
+              onPress={() => setActiveTab(tab)}
+            >
+              <Text style={[
+                styles.tabText,
+                { color: colors.textSecondary },
+                activeTab === tab && [styles.activeTabText, { color: colors.primary }]
+              ]}>
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -272,18 +307,49 @@ const RideHistoryScreen = ({ navigation }: { navigation: CompositeNavigationProp
         <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>View all your past and current bookings</Text>
       </View>
 
-      {bookings.length === 0 ? (
+      {/* Tabs */}
+      <View style={[styles.tabsContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        {(['pending', 'accepted', 'started', 'cancelled', 'completed'] as const).map((tab) => (
+          <TouchableOpacity
+            key={tab}
+            style={[
+              styles.tab,
+              { borderBottomColor: colors.primary },
+              activeTab === tab && [styles.activeTab, { borderBottomColor: colors.primary }]
+            ]}
+            onPress={() => setActiveTab(tab)}
+          >
+            <Text style={[
+              styles.tabText,
+              { color: colors.textSecondary },
+              activeTab === tab && [styles.activeTabText, { color: colors.primary }]
+            ]}>
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {getFilteredBookings().length === 0 ? (
         <View style={styles.emptyContainer}>
           <MaterialIcons name="directions-car" size={48} color={colors.textSecondary} />
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>No trips yet</Text>
-          <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>Book your first ride to see your trip history</Text>
-          <TouchableOpacity style={[styles.bookButton, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('BookRide')}>
-            <Text style={[styles.bookButtonText, { color: colors.surface }]}>Book a Ride</Text>
-          </TouchableOpacity>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>No {activeTab} trips</Text>
+          <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+            {activeTab === 'pending' ? 'You have no pending bookings' :
+             activeTab === 'accepted' ? 'You have no accepted bookings' :
+             activeTab === 'started' ? 'You have no started trips' :
+             activeTab === 'cancelled' ? 'You have no cancelled bookings' :
+             'You have no completed trips yet'}
+          </Text>
+          {activeTab === 'pending' && (
+            <TouchableOpacity style={[styles.bookButton, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('BookRide')}>
+              <Text style={[styles.bookButtonText, { color: colors.surface }]}>Book a Ride</Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : (
         <FlatList
-          data={bookings}
+          data={getFilteredBookings()}
           renderItem={renderBookingItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContainer}
@@ -361,6 +427,30 @@ const styles = StyleSheet.create({
     color: '#64748b',
     textAlign: 'center',
     marginTop: 4,
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  activeTab: {
+    borderBottomColor: '#3b82f6',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#64748b',
+  },
+  activeTabText: {
+    color: '#3b82f6',
   },
   loadingContainer: {
     flex: 1,

@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform } from '
 import { MaterialIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { ServiceType } from '@/types';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface DateTimeStepProps {
   serviceType: ServiceType;
@@ -33,6 +34,7 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
   onNext,
   onBack,
 }) => {
+  const { colors } = useTheme();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [activePicker, setActivePicker] = useState<'scheduled' | 'return'>('scheduled');
@@ -285,16 +287,16 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.title}>Schedule Your Ride</Text>
-          <Text style={styles.subtitle}>Choose when you want to travel</Text>
+          <Text style={[styles.title, { color: colors.primary }]}>Schedule Your Ride</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Choose when you want to travel</Text>
         </View>
 
         {/* Scheduled Date & Time */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pickup Date & Time</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Pickup Date & Time</Text>
 
           {/* Quick Date Selection */}
           <View style={styles.quickDateContainer}>
@@ -305,8 +307,9 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
                   key={option.value}
                   style={[
                     styles.quickDateButton,
-                    isDisabled && styles.quickDateButtonDisabled,
-                    (activePicker === 'scheduled' && scheduledDate?.toDateString() === new Date(Date.now() + option.value * 24 * 60 * 60 * 1000).toDateString()) && styles.quickDateButtonActive
+                    { backgroundColor: colors.surface, borderColor: colors.border },
+                    isDisabled && [styles.quickDateButtonDisabled, { backgroundColor: colors.border, borderColor: colors.borderLight, opacity: 0.6 }],
+                    (activePicker === 'scheduled' && scheduledDate?.toDateString() === new Date(Date.now() + option.value * 24 * 60 * 60 * 1000).toDateString()) && [styles.quickDateButtonActive, { borderColor: colors.primary, backgroundColor: colors.primaryLight }]
                   ]}
                   onPress={() => {
                     if (isDisabled) {
@@ -320,13 +323,14 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
                 >
                   <Text style={[
                     styles.quickDateText,
-                    isDisabled && styles.quickDateTextDisabled,
-                    (activePicker === 'scheduled' && scheduledDate?.toDateString() === new Date(Date.now() + option.value * 24 * 60 * 60 * 1000).toDateString()) && styles.quickDateTextActive
+                    { color: colors.textSecondary },
+                    isDisabled && [styles.quickDateTextDisabled, { color: colors.textMuted }],
+                    (activePicker === 'scheduled' && scheduledDate?.toDateString() === new Date(Date.now() + option.value * 24 * 60 * 60 * 1000).toDateString()) && [styles.quickDateTextActive, { color: colors.primary }]
                   ]}>
                     {option.label}
                   </Text>
                   {option.value === 0 && !isDisabled && (
-                    <Text style={styles.minTimeText}>
+                    <Text style={[styles.minTimeText, { color: colors.textSecondary }]}>
                       from {getTodayMinTimeDisplay()}
                     </Text>
                   )}
@@ -338,14 +342,14 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
           {/* Date & Time Selection */}
           <View style={styles.dateTimeContainer}>
             <TouchableOpacity
-              style={styles.dateTimeButton}
+              style={[styles.dateTimeButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
               onPress={() => openDatePicker('scheduled')}
             >
               <View style={styles.dateTimeContent}>
-                <MaterialIcons name="event" size={20} color="#3ccfa0" />
+                <MaterialIcons name="event" size={20} color={colors.primary} />
                 <View style={styles.dateTimeTextContainer}>
-                  <Text style={styles.dateTimeLabel}>Date</Text>
-                  <Text style={styles.dateTimeValue}>
+                  <Text style={[styles.dateTimeLabel, { color: colors.textSecondary }]}>Date</Text>
+                  <Text style={[styles.dateTimeValue, { color: colors.text }]}>
                     {formatDate(scheduledDate)}
                   </Text>
                 </View>
@@ -353,14 +357,14 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.dateTimeButton}
+              style={[styles.dateTimeButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
               onPress={() => openTimePicker('scheduled')}
             >
               <View style={styles.dateTimeContent}>
-                <MaterialIcons name="schedule" size={20} color="#3ccfa0" />
+                <MaterialIcons name="schedule" size={20} color={colors.primary} />
                 <View style={styles.dateTimeTextContainer}>
-                  <Text style={styles.dateTimeLabel}>Time</Text>
-                  <Text style={styles.dateTimeValue}>
+                  <Text style={[styles.dateTimeLabel, { color: colors.textSecondary }]}>Time</Text>
+                  <Text style={[styles.dateTimeValue, { color: colors.text }]}>
                     {formatTime(scheduledTime)}
                   </Text>
                 </View>
@@ -372,7 +376,7 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
         {/* Return Date & Time for Round Trip */}
         {isRoundTrip && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Return Date & Time</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Return Date & Time</Text>
 
             {/* Quick Date Selection for Return */}
             <View style={styles.quickDateContainer}>
@@ -384,8 +388,9 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
                     key={option.value}
                     style={[
                       styles.quickDateButton,
-                      isDisabled && styles.quickDateButtonDisabled,
-                      (activePicker === 'return' && returnDate?.toDateString() === returnDateOption.toDateString()) && styles.quickDateButtonActive
+                      { backgroundColor: colors.surface, borderColor: colors.border },
+                      isDisabled && [styles.quickDateButtonDisabled, { backgroundColor: colors.border, borderColor: colors.borderLight, opacity: 0.6 }],
+                      (activePicker === 'return' && returnDate?.toDateString() === returnDateOption.toDateString()) && [styles.quickDateButtonActive, { borderColor: colors.primary, backgroundColor: colors.primaryLight }]
                     ]}
                     onPress={() => {
                       if (isDisabled) {
@@ -399,8 +404,9 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
                   >
                     <Text style={[
                       styles.quickDateText,
-                      isDisabled && styles.quickDateTextDisabled,
-                      (activePicker === 'return' && returnDate?.toDateString() === returnDateOption.toDateString()) && styles.quickDateTextActive
+                      { color: colors.textSecondary },
+                      isDisabled && [styles.quickDateTextDisabled, { color: colors.textMuted }],
+                      (activePicker === 'return' && returnDate?.toDateString() === returnDateOption.toDateString()) && [styles.quickDateTextActive, { color: colors.primary }]
                     ]}>
                       {option.label}
                     </Text>
@@ -412,14 +418,14 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
             {/* Return Date & Time Selection */}
             <View style={styles.dateTimeContainer}>
               <TouchableOpacity
-                style={styles.dateTimeButton}
+                style={[styles.dateTimeButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
                 onPress={() => openDatePicker('return')}
               >
                 <View style={styles.dateTimeContent}>
-                  <MaterialIcons name="event" size={20} color="#3ccfa0" />
+                  <MaterialIcons name="event" size={20} color={colors.primary} />
                   <View style={styles.dateTimeTextContainer}>
-                    <Text style={styles.dateTimeLabel}>Return Date</Text>
-                    <Text style={styles.dateTimeValue}>
+                    <Text style={[styles.dateTimeLabel, { color: colors.textSecondary }]}>Return Date</Text>
+                    <Text style={[styles.dateTimeValue, { color: colors.text }]}>
                       {formatDate(returnDate)}
                     </Text>
                   </View>
@@ -427,14 +433,14 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.dateTimeButton}
+                style={[styles.dateTimeButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
                 onPress={() => openTimePicker('return')}
               >
                 <View style={styles.dateTimeContent}>
-                  <MaterialIcons name="schedule" size={20} color="#3ccfa0" />
+                  <MaterialIcons name="schedule" size={20} color={colors.primary} />
                   <View style={styles.dateTimeTextContainer}>
-                    <Text style={styles.dateTimeLabel}>Return Time</Text>
-                    <Text style={styles.dateTimeValue}>
+                    <Text style={[styles.dateTimeLabel, { color: colors.textSecondary }]}>Return Time</Text>
+                    <Text style={[styles.dateTimeValue, { color: colors.text }]}>
                       {formatTime(returnTime)}
                     </Text>
                   </View>
@@ -478,19 +484,27 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
       </ScrollView>
 
       {/* Navigation */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.backButton} onPress={onBack}>
-            <Text style={styles.backButtonText}>Back</Text>
+          <TouchableOpacity
+            style={[styles.backButton, { borderColor: colors.border }]}
+            onPress={onBack}
+          >
+            <Text style={[styles.backButtonText, { color: colors.textSecondary }]}>Back</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.nextButton, !isFormValid() && styles.nextButtonDisabled]}
+            style={[
+              styles.nextButton,
+              { backgroundColor: colors.primary },
+              !isFormValid() && [styles.nextButtonDisabled, { backgroundColor: colors.border }]
+            ]}
             onPress={onNext}
             disabled={!isFormValid()}
           >
             <Text style={[
               styles.nextButtonText,
-              !isFormValid() && styles.nextButtonTextDisabled,
+              { color: colors.surface },
+              !isFormValid() && [styles.nextButtonTextDisabled, { color: colors.textMuted }],
             ]}>
               Continue
             </Text>
@@ -504,7 +518,6 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   header: {
     padding: 12,
@@ -513,12 +526,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#3ccfa0',
     marginBottom: 6,
   },
   subtitle: {
     fontSize: 14,
-    color: '#64748b',
     textAlign: 'center',
   },
   section: {
@@ -528,7 +539,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1e293b',
     marginBottom: 12,
   },
   quickDateContainer: {
@@ -539,35 +549,28 @@ const styles = StyleSheet.create({
   quickDateButton: {
     flex: 1,
     padding: 10,
-    backgroundColor: '#ffffff',
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
     alignItems: 'center',
   },
   quickDateButtonActive: {
-    borderColor: '#3ccfa0',
-    backgroundColor: '#ecfdf5',
+    // Colors applied inline with theme
   },
   quickDateButtonDisabled: {
-    backgroundColor: '#f1f5f9',
-    borderColor: '#cbd5e1',
     opacity: 0.6,
   },
   quickDateText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#475569',
   },
   quickDateTextActive: {
-    color: '#3ccfa0',
+    // Colors applied inline with theme
   },
   quickDateTextDisabled: {
-    color: '#94a3b8',
+    // Colors applied inline with theme
   },
   minTimeText: {
     fontSize: 10,
-    color: '#64748b',
     marginTop: 2,
   },
   dateTimeContainer: {
@@ -576,11 +579,9 @@ const styles = StyleSheet.create({
   },
   dateTimeButton: {
     flex: 1,
-    backgroundColor: '#ffffff',
     padding: 12,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
   dateTimeContent: {
     flexDirection: 'row',
@@ -592,13 +593,11 @@ const styles = StyleSheet.create({
   },
   dateTimeLabel: {
     fontSize: 12,
-    color: '#64748b',
     marginBottom: 2,
   },
   dateTimeValue: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1e293b',
   },
   modalOverlay: {
     position: 'absolute',
@@ -611,7 +610,6 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   modalContent: {
-    backgroundColor: '#ffffff',
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
     padding: 16,
@@ -620,7 +618,6 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1e293b',
     marginBottom: 12,
     textAlign: 'center',
   },
@@ -635,29 +632,25 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
   },
   dateButtonActive: {
-    borderColor: '#3ccfa0',
-    backgroundColor: '#ecfdf5',
+    // Colors applied inline with theme
   },
   dateText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
   },
   dateTextActive: {
-    color: '#3ccfa0',
+    // Colors applied inline with theme
   },
   dayText: {
     fontSize: 12,
-    color: '#64748b',
     marginTop: 2,
   },
   dayTextActive: {
-    color: '#3ccfa0',
+    // Colors applied inline with theme
   },
   timeScrollView: {
     maxHeight: 300,
@@ -672,23 +665,19 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
     alignItems: 'center',
   },
   timeButtonActive: {
-    borderColor: '#3ccfa0',
-    backgroundColor: '#ecfdf5',
+    // Colors applied inline with theme
   },
   timeText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#475569',
   },
   timeTextActive: {
-    color: '#3ccfa0',
+    // Colors applied inline with theme
   },
   modalCancelButton: {
-    backgroundColor: '#e2e8f0',
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
@@ -697,14 +686,11 @@ const styles = StyleSheet.create({
   modalCancelText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#475569',
   },
   footer: {
     padding: 12,
     paddingBottom: 24,
-    backgroundColor: '#ffffff',
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -716,29 +702,25 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
   backButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#475569',
   },
   nextButton: {
     flex: 2,
-    backgroundColor: '#3ccfa0',
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
   },
   nextButtonDisabled: {
-    backgroundColor: '#e2e8f0',
+    // Colors applied inline with theme
   },
   nextButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#ffffff',
   },
   nextButtonTextDisabled: {
-    color: '#64748b',
+    // Colors applied inline with theme
   },
 });

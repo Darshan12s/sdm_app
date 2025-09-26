@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { PaymentModal } from './PaymentModal';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export const PaymentTest: React.FC = () => {
+  const { colors } = useTheme();
   const [showModal, setShowModal] = useState(false);
   const [paymentUrl, setPaymentUrl] = useState('');
   const [orderId, setOrderId] = useState('');
@@ -33,15 +35,15 @@ export const PaymentTest: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Payment Test</Text>
-      <Text style={styles.subtitle}>Test the in-app Razorpay payment modal</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.title, { color: colors.primary }]}>Payment Test</Text>
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Test the in-app Razorpay payment modal</Text>
 
-      <TouchableOpacity style={styles.testButton} onPress={handleTestPayment}>
-        <Text style={styles.testButtonText}>Test Payment Modal</Text>
+      <TouchableOpacity style={[styles.testButton, { backgroundColor: colors.primary }]} onPress={handleTestPayment}>
+        <Text style={[styles.testButtonText, { color: colors.surface }]}>Test Payment Modal</Text>
       </TouchableOpacity>
 
-      <Text style={styles.note}>
+      <Text style={[styles.note, { color: colors.textSecondary }]}>
         Note: This will open Razorpay payment page within the app.{'\n'}
         Use test card: 4111 1111 1111 1111
       </Text>
@@ -64,35 +66,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#f8f9fa',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#3ccfa0',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#64748b',
     textAlign: 'center',
     marginBottom: 40,
   },
   testButton: {
-    backgroundColor: '#3ccfa0',
     paddingHorizontal: 30,
     paddingVertical: 15,
     borderRadius: 8,
     marginBottom: 20,
   },
   testButtonText: {
-    color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
   },
   note: {
     fontSize: 14,
-    color: '#64748b',
     textAlign: 'center',
     lineHeight: 20,
   },

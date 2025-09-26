@@ -1188,12 +1188,12 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
         
           <View style={styles.infoItem}>
             <View style={styles.infoIcon}>
-              <MaterialIcons name="cake" size={20} color="#64748b" />
+              <MaterialIcons name="cake" size={20} color={colors.textSecondary} />
             </View>
             <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Date of Birth</Text>
+              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Date of Birth</Text>
               <TouchableOpacity onPress={selectDateOfBirth}>
-                <Text style={styles.infoValue}>
+                <Text style={[styles.infoValue, { color: colors.text }]}>
                   {formattedDob || 'Tap to select date of birth'}
                 </Text>
               </TouchableOpacity>
@@ -1442,9 +1442,9 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
         </View>
 
         {/* Logout Button */}
-        <TouchableOpacity style={[styles.logoutButton, { backgroundColor: colors.error + '20', borderColor: colors.error }]} onPress={handleLogout}>
+        {/* <TouchableOpacity style={[styles.logoutButton, { backgroundColor: colors.error + '20', borderColor: colors.error }]} onPress={handleLogout}>
           <Text style={[styles.logoutText, { color: colors.error }]}>Logout</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         {/* Date Picker */}
         {showDatePicker && (

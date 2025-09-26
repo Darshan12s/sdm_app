@@ -9,7 +9,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "@expo/metro-runtime": "~5.0.4",
+    "@expo/metro-runtime": "~5.0.5",
     "@expo/vector-icons": "^14.1.0",
     "@react-native-async-storage/async-storage": "~2.1.2",
     "@react-native-community/datetimepicker": "8.4.1",
@@ -18,7 +18,7 @@
     "@react-navigation/native-stack": "^7.3.26",
     "@react-navigation/stack": "^7.4.8",
     "@supabase/supabase-js": "^2.56.1",
-    "expo": "~53.0.22",
+    "expo": "~53.0.23",
     "expo-build-properties": "~0.14.8",
     "expo-dev-client": "~5.2.4",
     "expo-document-picker": "~13.1.6",
@@ -32,6 +32,7 @@
     "react-dom": "19.0.0",
     "react-native": "0.79.5",
     "react-native-config": "^1.5.9",
+    "react-native-gesture-handler": "~2.24.0",
     "react-native-maps": "^1.20.1",
     "react-native-maps-directions": "^1.9.0",
     "react-native-mime-types": "^2.5.0",
@@ -46,10 +47,17 @@
     "tailwindcss": "^3.4.17",
     "zustand": "^5.0.8"
   },
+  "expo": {
+    "name": "sdm-app",
+    "slug": "sdmapp",
+    "bundleIdentifier": "com.rankbooktech.sdmapp"
+  },
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@babel/plugin-transform-export-namespace-from": "^7.27.1",
+    "@react-native-community/cli": "latest",
     "@types/react": "~19.0.10",
+    "@types/react-native": "^0.72.8",
     "typescript": "~5.8.3"
   },
   "private": true

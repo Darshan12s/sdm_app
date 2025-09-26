@@ -7,6 +7,7 @@ import { LocationStep } from '@/components/booking/LocationStep';
 import { DateTimeStep } from '@/components/booking/DateTimeStep';
 import { VehiclePassengerStep } from '@/components/booking/VehiclePassengerStep';
 import { PaymentStep } from '@/components/booking/PaymentStep';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface LocationData {
   lat: number;
@@ -41,6 +42,7 @@ const validateLocationRadius = (lat: number, lng: number) => {
 };
 
 export const BookingFlow: React.FC<BookingFlowProps> = ({ onBookingComplete }) => {
+  const { colors } = useTheme();
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 5;
 
@@ -316,30 +318,31 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ onBookingComplete }) =
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.contentContainer}>
         {/* Top Navigation Bar */}
-        {/* <View style={styles.topBar}>
-          <View style={styles.stepIndicator}>
-            {stepLabels.map((label, index) => (
-              <View 
-                key={index} 
-                style={[
-                  styles.stepDot, 
-                  index + 1 === currentStep ? styles.stepDotActive : 
-                  index + 1 < currentStep ? styles.stepDotCompleted : {}
-                ]}
-              />
-            ))}
-          </View>
-          <Text style={styles.stepLabel}>
-            Step {currentStep} of {totalSteps}: {stepLabels[currentStep - 1]}
-          </Text>
-        </View> */}
+        {/* <View style={[styles.topBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+           <View style={styles.stepIndicator}>
+             {stepLabels.map((label, index) => (
+               <View
+                 key={index}
+                 style={[
+                   styles.stepDot,
+                   { backgroundColor: colors.border },
+                   index + 1 === currentStep ? [styles.stepDotActive, { backgroundColor: colors.primary }] :
+                   index + 1 < currentStep ? [styles.stepDotCompleted, { backgroundColor: colors.primaryLight }] : {}
+                 ]}
+               />
+             ))}
+           </View>
+           <Text style={[styles.stepLabel, { color: colors.text }]}>
+             Step {currentStep} of {totalSteps}: {stepLabels[currentStep - 1]}
+           </Text>
+         </View> */}
 
         {/* Map Container - Show only in steps 1, 2, 3 */}
         {currentStep <= 3 && (
-          <View style={styles.mapContainer}>
+          <View style={[styles.mapContainer, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
             <GoogleMap
               pickupLocation={pickupCoords}
               dropoffLocation={dropoffCoords}
@@ -376,7 +379,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ onBookingComplete }) =
         )}
 
         {/* Form Container */}
-        <View style={styles.formContainer}>
+        <View style={[styles.formContainer, { backgroundColor: colors.background }]}>
           <ScrollView
             style={styles.scrollContainer}
             contentContainerStyle={styles.scrollContent}
@@ -387,6 +390,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ onBookingComplete }) =
             <Animated.View
               style={[
                 styles.stepContainer,
+                { backgroundColor: colors.card, borderColor: colors.border },
                 {
                   opacity: fadeAnim,
                   transform: [{ translateX: slideAnim }],
@@ -405,18 +409,15 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({ onBookingComplete }) =
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   contentContainer: {
     flex: 1,
     flexDirection: 'column',
   },
   topBar: {
-    backgroundColor: '#ffffff',
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -432,10 +433,8 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#e2e8f0',
   },
   stepDotActive: {
-    backgroundColor: '#2dd4bf', // Teal color from the modern theme
     width: 12,
     height: 12,
     borderRadius: 6,
@@ -446,7 +445,6 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   stepDotCompleted: {
-    backgroundColor: '#a7f3d0', // Light teal for completed steps
     width: 10,
     height: 10,
     borderRadius: 5,
@@ -454,22 +452,18 @@ const styles = StyleSheet.create({
   stepLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1e293b',
   },
   mapContainer: {
     height: 500, // Fixed height for map
-    backgroundColor: '#ffffff',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
     elevation: 4,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
   },
   formContainer: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.05,
@@ -486,7 +480,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     borderWidth: 1,
-    borderColor: '#f1f5f9',
   },
   scrollContainer: {
     flex: 1,

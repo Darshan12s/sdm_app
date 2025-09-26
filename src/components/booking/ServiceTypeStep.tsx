@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { ServiceType } from '@/types';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface ServiceTypeStepProps {
   serviceType: ServiceType;
@@ -22,6 +23,7 @@ export const ServiceTypeStep: React.FC<ServiceTypeStepProps> = ({
   onRoundTripChange,
   onNext,
 }) => {
+  const { colors } = useTheme();
   const serviceTypes = [
     { id: 'city' as ServiceType, name: 'City Ride', icon: 'location-city', iconType: 'MaterialIcons', description: 'Local city transportation' },
     { id: 'outstation' as ServiceType, name: 'Outstation', icon: 'directions-car', iconType: 'MaterialIcons', description: 'Inter-city travel' },
@@ -30,44 +32,47 @@ export const ServiceTypeStep: React.FC<ServiceTypeStepProps> = ({
   ];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Select Your Service Type</Text>
-        <Text style={styles.subtitle}>Enter your trip details and see available options</Text>
+        <Text style={[styles.title, { color: colors.primary }]}>Select Your Service Type</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Enter your trip details and see available options</Text>
       </View>
      
-      <View style={styles.serviceTypeContainer}>
+      <View style={[styles.serviceTypeContainer, { backgroundColor: colors.card }]}>
         <View style={styles.serviceGrid}>
           {serviceTypes.map((service) => (
             <TouchableOpacity
               key={service.id}
               style={[
                 styles.serviceCard,
-                serviceType === service.id && styles.serviceCardActive,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                serviceType === service.id && [styles.serviceCardActive, { borderColor: colors.primary, backgroundColor: colors.primaryLight }],
               ]}
               onPress={() => onServiceTypeChange(service.id)}
             >
               <View style={[
                 styles.serviceIconContainer,
-                serviceType === service.id && styles.serviceIconContainerActive
+                { backgroundColor: colors.primaryLight },
+                serviceType === service.id && [styles.serviceIconContainerActive, { backgroundColor: colors.primary }]
               ]}>
                 {service.iconType === 'MaterialIcons' ? (
-                  <MaterialIcons 
-                    name={service.icon as any} 
-                    size={24} 
-                    color={serviceType === service.id ? '#ffffff' : '#3ccfa0'} 
+                  <MaterialIcons
+                    name={service.icon as any}
+                    size={24}
+                    color={serviceType === service.id ? colors.surface : colors.primary}
                   />
                 ) : (
-                  <Ionicons 
-                    name={service.icon as any} 
-                    size={24} 
-                    color={serviceType === service.id ? '#ffffff' : '#3ccfa0'} 
+                  <Ionicons
+                    name={service.icon as any}
+                    size={24}
+                    color={serviceType === service.id ? colors.surface : colors.primary}
                   />
                 )}
               </View>
               <Text style={[
                 styles.serviceName,
-                serviceType === service.id && styles.serviceNameActive,
+                { color: colors.textSecondary },
+                serviceType === service.id && [styles.serviceNameActive, { color: colors.primary }],
               ]}>
                 {service.name}
               </Text>
@@ -78,14 +83,15 @@ export const ServiceTypeStep: React.FC<ServiceTypeStepProps> = ({
 
       {/* Trip Type Selection */}
       {(serviceType === 'outstation' || serviceType === 'airport') && (
-        <View style={styles.tripTypeSection}>
+        <View style={[styles.tripTypeSection, { backgroundColor: colors.card }]}>
           <View style={styles.tripTypeContainer}>
             {serviceType === 'outstation' ? (
               <>
                 <TouchableOpacity
                   style={[
                     styles.tripTypeButton,
-                    tripType === 'oneway' && styles.tripTypeButtonActive,
+                    { backgroundColor: colors.surface, borderColor: colors.border },
+                    tripType === 'oneway' && [styles.tripTypeButtonActive, { backgroundColor: colors.primary, borderColor: colors.primary }],
                   ]}
                   onPress={() => {
                     onTripTypeChange('oneway');
@@ -94,7 +100,8 @@ export const ServiceTypeStep: React.FC<ServiceTypeStepProps> = ({
                 >
                   <Text style={[
                     styles.tripTypeButtonText,
-                    tripType === 'oneway' && styles.tripTypeButtonTextActive,
+                    { color: colors.textSecondary },
+                    tripType === 'oneway' && [styles.tripTypeButtonTextActive, { color: colors.surface }],
                   ]}>
                     One Way
                   </Text>
@@ -102,7 +109,8 @@ export const ServiceTypeStep: React.FC<ServiceTypeStepProps> = ({
                 <TouchableOpacity
                   style={[
                     styles.tripTypeButton,
-                    tripType === 'roundtrip' && styles.tripTypeButtonActive,
+                    { backgroundColor: colors.surface, borderColor: colors.border },
+                    tripType === 'roundtrip' && [styles.tripTypeButtonActive, { backgroundColor: colors.primary, borderColor: colors.primary }],
                   ]}
                   onPress={() => {
                     onTripTypeChange('roundtrip');
@@ -111,7 +119,8 @@ export const ServiceTypeStep: React.FC<ServiceTypeStepProps> = ({
                 >
                   <Text style={[
                     styles.tripTypeButtonText,
-                    tripType === 'roundtrip' && styles.tripTypeButtonTextActive,
+                    { color: colors.textSecondary },
+                    tripType === 'roundtrip' && [styles.tripTypeButtonTextActive, { color: colors.surface }],
                   ]}>
                     Round Trip
                   </Text>
@@ -122,7 +131,8 @@ export const ServiceTypeStep: React.FC<ServiceTypeStepProps> = ({
                 <TouchableOpacity
                   style={[
                     styles.tripTypeButton,
-                    tripType === 'pickup' && styles.tripTypeButtonActive,
+                    { backgroundColor: colors.surface, borderColor: colors.border },
+                    tripType === 'pickup' && [styles.tripTypeButtonActive, { backgroundColor: colors.primary, borderColor: colors.primary }],
                   ]}
                   onPress={() => {
                     onTripTypeChange('pickup');
@@ -131,7 +141,8 @@ export const ServiceTypeStep: React.FC<ServiceTypeStepProps> = ({
                 >
                   <Text style={[
                     styles.tripTypeButtonText,
-                    tripType === 'pickup' && styles.tripTypeButtonTextActive,
+                    { color: colors.textSecondary },
+                    tripType === 'pickup' && [styles.tripTypeButtonTextActive, { color: colors.surface }],
                   ]}>
                     Pick-up From Airport
                   </Text>
@@ -139,7 +150,8 @@ export const ServiceTypeStep: React.FC<ServiceTypeStepProps> = ({
                 <TouchableOpacity
                   style={[
                     styles.tripTypeButton,
-                    tripType === 'drop' && styles.tripTypeButtonActive,
+                    { backgroundColor: colors.surface, borderColor: colors.border },
+                    tripType === 'drop' && [styles.tripTypeButtonActive, { backgroundColor: colors.primary, borderColor: colors.primary }],
                   ]}
                   onPress={() => {
                     onTripTypeChange('drop');
@@ -148,7 +160,8 @@ export const ServiceTypeStep: React.FC<ServiceTypeStepProps> = ({
                 >
                   <Text style={[
                     styles.tripTypeButtonText,
-                    tripType === 'drop' && styles.tripTypeButtonTextActive,
+                    { color: colors.textSecondary },
+                    tripType === 'drop' && [styles.tripTypeButtonTextActive, { color: colors.surface }],
                   ]}>
                     Drop To Airport
                   </Text>
@@ -166,13 +179,14 @@ export const ServiceTypeStep: React.FC<ServiceTypeStepProps> = ({
               >
                 <View style={[
                   styles.checkbox,
-                  isRoundTrip && styles.checkboxChecked,
+                  { borderColor: colors.border },
+                  isRoundTrip && [styles.checkboxChecked, { backgroundColor: colors.primary, borderColor: colors.primary }],
                 ]}>
                   {isRoundTrip && (
-                    <MaterialIcons name="check" size={14} color="#ffffff" />
+                    <MaterialIcons name="check" size={14} color={colors.surface} />
                   )}
                 </View>
-                <Text style={styles.checkboxLabel}>Round Trip</Text>
+                <Text style={[styles.checkboxLabel, { color: colors.textSecondary }]}>Round Trip</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -181,13 +195,18 @@ export const ServiceTypeStep: React.FC<ServiceTypeStepProps> = ({
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.nextButton, !serviceType && styles.nextButtonDisabled]}
+          style={[
+            styles.nextButton,
+            { backgroundColor: colors.primary },
+            !serviceType && [styles.nextButtonDisabled, { backgroundColor: colors.border }]
+          ]}
           onPress={onNext}
           disabled={!serviceType}
         >
           <Text style={[
             styles.nextButtonText,
-            !serviceType && styles.nextButtonTextDisabled,
+            { color: colors.surface },
+            !serviceType && [styles.nextButtonTextDisabled, { color: colors.textMuted }],
           ]}>
             Continue
           </Text>
@@ -200,7 +219,6 @@ export const ServiceTypeStep: React.FC<ServiceTypeStepProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   header: {
     padding: 4,
@@ -208,15 +226,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#3ccfa0',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 10,
-    color: '#64748b',
   },
   serviceTypeContainer: {
-    backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 16,
     margin: 16,
@@ -237,42 +252,35 @@ const styles = StyleSheet.create({
   },
   serviceCard: {
     width: 'auto',
-    backgroundColor: '#f8f9fa',
     borderRadius: 12,
     padding: 8,
     flexDirection: 'column',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
   serviceCardActive: {
-    borderColor: '#3ccfa0',
-    backgroundColor: '#ecfdf5',
+    // Colors applied inline with theme
   },
   serviceIconContainer: {
     width: 24,
     height: 24,
     borderRadius: 8,
-    backgroundColor: '#ecfdf5',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
   },
   serviceIconContainerActive: {
-    backgroundColor: '#3ccfa0',
+    // Colors applied inline with theme
   },
   serviceName: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#475569',
     textAlign: 'center',
   },
   serviceNameActive: {
-    color: '#3ccfa0',
     fontWeight: '600',
   },
   tripTypeSection: {
-    backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 8,
     marginHorizontal: 8,
@@ -295,23 +303,18 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 8,
     paddingHorizontal: 10,
-    backgroundColor: '#f8f9fa',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
     alignItems: 'center',
   },
   tripTypeButtonActive: {
-    backgroundColor: '#3ccfa0',
-    borderColor: '#3ccfa0',
+    // Colors applied inline with theme
   },
   tripTypeButtonText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#64748b',
   },
   tripTypeButtonTextActive: {
-    color: '#ffffff',
     fontWeight: '600',
   },
   roundTripContainer: {
@@ -327,37 +330,32 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkboxChecked: {
-    backgroundColor: '#3ccfa0',
-    borderColor: '#3ccfa0',
+    // Colors applied inline with theme
   },
   checkboxLabel: {
     fontSize: 14,
-    color: '#64748b',
   },
   footer: {
     padding: 16,
     paddingBottom: 24,
   },
   nextButton: {
-    backgroundColor: '#3ccfa0',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
   },
   nextButtonDisabled: {
-    backgroundColor: '#e2e8f0',
+    // Colors applied inline with theme
   },
   nextButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
   },
   nextButtonTextDisabled: {
-    color: '#94a3b8',
+    // Colors applied inline with theme
   },
 });

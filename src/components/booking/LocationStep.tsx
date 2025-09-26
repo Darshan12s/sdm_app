@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { ServiceType } from '@/types';
 import { GooglePlacesInput } from '@/components/GooglePlacesInput';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface LocationData {
   lat: number;
@@ -46,6 +47,7 @@ export const LocationStep: React.FC<LocationStepProps> = ({
   onNext,
   onBack,
 }) => {
+  const { colors } = useTheme();
   // Refs to track if coordinates were just set to prevent reset
   const pickupCoordsJustSetRef = React.useRef(false);
   const dropoffCoordsJustSetRef = React.useRef(false);
@@ -244,16 +246,16 @@ export const LocationStep: React.FC<LocationStepProps> = ({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
-          <Text style={styles.title}>Select Locations</Text>
-          <Text style={styles.subtitle}>Choose your pickup and drop-off locations</Text>
+          <Text style={[styles.title, { color: colors.primary }]}>Select Locations</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Choose your pickup and drop-off locations</Text>
         </View>
 
         {/* Pickup Location */}
         <View style={styles.locationSection}>
-          <Text style={styles.locationLabel}>
+          <Text style={[styles.locationLabel, { color: colors.text }]}>
             {serviceType === 'airport' && tripType === 'pickup' ? 'Select Terminal' : 'Pickup Location'}
           </Text>
 
@@ -264,7 +266,8 @@ export const LocationStep: React.FC<LocationStepProps> = ({
                   key={key}
                   style={[
                     styles.terminalButton,
-                    pickupLocation === terminal.address && styles.terminalButtonActive
+                    { backgroundColor: colors.surface, borderColor: colors.border },
+                    pickupLocation === terminal.address && [styles.terminalButtonActive, { borderColor: colors.primary, backgroundColor: colors.primaryLight }]
                   ]}
                   onPress={() => {
                     onPickupLocationChange(terminal.address);
@@ -276,7 +279,8 @@ export const LocationStep: React.FC<LocationStepProps> = ({
                 >
                   <Text style={[
                     styles.terminalText,
-                    pickupLocation === terminal.address && styles.terminalTextActive
+                    { color: colors.textSecondary },
+                    pickupLocation === terminal.address && [styles.terminalTextActive, { color: colors.primary }]
                   ]}>
                     {terminal.name}
                   </Text>
@@ -313,7 +317,7 @@ export const LocationStep: React.FC<LocationStepProps> = ({
         {/* Dropoff Location */}
         {serviceType !== 'hourly' && (
           <View style={styles.locationSection}>
-            <Text style={styles.locationLabel}>
+            <Text style={[styles.locationLabel, { color: colors.text }]}>
               {serviceType === 'airport' && tripType === 'drop' ? 'Select Terminal' : 'Drop-off Location'}
             </Text>
 
@@ -324,7 +328,8 @@ export const LocationStep: React.FC<LocationStepProps> = ({
                     key={key}
                     style={[
                       styles.terminalButton,
-                      dropoffLocation === terminal.address && styles.terminalButtonActive
+                      { backgroundColor: colors.surface, borderColor: colors.border },
+                      dropoffLocation === terminal.address && [styles.terminalButtonActive, { borderColor: colors.primary, backgroundColor: colors.primaryLight }]
                     ]}
                     onPress={() => {
                       onDropoffLocationChange(terminal.address);
@@ -336,7 +341,8 @@ export const LocationStep: React.FC<LocationStepProps> = ({
                   >
                     <Text style={[
                       styles.terminalText,
-                      dropoffLocation === terminal.address && styles.terminalTextActive
+                      { color: colors.textSecondary },
+                      dropoffLocation === terminal.address && [styles.terminalTextActive, { color: colors.primary }]
                     ]}>
                       {terminal.name}
                     </Text>
@@ -373,19 +379,27 @@ export const LocationStep: React.FC<LocationStepProps> = ({
       </ScrollView>
 
       {/* Navigation */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.backButton} onPress={onBack}>
-            <Text style={styles.backButtonText}>Back</Text>
+          <TouchableOpacity
+            style={[styles.backButton, { borderColor: colors.border }]}
+            onPress={onBack}
+          >
+            <Text style={[styles.backButtonText, { color: colors.textSecondary }]}>Back</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.nextButton, !isFormValid() && styles.nextButtonDisabled]}
+            style={[
+              styles.nextButton,
+              { backgroundColor: colors.primary },
+              !isFormValid() && [styles.nextButtonDisabled, { backgroundColor: colors.border }]
+            ]}
             onPress={onNext}
             disabled={!isFormValid()}
           >
             <Text style={[
               styles.nextButtonText,
-              !isFormValid() && styles.nextButtonTextDisabled,
+              { color: colors.surface },
+              !isFormValid() && [styles.nextButtonTextDisabled, { color: colors.textMuted }],
             ]}>
               Continue
             </Text>
@@ -399,7 +413,6 @@ export const LocationStep: React.FC<LocationStepProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
     position: 'relative',
   },
   header: {
@@ -409,12 +422,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#3ccfa0',
     marginBottom: 6,
   },
   subtitle: {
     fontSize: 14,
-    color: '#64748b',
     textAlign: 'center',
   },
   locationSection: {
@@ -424,7 +435,6 @@ const styles = StyleSheet.create({
   locationLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1e293b',
     marginBottom: 8,
   },
   terminalContainer: {
@@ -434,23 +444,19 @@ const styles = StyleSheet.create({
   terminalButton: {
     flex: 1,
     padding: 12,
-    backgroundColor: '#ffffff',
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#e2e8f0',
     alignItems: 'center',
   },
   terminalButtonActive: {
-    borderColor: '#3ccfa0',
-    backgroundColor: '#ecfdf5',
+    // Colors applied inline with theme
   },
   terminalText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#475569',
   },
   terminalTextActive: {
-    color: '#3ccfa0',
+    // Colors applied inline with theme
   },
   errorText: {
     fontSize: 11,
@@ -460,9 +466,7 @@ const styles = StyleSheet.create({
   footer: {
     padding: 16,
     paddingBottom: 32,
-    backgroundColor: '#ffffff',
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
     zIndex: 0,
   },
   buttonContainer: {
@@ -475,29 +479,25 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
   backButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#475569',
   },
   nextButton: {
     flex: 2,
-    backgroundColor: '#3ccfa0',
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
   },
   nextButtonDisabled: {
-    backgroundColor: '#e2e8f0',
+    // Colors applied inline with theme
   },
   nextButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#ffffff',
   },
   nextButtonTextDisabled: {
-    color: '#64748b',
+    // Colors applied inline with theme
   },
 });

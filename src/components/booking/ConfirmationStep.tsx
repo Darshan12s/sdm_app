@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Switch, Alert } from 'react-native';
 import { ServiceType, VehicleType } from '@/types';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface LocationData {
   lat: number;
@@ -49,6 +50,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   onConfirm,
   onBack,
 }) => {
+  const { colors } = useTheme();
   const [showSpecialInstructions, setShowSpecialInstructions] = useState(false);
   const [luggageCount, setLuggageCount] = useState(0);
   const [hasPet, setHasPet] = useState(false);
@@ -108,29 +110,29 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.title}>Review & Confirm</Text>
-          <Text style={styles.subtitle}>Please review your booking details</Text>
+          <Text style={[styles.title, { color: colors.primary }]}>Review & Confirm</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Please review your booking details</Text>
         </View>
 
         {/* Booking Summary */}
         <View style={styles.summarySection}>
-          <Text style={styles.sectionTitle}>Booking Summary</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Booking Summary</Text>
 
-          <View style={styles.summaryCard}>
+          <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {/* Service Type */}
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Service</Text>
-              <Text style={styles.summaryValue}>{getServiceTypeLabel()}</Text>
+            <View style={[styles.summaryItem, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Service</Text>
+              <Text style={[styles.summaryValue, { color: colors.text }]}>{getServiceTypeLabel()}</Text>
             </View>
 
             {/* Trip Type */}
             {(serviceType === 'outstation' || serviceType === 'airport') && (
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Trip Type</Text>
-                <Text style={styles.summaryValue}>
+              <View style={[styles.summaryItem, { borderBottomColor: colors.border }]}>
+                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Trip Type</Text>
+                <Text style={[styles.summaryValue, { color: colors.text }]}>
                   {serviceType === 'outstation'
                     ? (isRoundTrip ? 'Round Trip' : 'One Way')
                     : (tripType === 'pickup' ? 'Airport Pickup' : 'Airport Drop-off')
@@ -140,44 +142,44 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
             )}
 
             {/* Locations */}
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>From</Text>
-              <Text style={styles.summaryValue}>{pickupLocation || 'Not selected'}</Text>
+            <View style={[styles.summaryItem, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>From</Text>
+              <Text style={[styles.summaryValue, { color: colors.text }]}>{pickupLocation || 'Not selected'}</Text>
             </View>
 
             {serviceType !== 'hourly' && (
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>To</Text>
-                <Text style={styles.summaryValue}>{dropoffLocation || 'Not selected'}</Text>
+              <View style={[styles.summaryItem, { borderBottomColor: colors.border }]}>
+                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>To</Text>
+                <Text style={[styles.summaryValue, { color: colors.text }]}>{dropoffLocation || 'Not selected'}</Text>
               </View>
             )}
 
             {/* Date & Time */}
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Pickup</Text>
-              <Text style={styles.summaryValue}>
+            <View style={[styles.summaryItem, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Pickup</Text>
+              <Text style={[styles.summaryValue, { color: colors.text }]}>
                 {formatDateTime(scheduledDate, scheduledTime)}
               </Text>
             </View>
 
             {isRoundTrip && (
-              <View style={styles.summaryItem}>
-                <Text style={styles.summaryLabel}>Return</Text>
-                <Text style={styles.summaryValue}>
+              <View style={[styles.summaryItem, { borderBottomColor: colors.border }]}>
+                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Return</Text>
+                <Text style={[styles.summaryValue, { color: colors.text }]}>
                   {formatDateTime(returnDate, returnTime)}
                 </Text>
               </View>
             )}
 
             {/* Passengers & Vehicle */}
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Passengers</Text>
-              <Text style={styles.summaryValue}>{passengers}</Text>
+            <View style={[styles.summaryItem, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Passengers</Text>
+              <Text style={[styles.summaryValue, { color: colors.text }]}>{passengers}</Text>
             </View>
 
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Vehicle</Text>
-              <Text style={styles.summaryValue}>{getVehicleTypeLabel()}</Text>
+            <View style={[styles.summaryItem, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Vehicle</Text>
+              <Text style={[styles.summaryValue, { color: colors.text }]}>{getVehicleTypeLabel()}</Text>
             </View>
           </View>
         </View>
@@ -185,52 +187,53 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
         {/* Special Instructions */}
         <View style={styles.specialInstructionsSection}>
           <TouchableOpacity
-            style={styles.specialInstructionsToggle}
+            style={[styles.specialInstructionsToggle, { backgroundColor: colors.card, borderColor: colors.border }]}
             onPress={() => setShowSpecialInstructions(!showSpecialInstructions)}
           >
-            <Text style={styles.specialInstructionsLabel}>Special Instructions</Text>
-            <Text style={styles.specialInstructionsIcon}>
+            <Text style={[styles.specialInstructionsLabel, { color: colors.text }]}>Special Instructions</Text>
+            <Text style={[styles.specialInstructionsIcon, { color: colors.textSecondary }]}>
               {showSpecialInstructions ? '−' : '+'}
             </Text>
           </TouchableOpacity>
 
           {showSpecialInstructions && (
-            <View style={styles.specialInstructionsContent}>
+            <View style={[styles.specialInstructionsContent, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               {/* Luggage */}
               <View style={styles.specialInstructionsRow}>
-                <Text style={styles.specialInstructionsText}>Luggage Items</Text>
+                <Text style={[styles.specialInstructionsText, { color: colors.textSecondary }]}>Luggage Items</Text>
                 <View style={styles.counterContainer}>
                   <TouchableOpacity
-                    style={styles.counterButton}
+                    style={[styles.counterButton, { backgroundColor: colors.border }]}
                     onPress={() => setLuggageCount(Math.max(0, luggageCount - 1))}
                   >
-                    <Text style={styles.counterButtonText}>−</Text>
+                    <Text style={[styles.counterButtonText, { color: colors.textSecondary }]}>−</Text>
                   </TouchableOpacity>
-                  <Text style={styles.counterValue}>{luggageCount}</Text>
+                  <Text style={[styles.counterValue, { color: colors.text }]}>{luggageCount}</Text>
                   <TouchableOpacity
-                    style={styles.counterButton}
+                    style={[styles.counterButton, { backgroundColor: colors.border }]}
                     onPress={() => setLuggageCount(Math.min(3, luggageCount + 1))}
                   >
-                    <Text style={styles.counterButtonText}>+</Text>
+                    <Text style={[styles.counterButtonText, { color: colors.textSecondary }]}>+</Text>
                   </TouchableOpacity>
                 </View>
               </View>
 
               {/* Pet */}
               <View style={styles.specialInstructionsRow}>
-                <Text style={styles.specialInstructionsText}>Traveling with Pet</Text>
+                <Text style={[styles.specialInstructionsText, { color: colors.textSecondary }]}>Traveling with Pet</Text>
                 <Switch
                   value={hasPet}
                   onValueChange={setHasPet}
-                  trackColor={{ false: '#cbd5e1', true: '#3ccfa0' }}
-                  thumbColor={hasPet ? '#ffffff' : '#f1f5f9'}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor={hasPet ? colors.surface : colors.border}
                 />
               </View>
 
               {/* Additional Instructions */}
               <TextInput
-                style={styles.additionalInstructionsInput}
+                style={[styles.additionalInstructionsInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
                 placeholder="Any additional requirements..."
+                placeholderTextColor={colors.textSecondary}
                 value={additionalInstructions}
                 onChangeText={setAdditionalInstructions}
                 multiline
@@ -242,27 +245,30 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
 
         {/* Terms & Conditions */}
         <View style={styles.termsSection}>
-          <Text style={styles.termsTitle}>Important Notes</Text>
-          <View style={styles.termsList}>
-            <Text style={styles.termsItem}>• Driver will contact you 15 minutes before pickup</Text>
-            <Text style={styles.termsItem}>• Please be ready at the pickup location</Text>
-            <Text style={styles.termsItem}>• Cancellation charges may apply</Text>
-            <Text style={styles.termsItem}>• Toll charges and parking fees are extra</Text>
+          <Text style={[styles.termsTitle, { color: colors.text }]}>Important Notes</Text>
+          <View style={[styles.termsList, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.termsItem, { color: colors.textSecondary }]}>• Driver will contact you 15 minutes before pickup</Text>
+            <Text style={[styles.termsItem, { color: colors.textSecondary }]}>• Please be ready at the pickup location</Text>
+            <Text style={[styles.termsItem, { color: colors.textSecondary }]}>• Cancellation charges may apply</Text>
+            <Text style={[styles.termsItem, { color: colors.textSecondary }]}>• Toll charges and parking fees are extra</Text>
           </View>
         </View>
       </ScrollView>
 
       {/* Navigation */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.backButton} onPress={onBack}>
-            <Text style={styles.backButtonText}>Back</Text>
+          <TouchableOpacity
+            style={[styles.backButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
+            onPress={onBack}
+          >
+            <Text style={[styles.backButtonText, { color: colors.textSecondary }]}>Back</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.confirmButton}
+            style={[styles.confirmButton, { backgroundColor: colors.primary }]}
             onPress={handleConfirm}
           >
-            <Text style={styles.confirmButtonText}>Confirm Booking</Text>
+            <Text style={[styles.confirmButtonText, { color: colors.surface }]}>Confirm Booking</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -273,7 +279,6 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   header: {
     padding: 8,
@@ -282,12 +287,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#3ccfa0',
     marginBottom: 2,
   },
   subtitle: {
     fontSize: 11,
-    color: '#64748b',
     textAlign: 'center',
   },
   summarySection: {
@@ -297,15 +300,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#1e293b',
     marginBottom: 4,
   },
   summaryCard: {
-    backgroundColor: '#ffffff',
     borderRadius: 4,
     padding: 6,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
   summaryItem: {
     flexDirection: 'row',
@@ -313,17 +313,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 2,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
   },
   summaryLabel: {
     fontSize: 11,
-    color: '#64748b',
     flex: 1,
   },
   summaryValue: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#1e293b',
     flex: 2,
     textAlign: 'right',
   },
@@ -336,27 +333,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 12,
-    backgroundColor: '#ffffff',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
   specialInstructionsLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1e293b',
   },
   specialInstructionsIcon: {
     fontSize: 16,
-    color: '#64748b',
   },
   specialInstructionsContent: {
     marginTop: 6,
     padding: 8,
-    backgroundColor: '#ffffff',
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
   specialInstructionsRow: {
     flexDirection: 'row',
@@ -366,7 +357,6 @@ const styles = StyleSheet.create({
   },
   specialInstructionsText: {
     fontSize: 12,
-    color: '#475569',
   },
   counterContainer: {
     flexDirection: 'row',
@@ -376,7 +366,6 @@ const styles = StyleSheet.create({
   counterButton: {
     width: 32,
     height: 32,
-    backgroundColor: '#e2e8f0',
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
@@ -384,7 +373,6 @@ const styles = StyleSheet.create({
   counterButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#475569',
   },
   counterValue: {
     width: 32,
@@ -394,12 +382,9 @@ const styles = StyleSheet.create({
   },
   additionalInstructionsInput: {
     padding: 8,
-    backgroundColor: '#f8fafc',
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
     fontSize: 12,
-    color: '#1e293b',
   },
   termsSection: {
     paddingHorizontal: 12,
@@ -408,28 +393,22 @@ const styles = StyleSheet.create({
   termsTitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#1e293b',
     marginBottom: 6,
   },
   termsList: {
-    backgroundColor: '#ffffff',
     borderRadius: 6,
     padding: 8,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
   termsItem: {
     fontSize: 12,
-    color: '#64748b',
     marginBottom: 6,
     lineHeight: 16,
   },
   footer: {
     padding: 8,
     paddingBottom: 20,
-    backgroundColor: '#ffffff',
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -441,16 +420,13 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
   backButtonText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#475569',
   },
   confirmButton: {
     flex: 2,
-    backgroundColor: '#3ccfa0',
     paddingVertical: 10,
     borderRadius: 6,
     alignItems: 'center',
@@ -458,6 +434,5 @@ const styles = StyleSheet.create({
   confirmButtonText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#ffffff',
   },
 });

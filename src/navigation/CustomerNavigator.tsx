@@ -34,6 +34,8 @@ import PaymentFAQScreen from '@/screens/customer/faq/PaymentFAQScreen';
 import AccountFAQScreen from '@/screens/customer/faq/AccountFAQScreen';
 import SafetyFAQScreen from '@/screens/customer/faq/SafetyFAQScreen';
 import TechnicalFAQScreen from '@/screens/customer/faq/TechnicalFAQScreen';
+import TermsConditionsScreen from '@/screens/driver/navigation/TermsConditionsScreen';
+import ThankYouScreen from '@/screens/customer/ThankYouScreen';
 
 // Component imports
 import NotificationBell from '@/components/NotificationBell';
@@ -363,6 +365,41 @@ export default function CustomerNavigator() {
             fontWeight: 'bold',
             fontSize: 18,
           },
+        }}
+      />
+      <Stack.Screen
+        name="TermsConditions"
+        component={TermsConditionsScreen}
+        options={{
+          title: 'Terms & Conditions',
+          headerStyle: {
+            backgroundColor: colors.headerBackground,
+            elevation: 0,
+            shadowOpacity: 0,
+          },
+          headerTintColor: colors.headerTint,
+          headerTitleStyle: {
+            fontWeight: 'bold',
+            fontSize: 18,
+          },
+        }}
+      />
+      <Stack.Screen
+        name="ThankYou"
+        component={ThankYouScreen}
+        options={{
+          title: 'Booking Confirmed',
+          headerStyle: {
+            backgroundColor: colors.headerBackground,
+            elevation: 0,
+            shadowOpacity: 0,
+          },
+          headerTintColor: colors.headerTint,
+          headerTitleStyle: {
+            fontWeight: 'bold',
+            fontSize: 18,
+          },
+          headerLeft: () => null, // Disable back button
         }}
       />
       {/* Additional screens can be added here for modals/details */}

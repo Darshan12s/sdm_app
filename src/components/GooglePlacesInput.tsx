@@ -11,6 +11,7 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { GOOGLE_MAPS_API_KEY } from '@/constants';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface GooglePlacesInputProps {
   placeholder: string;
@@ -38,6 +39,7 @@ export const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
   icon,
   showCurrentLocation = false,
 }) => {
+  const { colors } = useTheme();
   const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
   const [showPredictions, setShowPredictions] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -79,7 +81,7 @@ export const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
         setShowPredictions(false);
       } else if (data.status === 'OVER_QUERY_LIMIT') {
         console.error('Places API quota exceeded');
-        Alert.alert('Error', 'Search quota exceeded. Please try again later.');
+        Alert.alert('Error', 'Search quota exceeded.');
         setPredictions([]);
         setShowPredictions(false);
       } else if (data.status === 'REQUEST_DENIED') {
@@ -137,7 +139,7 @@ export const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
         // Don't update input or coordinates when API fails
         // Reset input to previous value to avoid confusion
         onChange(prediction.description);
-        Alert.alert('Error', 'Unable to load location details. Please try selecting a different location or check your internet connection.');
+        Alert.alert('Error', 'Unable to load location details. Please select a different location or check your internet connection.');
         // Keep predictions visible so user can try again
       }
     } catch (error) {
@@ -145,7 +147,7 @@ export const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
       // Don't update input or coordinates when network fails
       // Reset input to previous value to avoid confusion
       onChange(prediction.description);
-      Alert.alert('Network Error', 'Failed to get location details. Please check your connection and try again.');
+      Alert.alert('Network Error', 'Failed to get location details. Please check your connection.');
       // Keep predictions visible so user can try again
     }
   };
@@ -197,13 +199,13 @@ export const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
         setShowPredictions(false);
         inputRef.current?.blur();
       } else {
-        Alert.alert('Error', 'Unable to get address for your current location. Please try again.');
+        Alert.alert('Error', 'Unable to get address for your current location.');
       }
     } catch (error) {
       console.error('Location error:', error);
       Alert.alert(
         'Location Error',
-        'Unable to get your current location. Please check your GPS settings and try again.',
+        'Unable to get your current location. Please check your GPS settings.',
         [{ text: 'OK' }]
       );
     } finally {
@@ -228,25 +230,26 @@ export const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
   const getIcon = () => {
     switch (icon) {
       case 'pickup':
-        return <MaterialIcons name="location-on" size={18} color="#64748b" />;
+        return <MaterialIcons name="location-on" size={18} color="green" />;
       case 'dropoff':
-        return <MaterialIcons name="flag" size={18} color="#64748b" />;
+        return <MaterialIcons name="flag" size={18} color="red" />;
       default:
-        return <MaterialIcons name="location-on" size={18} color="#64748b" />;
+        return <MaterialIcons name="location-on" size={18} color={colors.primary} />;
     }
   };
 
 
   return (
     <View style={styles.container} pointerEvents="box-none">
-      <View style={styles.inputContainer}>
+      <View style={[styles.inputContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.inputIcon}>
           {getIcon()}
         </View>
         <TextInput
           ref={inputRef}
-          style={styles.textInput}
+          style={[styles.textInput, { color: colors.text }]}
           placeholder={placeholder}
+          placeholderTextColor={colors.textSecondary}
           value={value}
           onChangeText={handleTextChange}
           onFocus={() => {
@@ -259,7 +262,7 @@ export const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
             setTimeout(() => setShowPredictions(false), 200);
           }}
         />
-        {isLoading && <Text style={styles.loadingText}>...</Text>}
+        {isLoading && <Text style={[styles.loadingText, { color: colors.textSecondary }]}>...</Text>}
         {value.length > 0 && !isLoading && (
           <TouchableOpacity
             style={styles.clearButton}
@@ -271,14 +274,14 @@ export const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
               inputRef.current?.focus();
             }}
           >
-            <MaterialIcons name="clear" size={16} color="#64748b" />
+            <MaterialIcons name="clear" size={16} color={colors.textSecondary} />
           </TouchableOpacity>
         )}
       </View>
 
       {showPredictions && predictions.length > 0 && (
         <ScrollView
-          style={styles.predictionsContainer}
+          style={[styles.predictionsContainer, { backgroundColor: colors.card, borderColor: colors.border }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           nestedScrollEnabled={true}
@@ -287,15 +290,15 @@ export const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
           {predictions.map((item) => (
             <TouchableOpacity
               key={item.place_id}
-              style={styles.predictionItem}
+              style={[styles.predictionItem, { borderBottomColor: colors.border }]}
               onPress={() => {
                 console.log('TouchableOpacity pressed for:', item.description);
                 handlePlaceSelect(item);
               }}
               activeOpacity={0.7}
             >
-              <Text style={styles.predictionMainText}>{item.structured_formatting.main_text}</Text>
-              <Text style={styles.predictionSecondaryText}>{item.structured_formatting.secondary_text}</Text>
+              <Text style={[styles.predictionMainText, { color: colors.text }]}>{item.structured_formatting.main_text}</Text>
+              <Text style={[styles.predictionSecondaryText, { color: colors.textSecondary }]}>{item.structured_formatting.secondary_text}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -303,7 +306,11 @@ export const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
 
       {showCurrentLocation && (
         <TouchableOpacity
-          style={[styles.currentLocationButton, isGettingLocation && styles.currentLocationButtonDisabled]}
+          style={[
+            styles.currentLocationButton,
+            { backgroundColor: colors.primaryLight },
+            isGettingLocation && [styles.currentLocationButtonDisabled, { backgroundColor: colors.border }]
+          ]}
           onPress={getCurrentLocation}
           disabled={isGettingLocation}
         >
@@ -311,9 +318,13 @@ export const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
             <MaterialIcons
               name={isGettingLocation ? "location-searching" : "my-location"}
               size={16}
-              color={isGettingLocation ? "#64748b" : "#2563eb"}
+              color={isGettingLocation ? colors.textSecondary : colors.primary}
             />
-            {/* <Text style={[styles.currentLocationText, isGettingLocation && styles.currentLocationTextDisabled]}>
+            {/* <Text style={[
+              styles.currentLocationText,
+              { color: colors.primary },
+              isGettingLocation && [styles.currentLocationTextDisabled, { color: colors.textSecondary }]
+            ]}>
               {isGettingLocation ? 'Getting Location...' : 'Use Current Location'}
             </Text> */}
           </View>
@@ -334,11 +345,9 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
     padding: 4,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
     flex: 1,
     width: '100%',
   },
@@ -351,7 +360,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: '#64748b',
   },
   clearButton: {
     marginLeft: 8,
@@ -362,9 +370,7 @@ const styles = StyleSheet.create({
     bottom: 48,
     left: 0,
     right: 0,
-    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
     borderRadius: 8,
     shadowColor: '#000',
     shadowOffset: {
@@ -380,27 +386,23 @@ const styles = StyleSheet.create({
   predictionItem: {
     padding: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
   },
   predictionMainText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#1e293b',
   },
   predictionSecondaryText: {
     fontSize: 10,
-    color: '#64748b',
     marginTop: 2,
   },
   currentLocationButton: {
     marginTop: 8,
     padding: 8,
-    backgroundColor: '#eff6ff',
     borderRadius: 8,
     alignItems: 'center',
   },
   currentLocationButtonDisabled: {
-    backgroundColor: '#f1f5f9',
+    // Colors applied inline with theme
   },
   currentLocationContent: {
     flexDirection: 'row',
@@ -410,9 +412,8 @@ const styles = StyleSheet.create({
   currentLocationText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#2563eb',
   },
   currentLocationTextDisabled: {
-    color: '#64748b',
+    // Colors applied inline with theme
   },
 });

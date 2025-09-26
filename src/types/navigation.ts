@@ -39,6 +39,8 @@ export type CustomerStackParamList = {
   AccountFAQ: undefined;
   SafetyFAQ: undefined;
   TechnicalFAQ: undefined;
+  TermsConditions: undefined;
+  ThankYou: { bookingData: any };
   // Add other customer screens here
 };
 

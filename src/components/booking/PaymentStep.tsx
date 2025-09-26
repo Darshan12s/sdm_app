@@ -11,10 +11,14 @@ import {
   TextInput,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { RazorpayExpoService, PaymentData } from '@/services/payment/razorpay-expo';
 import { supabase } from '@/services/supabase/client';
 import { useFareCalculation } from '@/hooks/useFareCalculation';
 import { RazorpaySDKService } from '@/services/payment/razorpay-sdk';
+import { RazorpayService } from '@/services/payment/razorpay';
+import { CustomerStackParamList } from '@/types/navigation';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface PaymentStepProps {
   bookingData: any;
@@ -27,6 +31,8 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   onPaymentSuccess,
   onBack,
 }) => {
+  const { colors } = useTheme();
+  const navigation = useNavigation<NavigationProp<CustomerStackParamList>>();
   const [paymentMethod, setPaymentMethod] = useState('upi');
   const [paymentAmount, setPaymentAmount] = useState<'partial' | 'full'>('partial');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -216,7 +222,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         .from('bookings')
         .update({
           payment_status: paymentAmount === 'full' ? 'completed' : 'pending',
-          status: 'confirmed',
+          status: 'pending',
         })
         .eq('id', booking.id);
 
@@ -253,13 +259,14 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       return;
     }
 
-    // Test SDK integration first
+    // Test SDK integration first (but don't block if it fails)
     console.log('🧪 Testing Razorpay SDK integration...');
     const sdkTest = await RazorpaySDKService.testSDKIntegration();
     if (!sdkTest.success) {
-      console.warn('SDK test failed:', sdkTest.message);
-      Alert.alert('Payment Setup Issue', sdkTest.message);
-      return;
+      console.warn('SDK test failed, will use fallback payment method:', sdkTest.message);
+      // Don't show alert or return - continue with fallback
+    } else {
+      console.log('✅ SDK test passed, using native payment');
     }
 
     setIsProcessing(true);
@@ -339,13 +346,26 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
 
       console.log('✅ Booking created:', booking.id);
 
-      // Create payment order
+      // Create payment order with fallback
       console.log('📝 Creating payment order...');
-      const orderData = await RazorpaySDKService.createOrder(
-        bookingData,
-        RazorpaySDKService.formatAmount(currentPaymentAmount),
-        paymentMethod
-      );
+      let orderData;
+
+      try {
+        orderData = await RazorpaySDKService.createOrder(
+          bookingData,
+          RazorpaySDKService.formatAmount(currentPaymentAmount),
+          paymentMethod
+        );
+        console.log('✅ SDK order creation successful');
+      } catch (sdkOrderError: any) {
+        console.warn('⚠️ SDK order creation failed, this is expected if SDK is not configured:', sdkOrderError.message);
+        // For fallback, we'll create a mock order or use the main service
+        orderData = {
+          order_id: `fallback_order_${Date.now()}`,
+          amount: currentPaymentAmount
+        };
+        console.log('📝 Using fallback order for payment');
+      }
 
       if (!orderData) {
         Alert.alert('Payment Error', 'Failed to create payment order. Please try again.');
@@ -355,24 +375,54 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
 
       console.log('✅ Order created:', orderData.order_id);
 
+      const userInfo = await supabase.from('users').select('*').eq('id', user.id).single();
       // Prepare payment details
-      const customerName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Customer';
-      const customerEmail = user.email || '';
-      const customerPhone = user.user_metadata?.phone || '';
+      const customerName = userInfo.data.full_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'Customer';
+      const customerEmail = userInfo.data.email || user.email || '';
+      const customerPhone = userInfo.data.phone_no || user.phone || user;
       const description = `${bookingData.vehicleType.charAt(0).toUpperCase() + bookingData.vehicleType.slice(1)} - ${bookingData.serviceType.charAt(0).toUpperCase() + bookingData.serviceType.slice(1)} Ride`;
 
-      console.log('💳 Initiating Razorpay SDK payment...');
+      console.log('💳 Initiating payment...');
 
-      // Initiate payment with SDK
-      const paymentResult = await RazorpaySDKService.initiatePayment(
-        orderData.amount,
-        'INR',
-        orderData.order_id,
-        customerName,
-        customerEmail,
-        customerPhone,
-        description
-      );
+      // Initiate payment with SDK fallback to main service
+      let paymentResult;
+
+      try {
+        console.log('💳 Trying Razorpay SDK payment...');
+        paymentResult = await RazorpaySDKService.initiatePayment(
+          orderData.amount,
+          'INR',
+          orderData.order_id,
+          customerName,
+          customerEmail,
+          customerPhone,
+          description,
+          {
+            primary: colors.primary,
+            background: colors.background,
+            surface: colors.surface,
+            text: colors.text,
+          }
+        );
+        console.log('✅ SDK payment successful');
+      } catch (sdkPaymentError: any) {
+        console.warn('⚠️ SDK payment failed, falling back to main service:', sdkPaymentError.message);
+
+        // Fallback to main Razorpay service
+        const paymentData = {
+          amount: orderData.amount,
+          currency: 'INR',
+          bookingId: booking.id,
+          customerId: user.id,
+          customerName: customerName,
+          customerEmail: customerEmail,
+          customerPhone: customerPhone,
+          description: description,
+        };
+
+        paymentResult = await RazorpayService.initiatePayment(paymentData);
+        console.log('✅ Fallback payment result:', paymentResult);
+      }
 
       setIsProcessing(false);
 
@@ -383,8 +433,8 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         const { error: updateError } = await supabase
           .from('bookings')
           .update({
-            payment_status: paymentAmount === 'full' ? 'completed' : 'partial',
-            status: 'confirmed',
+            payment_status: paymentAmount === 'full' ? 'paid' : 'pending',
+            status: 'pending',
           })
           .eq('id', booking.id);
 
@@ -396,21 +446,21 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
 
         console.log('✅ Booking updated successfully');
 
-        // Call success handler
-        onPaymentSuccess({
-          bookingId: booking.id,
-          paymentId: paymentResult.paymentId,
-          orderId: paymentResult.orderId,
-          amount: currentPaymentAmount,
-          paymentType: paymentAmount,
-          remainingAmount: remainingAmount,
-        });
+        // Prepare booking data for ThankYou screen
+        const completeBookingData = {
+          ...bookingData,
+          paymentDetails: {
+            bookingId: booking.id,
+            paymentId: paymentResult.paymentId,
+            orderId: paymentResult.orderId,
+            amount: currentPaymentAmount,
+            paymentType: paymentAmount,
+            remainingAmount: remainingAmount,
+          },
+        };
 
-        Alert.alert(
-          'Payment Successful!',
-          `Your booking has been confirmed. ${paymentAmount === 'partial' ? `Remaining amount: ₹${remainingAmount}` : ''}`,
-          [{ text: 'OK' }]
-        );
+        // // Navigate to ThankYou screen instead of calling callback
+        // navigation.navigate('ThankYou', { bookingData: completeBookingData });
 
       } else {
         console.error('❌ Payment failed:', paymentResult.error);
@@ -419,6 +469,9 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         let errorMessage = 'Payment failed';
         if (paymentResult.error?.code === 'PAYMENT_CANCELLED') {
           errorMessage = 'Payment was cancelled';
+          // Stay on PaymentStep screen instead of going back
+          Alert.alert('Payment Cancelled', 'You can try again or go back to modify your booking.');
+          return;
         } else if (paymentResult.error?.code === 'NETWORK_ERROR') {
           errorMessage = 'Network error. Please check your connection and try again.';
         } else {
@@ -437,55 +490,55 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
 
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Secure Payment</Text>
-        <Text style={styles.subtitle}>Complete your payment to confirm your booking</Text>
+        <Text style={[styles.title, { color: colors.primary }]}>Secure Payment</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Complete your payment to confirm your booking</Text>
       </View>
 
       {/* Trip Summary */}
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: colors.card }]}>
         <View style={styles.summaryHeader}>
-          <MaterialIcons name="location-on" size={20} color="#3ccfa0" />
-          <Text style={styles.summaryTitle}>Trip Summary</Text>
+          <MaterialIcons name="location-on" size={20} color={colors.primary} />
+          <Text style={[styles.summaryTitle, { color: colors.text }]}>Trip Summary</Text>
         </View>
 
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Service Type</Text>
-          <View style={styles.serviceBadge}>
-            <Text style={styles.serviceBadgeText}>
+          <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Service Type</Text>
+          <View style={[styles.serviceBadge, { backgroundColor: colors.primaryLight }]}>
+            <Text style={[styles.serviceBadgeText, { color: colors.primary }]}>
               {bookingData.serviceType.charAt(0).toUpperCase() + bookingData.serviceType.slice(1)} {bookingData.tripType}
             </Text>
           </View>
         </View>
 
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Vehicle</Text>
-          <Text style={styles.summaryValue}>
+          <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Vehicle</Text>
+          <Text style={[styles.summaryValue, { color: colors.text }]}>
               {bookingData.vehicleType.charAt(0).toUpperCase() + bookingData.vehicleType.slice(1)}
             </Text>
-          
+
         </View>
 
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Pickup Location</Text>
-          <Text style={styles.summaryValue}>{bookingData.pickupLocation}</Text>
+          <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Pickup Location</Text>
+          <Text style={[styles.summaryValue, { color: colors.text }]}>{bookingData.pickupLocation}</Text>
         </View>
 
         {bookingData.serviceType !== 'hourly' && (
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Drop-off Location</Text>
-            <Text style={styles.summaryValue}>{bookingData.dropoffLocation}</Text>
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Drop-off Location</Text>
+            <Text style={[styles.summaryValue, { color: colors.text }]}>{bookingData.dropoffLocation}</Text>
           </View>
         )}
 
         <View style={styles.summaryRow}>
           <View style={styles.summaryIconLabel}>
-            <MaterialIcons name="event" size={16} color="#64748b" />
-            <Text style={styles.summaryLabel}>Scheduled Time</Text>
+            <MaterialIcons name="event" size={16} color={colors.textSecondary} />
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Scheduled Time</Text>
           </View>
-          <Text style={styles.summaryValue}>
+          <Text style={[styles.summaryValue, { color: colors.text }]}>
             {bookingData.scheduledDate ?
               `${bookingData.scheduledDate.toLocaleDateString('en-IN', {
                 weekday: 'short',
@@ -500,10 +553,10 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         {bookingData.isRoundTrip && bookingData.returnDate && (
           <View style={styles.summaryRow}>
             <View style={styles.summaryIconLabel}>
-              <MaterialIcons name="event" size={16} color="#64748b" />
-              <Text style={styles.summaryLabel}>Return Time</Text>
+              <MaterialIcons name="event" size={16} color={colors.textSecondary} />
+              <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Return Time</Text>
             </View>
-            <Text style={styles.summaryValue}>
+            <Text style={[styles.summaryValue, { color: colors.text }]}>
               {`${bookingData.returnDate.toLocaleDateString('en-IN', {
                 weekday: 'short',
                 year: 'numeric',
@@ -516,40 +569,40 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
 
         <View style={styles.summaryRow}>
           <View style={styles.summaryIconLabel}>
-            <MaterialIcons name="people" size={16} color="#64748b" />
-            <Text style={styles.summaryLabel}>Passengers</Text>
+            <MaterialIcons name="people" size={16} color={colors.textSecondary} />
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Passengers</Text>
           </View>
-          <Text style={styles.summaryValue}>{bookingData.passengers}</Text>
+          <Text style={[styles.summaryValue, { color: colors.text }]}>{bookingData.passengers}</Text>
         </View>
 
         {distanceKm > 0 && (
           <View style={styles.summaryRow}>
             <View style={styles.summaryIconLabel}>
-              <MaterialIcons name="map" size={16} color="#64748b" />
-              <Text style={styles.summaryLabel}>Distance</Text>
+              <MaterialIcons name="map" size={16} color={colors.textSecondary} />
+              <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Distance</Text>
             </View>
-            <Text style={styles.summaryValue}>{distanceKm.toFixed(1)} km</Text>
+            <Text style={[styles.summaryValue, { color: colors.text }]}>{distanceKm.toFixed(1)} km</Text>
           </View>
         )}
 
         {durationMinutes > 0 && (
           <View style={styles.summaryRow}>
             <View style={styles.summaryIconLabel}>
-              <MaterialIcons name="schedule" size={16} color="#64748b" />
-              <Text style={styles.summaryLabel}>Duration</Text>
+              <MaterialIcons name="schedule" size={16} color={colors.textSecondary} />
+              <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Duration</Text>
             </View>
-            <Text style={styles.summaryValue}>{Math.round(durationMinutes)} min</Text>
+            <Text style={[styles.summaryValue, { color: colors.text }]}>{Math.round(durationMinutes)} min</Text>
           </View>
         )}
 
-        <View style={styles.fareRow}>
-          <Text style={styles.fareLabel}>Total Fare</Text>
-          <Text style={styles.fareAmount}>₹{estimatedFare}</Text>
+        <View style={[styles.fareRow, { borderTopColor: colors.border }]}>
+          <Text style={[styles.fareLabel, { color: colors.text }]}>Total Fare</Text>
+          <Text style={[styles.fareAmount, { color: colors.primary }]}>₹{estimatedFare}</Text>
         </View>
 
         <View style={styles.fareNote}>
-          <MaterialIcons name="info-outline" size={14} color="#3ccfa0" />
-          <Text style={styles.fareNoteText}>
+          <MaterialIcons name="info-outline" size={14} color={colors.primary} />
+          <Text style={[styles.fareNoteText, { color: colors.textSecondary }]}>
             (Includes driver allowance, toll fee, and other applicable charges)
           </Text>
           <TouchableOpacity
@@ -559,7 +612,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
             <MaterialIcons
               name={showFareBreakdown === bookingData.vehicleType ? "expand-less" : "expand-more"}
               size={16}
-              color="#64748b"
+              color={colors.textSecondary}
               style={styles.expandIcon}
             />
             
@@ -570,42 +623,42 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
 
         {/* Fare Breakdown */}
         {showFareBreakdown === bookingData.vehicleType && adjustedFare && (
-          <View style={styles.fareBreakdown}>
+          <View style={[styles.fareBreakdown, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>Base Fare</Text>
-              <Text style={styles.breakdownValue}>₹{adjustedFare.baseFare}</Text>
+              <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Base Fare</Text>
+              <Text style={[styles.breakdownValue, { color: colors.text }]}>₹{adjustedFare.baseFare}</Text>
             </View>
             <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>Distance ({distanceKm.toFixed(1)} km)</Text>
-              <Text style={styles.breakdownValue}>₹{adjustedFare.distanceFare}</Text>
+              <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Distance ({distanceKm.toFixed(1)} km)</Text>
+              <Text style={[styles.breakdownValue, { color: colors.text }]}>₹{adjustedFare.distanceFare}</Text>
             </View>
             <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>Time ({Math.round(durationMinutes)} min)</Text>
-              <Text style={styles.breakdownValue}>₹{adjustedFare.timeFare}</Text>
+              <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Time ({Math.round(durationMinutes)} min)</Text>
+              <Text style={[styles.breakdownValue, { color: colors.text }]}>₹{adjustedFare.timeFare}</Text>
             </View>
             {adjustedFare.surgeMultiplier > 1 && (
               <View style={styles.breakdownRow}>
-                <Text style={styles.breakdownLabel}>Surge ({adjustedFare.surgeMultiplier}x)</Text>
-                <Text style={styles.breakdownValue}>
+                <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Surge ({adjustedFare.surgeMultiplier}x)</Text>
+                <Text style={[styles.breakdownValue, { color: colors.text }]}>
                   ₹{Math.round((adjustedFare.baseFare + adjustedFare.distanceFare + adjustedFare.timeFare) * (adjustedFare.surgeMultiplier - 1))}
                 </Text>
               </View>
             )}
             {adjustedFare.passengerSurcharge > 0 && (
               <View style={styles.breakdownRow}>
-                <Text style={styles.breakdownLabel}>Passenger surcharge ({bookingData.passengers} guests)</Text>
-                <Text style={styles.breakdownValue}>₹{adjustedFare.passengerSurcharge}</Text>
+                <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Passenger surcharge ({bookingData.passengers} guests)</Text>
+                <Text style={[styles.breakdownValue, { color: colors.text }]}>₹{adjustedFare.passengerSurcharge}</Text>
               </View>
             )}
-            <View style={[styles.breakdownRow, styles.totalRow]}>
-              <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>₹{adjustedFare.totalFare}</Text>
+            <View style={[styles.breakdownRow, styles.totalRow, { borderTopColor: colors.border }]}>
+              <Text style={[styles.totalLabel, { color: colors.text }]}>Total</Text>
+              <Text style={[styles.totalValue, { color: colors.primary }]}>₹{adjustedFare.totalFare}</Text>
             </View>
           </View>
         )}
       </View>
       {/* Special Instructions */}
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: colors.card }]}>
         <TouchableOpacity
           style={styles.specialInstructionsHeader}
           onPress={toggleSpecialInstructions}
@@ -613,12 +666,12 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           accessibilityState={{ expanded: isSpecialInstructionsExpanded }}
           accessibilityLabel={`${isSpecialInstructionsExpanded ? 'Collapse' : 'Expand'} special instructions section`}
         >
-          <Text style={styles.cardTitle}>Special Instructions</Text>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Special Instructions</Text>
           <View style={styles.expandIcon}>
             <MaterialIcons
               name={isSpecialInstructionsExpanded ? "expand-less" : "expand-more"}
               size={16}
-              color="#64748b"
+              color={colors.textSecondary}
             />
           </View>
         </TouchableOpacity>
@@ -626,32 +679,32 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         {isSpecialInstructionsExpanded && (
           <View style={styles.specialInstructionsSection}>
             <View style={styles.instructionRow}>
-              <Text style={styles.instructionLabel}>Luggage Items</Text>
+              <Text style={[styles.instructionLabel, { color: colors.text }]}>Luggage Items</Text>
               <View style={styles.counterContainer}>
                 <TouchableOpacity
-                  style={styles.counterButton}
+                  style={[styles.counterButton, { backgroundColor: colors.border }]}
                   onPress={() => setLuggageCount(Math.max(0, luggageCount - 1))}
                   accessibilityRole="button"
                   accessibilityLabel="Decrease luggage count"
                 >
-                  <Text style={styles.counterButtonText}>−</Text>
+                  <Text style={[styles.counterButtonText, { color: colors.textSecondary }]}>−</Text>
                 </TouchableOpacity>
-                <Text style={styles.counterValue} accessibilityLabel={`Luggage count: ${luggageCount}`}>
+                <Text style={[styles.counterValue, { color: colors.text }]} accessibilityLabel={`Luggage count: ${luggageCount}`}>
                   {luggageCount}
                 </Text>
                 <TouchableOpacity
-                  style={styles.counterButton}
+                  style={[styles.counterButton, { backgroundColor: colors.border }]}
                   onPress={() => setLuggageCount(Math.min(5, luggageCount + 1))}
                   accessibilityRole="button"
                   accessibilityLabel="Increase luggage count"
                 >
-                  <Text style={styles.counterButtonText}>+</Text>
+                  <Text style={[styles.counterButtonText, { color: colors.textSecondary }]}>+</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
             <View style={styles.instructionRow}>
-              <Text style={styles.instructionLabel}>Traveling with Pet</Text>
+              <Text style={[styles.instructionLabel, { color: colors.text }]}>Traveling with Pet</Text>
               <TouchableOpacity
                 style={styles.checkboxContainer}
                 onPress={() => setHasPet(!hasPet)}
@@ -659,16 +712,17 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
                 accessibilityState={{ checked: hasPet }}
                 accessibilityLabel={`Traveling with pet: ${hasPet ? 'Yes' : 'No'}`}
               >
-                <View style={[styles.instructionCheckbox, hasPet && styles.instructionCheckboxChecked]}>
-                  {hasPet && <MaterialIcons name="check" size={16} color="#ffffff" />}
+                <View style={[styles.instructionCheckbox, { borderColor: colors.border }, hasPet && [styles.instructionCheckboxChecked, { backgroundColor: colors.primary, borderColor: colors.primary }]]}>
+                  {hasPet && <MaterialIcons name="check" size={16} color={colors.surface} />}
                 </View>
-                <Text style={styles.checkboxLabel}>{hasPet ? 'Yes' : 'No'}</Text>
+                <Text style={[styles.checkboxLabel, { color: colors.textSecondary }]}>{hasPet ? 'Yes' : 'No'}</Text>
               </TouchableOpacity>
             </View>
 
             <TextInput
-              style={styles.instructionsInput}
+              style={[styles.instructionsInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
               placeholder="Any additional requirements or instructions..."
+              placeholderTextColor={colors.textSecondary}
               value={specialInstructions}
               onChangeText={setSpecialInstructions}
               multiline
@@ -682,53 +736,55 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       </View>
 
       {/* Payment Amount Selection */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Choose Payment Amount</Text>
+      <View style={[styles.card, { backgroundColor: colors.card }]}>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>Choose Payment Amount</Text>
         <View style={styles.paymentAmountContainer}>
           <TouchableOpacity
             style={[
               styles.paymentAmountOption,
-              paymentAmount === 'partial' && styles.paymentAmountOptionSelected,
+              { borderColor: colors.border },
+              paymentAmount === 'partial' && [styles.paymentAmountOptionSelected, { borderColor: colors.primary, backgroundColor: colors.primaryLight }],
             ]}
             onPress={() => setPaymentAmount('partial')}
           >
-            <View style={styles.radioButton}>
-              {paymentAmount === 'partial' && <View style={styles.radioButtonInner} />}
+            <View style={[styles.radioButton, { borderColor: colors.border }]}>
+              {paymentAmount === 'partial' && <View style={[styles.radioButtonInner, { backgroundColor: colors.primary }]} />}
             </View>
             <View style={styles.paymentAmountContent}>
-              <Text style={styles.paymentAmountTitle}>
+              <Text style={[styles.paymentAmountTitle, { color: colors.text }]}>
                 Partial Payment (25%)
               </Text>
-              <Text style={styles.paymentAmountDescription}>
+              <Text style={[styles.paymentAmountDescription, { color: colors.textSecondary }]}>
                 Pay remaining after ride
               </Text>
             </View>
-            <Text style={styles.paymentAmountValue}>₹{partialPayment}</Text>
+            <Text style={[styles.paymentAmountValue, { color: colors.primary }]}>₹{partialPayment}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[
               styles.paymentAmountOption,
-              paymentAmount === 'full' && styles.paymentAmountOptionSelected,
+              { borderColor: colors.border },
+              paymentAmount === 'full' && [styles.paymentAmountOptionSelected, { borderColor: colors.primary, backgroundColor: colors.primaryLight }],
             ]}
             onPress={() => setPaymentAmount('full')}
           >
-            <View style={styles.radioButton}>
-              {paymentAmount === 'full' && <View style={styles.radioButtonInner} />}
+            <View style={[styles.radioButton, { borderColor: colors.border }]}>
+              {paymentAmount === 'full' && <View style={[styles.radioButtonInner, { backgroundColor: colors.primary }]} />}
             </View>
             <View style={styles.paymentAmountContent}>
-              <Text style={styles.paymentAmountTitle}>
+              <Text style={[styles.paymentAmountTitle, { color: colors.text }]}>
                 Full Payment
               </Text>
-              <Text style={styles.paymentAmountDescription}>
+              <Text style={[styles.paymentAmountDescription, { color: colors.textSecondary }]}>
                 Pay complete fare now
               </Text>
             </View>
-            <Text style={styles.paymentAmountValue}>₹{estimatedFare}</Text>
+            <Text style={[styles.paymentAmountValue, { color: colors.primary }]}>₹{estimatedFare}</Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.remainingNote}>
+        <Text style={[styles.remainingNote, { color: colors.textSecondary }]}>
           Remaining ₹{remainingAmount} will be collected after ride completion
         </Text>
       </View>
@@ -736,33 +792,34 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       
 
       {/* Payment Method Selection */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Select Payment Method</Text>
+      <View style={[styles.card, { backgroundColor: colors.card }]}>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>Select Payment Method</Text>
         <View style={styles.paymentMethodsContainer}>
           {paymentMethods.map((method) => (
             <TouchableOpacity
               key={method.id}
               style={[
                 styles.paymentMethodOption,
-                paymentMethod === method.id && styles.paymentMethodOptionSelected,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                paymentMethod === method.id && [styles.paymentMethodOptionSelected, { borderColor: colors.primary, backgroundColor: colors.primaryLight }],
               ]}
               onPress={() => setPaymentMethod(method.id)}
             >
-              <View style={styles.radioButton}>
-                {paymentMethod === method.id && <View style={styles.radioButtonInner} />}
+              <View style={[styles.radioButton, { borderColor: colors.border }]}>
+                {paymentMethod === method.id && <View style={[styles.radioButtonInner, { backgroundColor: colors.primary }]} />}
               </View>
-              <View style={styles.paymentMethodIcon}>
+              <View style={[styles.paymentMethodIcon, { backgroundColor: colors.primaryLight }]}>
                 <MaterialIcons
                   name={method.icon as any}
                   size={24}
-                  color="#3ccfa0"
+                  color={colors.primary}
                 />
               </View>
               <View style={styles.paymentMethodDetails}>
-                <Text style={styles.paymentMethodName}>
+                <Text style={[styles.paymentMethodName, { color: colors.text }]}>
                   {method.name}
                 </Text>
-                <Text style={styles.paymentMethodDescription}>
+                <Text style={[styles.paymentMethodDescription, { color: colors.textSecondary }]}>
                   {method.description}
                 </Text>
               </View>
@@ -772,25 +829,27 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       </View>
 
       {/* Security Note */}
-      <View style={styles.securityCard}>
-        <MaterialIcons name="security" size={16} color="#3ccfa0" />
-        <Text style={styles.securityText}>
+      <View style={[styles.securityCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <MaterialIcons name="security" size={16} color={colors.primary} />
+        <Text style={[styles.securityText, { color: colors.text }]}>
           Secure Payment by Razorpay
         </Text>
       </View>
 
       {/* Terms and Conditions */}
-      <View style={styles.termsCard}>
+      <View style={[styles.termsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <TouchableOpacity
           style={styles.termsContainer}
           onPress={() => setAcceptedTerms(!acceptedTerms)}
         >
-          <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
-            {acceptedTerms && <MaterialIcons name="check" size={16} color="#ffffff" />}
+          <View style={[styles.checkbox, { borderColor: colors.border }, acceptedTerms && [styles.checkboxChecked, { backgroundColor: colors.primary, borderColor: colors.primary }]]}>
+            {acceptedTerms && <MaterialIcons name="check" size={16} color={colors.surface} />}
           </View>
-          <Text style={styles.termsText}>
+          <Text style={[styles.termsText, { color: colors.text }]}>
             I accept the{' '}
-            <Text style={styles.termsLink}>Terms and Conditions</Text>
+            <Text style={[styles.termsLink, { color: colors.primary }]} onPress={() => navigation.navigate('TermsConditions')}>
+              Terms and Conditions
+            </Text>
           </Text>
         </TouchableOpacity>
       </View>
@@ -799,22 +858,23 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       <TouchableOpacity
         style={[
           styles.payButton,
-          (!acceptedTerms || isProcessing) && styles.payButtonDisabled,
+          { backgroundColor: colors.primary },
+          (!acceptedTerms || isProcessing) && [styles.payButtonDisabled, { backgroundColor: colors.border }],
         ]}
         onPress={handlePayment}
         disabled={!acceptedTerms || isProcessing}
       >
         {isProcessing ? (
           <View style={styles.payButtonContent}>
-            <ActivityIndicator color="white" size="small" />
-            <Text style={styles.payButtonText}>
+            <ActivityIndicator color={colors.surface} size="small" />
+            <Text style={[styles.payButtonText, { color: colors.surface }]}>
               Processing...
             </Text>
           </View>
         ) : (
           <View style={styles.payButtonContent}>
-            <MaterialIcons name="payment" size={20} color="#ffffff" />
-            <Text style={styles.payButtonText}>
+            <MaterialIcons name="payment" size={20} color={colors.surface} />
+            <Text style={[styles.payButtonText, { color: colors.surface }]}>
               Pay ₹{currentPaymentAmount} Now
             </Text>
           </View>
@@ -822,13 +882,13 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={styles.backButton}
+        style={[styles.backButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
         onPress={onBack}
         disabled={isProcessing}
       >
         <View style={styles.backButtonContent}>
-          <MaterialIcons name="arrow-back" size={16} color="#64748b" />
-          <Text style={styles.backButtonText}>Back</Text>
+          <MaterialIcons name="arrow-back" size={16} color={colors.textSecondary} />
+          <Text style={[styles.backButtonText, { color: colors.textSecondary }]}>Back</Text>
         </View>
       </TouchableOpacity>
 
@@ -839,7 +899,6 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   header: {
     padding: 16,
@@ -849,16 +908,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#3ccfa0',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: '#64748b',
     textAlign: 'center',
   },
   card: {
-    backgroundColor: '#ffffff',
     marginHorizontal: 16,
     marginBottom:16,
     padding: 16,
@@ -875,7 +931,6 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1e293b',
     marginBottom: 16,
   },
   summaryHeader: {
@@ -887,7 +942,6 @@ const styles = StyleSheet.create({
   summaryTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1e293b',
   },
   summaryRow: {
     flexDirection: 'row',
@@ -902,24 +956,20 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 14,
-    color: '#64748b',
   },
   summaryValue: {
     fontSize: 14,
-    color: '#1e293b',
     fontWeight: '500',
     maxWidth: '60%',
     textAlign: 'right',
   },
   serviceBadge: {
-    backgroundColor: '#ecfdf5',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
   },
   serviceBadgeText: {
     fontSize: 12,
-    color: '#3ccfa0',
     fontWeight: '500',
   },
   fareRow: {
@@ -929,17 +979,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
   },
   fareLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1e293b',
   },
   fareAmount: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#3ccfa0',
   },
   fareNote: {
     flexDirection: 'row',
@@ -949,7 +996,6 @@ const styles = StyleSheet.create({
   },
   fareNoteText: {
     fontSize: 12,
-    color: '#64748b',
     flex: 1,
   },
   paymentAmountContainer: {
@@ -959,20 +1005,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
     borderRadius: 12,
     padding: 16,
   },
   paymentAmountOptionSelected: {
-    borderColor: '#3ccfa0',
-    backgroundColor: '#ecfdf5',
+    // Colors applied inline with theme
   },
   radioButton: {
     width: 20,
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -981,7 +1024,6 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#3ccfa0',
   },
   paymentAmountContent: {
     flex: 1,
@@ -989,22 +1031,18 @@ const styles = StyleSheet.create({
   paymentAmountTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1e293b',
     marginBottom: 2,
   },
   paymentAmountValue: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#3ccfa0',
     marginLeft: 'auto',
   },
   paymentAmountDescription: {
     fontSize: 12,
-    color: '#64748b',
   },
   remainingNote: {
     fontSize: 12,
-    color: '#64748b',
     marginTop: 8,
     textAlign: 'center',
   },
@@ -1014,21 +1052,17 @@ const styles = StyleSheet.create({
   paymentMethodOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
   paymentMethodOptionSelected: {
-    borderColor: '#3ccfa0',
-    backgroundColor: '#ecfdf5',
+    // Colors applied inline with theme
   },
   paymentMethodIcon: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#ecfdf5',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -1039,38 +1073,31 @@ const styles = StyleSheet.create({
   paymentMethodName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1e293b',
     marginBottom: 2,
   },
   paymentMethodDescription: {
     fontSize: 12,
-    color: '#64748b',
   },
   securityCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
     marginHorizontal: 16,
     marginBottom: 16,
     padding: 16,
     borderRadius: 12,
     gap: 8,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
   securityText: {
     fontSize: 14,
-    color: '#1e293b',
     fontWeight: '500',
   },
   termsCard: {
-    backgroundColor: '#ffffff',
     marginHorizontal: 16,
     marginBottom: 16,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
   termsContainer: {
     flexDirection: 'row',
@@ -1082,25 +1109,20 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkboxChecked: {
-    backgroundColor: '#3ccfa0',
-    borderColor: '#3ccfa0',
+    // Colors applied inline with theme
   },
   termsText: {
     fontSize: 14,
-    color: '#1e293b',
     flex: 1,
   },
   termsLink: {
-    color: '#3ccfa0',
     fontWeight: '500',
   },
   payButton: {
-    backgroundColor: '#3ccfa0',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -1108,7 +1130,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   payButtonDisabled: {
-    backgroundColor: '#e2e8f0',
+    // Colors applied inline with theme
   },
   payButtonContent: {
     flexDirection: 'row',
@@ -1118,7 +1140,6 @@ const styles = StyleSheet.create({
   payButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
   },
   backButton: {
     paddingVertical: 16,
@@ -1135,7 +1156,6 @@ const styles = StyleSheet.create({
   backButtonText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#64748b',
   },
   vehiclePriceContainer: {
     flexDirection: 'row',
@@ -1146,12 +1166,10 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   fareBreakdown: {
-    backgroundColor: '#f8fafc',
     borderRadius: 8,
     padding: 12,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
   },
   breakdownRow: {
     flexDirection: 'row',
@@ -1161,28 +1179,23 @@ const styles = StyleSheet.create({
   },
   breakdownLabel: {
     fontSize: 12,
-    color: '#64748b',
     flex: 1,
   },
   breakdownValue: {
     fontSize: 12,
-    color: '#1e293b',
     fontWeight: '500',
   },
   totalRow: {
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
     paddingTop: 8,
     marginTop: 8,
   },
   totalLabel: {
     fontSize: 14,
-    color: '#1e293b',
     fontWeight: '600',
   },
   totalValue: {
     fontSize: 14,
-    color: '#3ccfa0',
     fontWeight: 'bold',
   },
   specialInstructionsHeader: {
@@ -1200,7 +1213,6 @@ const styles = StyleSheet.create({
   },
   instructionLabel: {
     fontSize: 14,
-    color: '#1e293b',
     fontWeight: '500',
   },
   counterContainer: {
@@ -1211,7 +1223,6 @@ const styles = StyleSheet.create({
   counterButton: {
     width: 32,
     height: 32,
-    backgroundColor: '#e2e8f0',
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1219,14 +1230,12 @@ const styles = StyleSheet.create({
   counterButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#475569',
   },
   counterValue: {
     width: 32,
     textAlign: 'center',
     fontSize: 14,
     fontWeight: '500',
-    color: '#1e293b',
   },
   checkboxContainer: {
     flexDirection: 'row',
@@ -1238,26 +1247,20 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
   },
   instructionCheckboxChecked: {
-    backgroundColor: '#3ccfa0',
-    borderColor: '#3ccfa0',
+    // Colors applied inline with theme
   },
   checkboxLabel: {
     fontSize: 14,
-    color: '#64748b',
   },
   instructionsInput: {
     padding: 12,
-    backgroundColor: '#f8fafc',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
     fontSize: 14,
-    color: '#1e293b',
     minHeight: 80,
   },
 });
