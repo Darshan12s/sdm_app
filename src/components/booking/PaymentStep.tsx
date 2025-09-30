@@ -19,6 +19,7 @@ import { RazorpaySDKService } from '@/services/payment/razorpay-sdk';
 import { RazorpayService } from '@/services/payment/razorpay';
 import { CustomerStackParamList } from '@/types/navigation';
 import { useTheme } from '@/contexts/ThemeContext';
+import { PaymentModal } from '../PaymentModal';
 
 interface PaymentStepProps {
   bookingData: any;
@@ -45,6 +46,12 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
 
   // SDK integration state
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'failed'>('idle');
+
+  // PaymentModal state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentUrl, setPaymentUrl] = useState('');
+  const [modalOrderId, setModalOrderId] = useState('');
 
 
   // Calculate distance and duration from coordinates
@@ -69,6 +76,23 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   };
 
   const { distanceKm, durationMinutes } = calculateDistanceAndDuration();
+
+  // Helper function to safely format dates
+  const formatDate = (date: Date | string | null | undefined): string => {
+    if (!date) return 'Not scheduled';
+    try {
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+      return dateObj.toLocaleDateString('en-IN', {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch (error) {
+      console.error('Date formatting error:', error);
+      return 'Invalid date';
+    }
+  };
 
   // Create scheduled dateTime string for fare calculation
   const scheduledDateTime = bookingData.scheduledDate && bookingData.scheduledTime
@@ -253,6 +277,80 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
     }
   };
 
+  const handlePaymentModalSuccess = async (paymentId: string, orderId: string) => {
+    console.log('✅ Web payment success:', { paymentId, orderId });
+    setShowPaymentModal(false);
+    setPaymentUrl('');
+    setModalOrderId('');
+
+    // Process successful payment and navigate to ThankYou screen
+    try {
+      // Update booking status to paid
+      const { error: updateError } = await supabase
+        .from('bookings')
+        .update({
+          payment_status: paymentAmount === 'full' ? 'paid' : 'pending',
+          status: 'confirmed',
+        })
+        .eq('payment_id', paymentId);
+
+      if (updateError) {
+        console.error('❌ Booking update error:', updateError);
+      }
+
+      // Navigate to ThankYou screen
+      navigation.navigate('ThankYou', {
+        bookingData: {
+          ...bookingData,
+          paymentDetails: {
+            paymentId,
+            orderId,
+            amount: currentPaymentAmount,
+            paymentType: paymentAmount,
+            remainingAmount: remainingAmount,
+          },
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error processing payment success:', error);
+      Alert.alert('Error', 'Payment successful but there was an error processing your booking. Please contact support.');
+    }
+  };
+
+  const handlePaymentModalFailure = (error: string) => {
+    console.log('❌ Web payment failed:', error);
+    Alert.alert(
+      'Payment Failed',
+      `Payment failed: ${error}`,
+      [
+        {
+          text: 'Try Again',
+          onPress: () => {
+            // Retry with same payment URL
+            if (paymentUrl) {
+              setShowPaymentModal(true);
+            }
+          }
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => {
+            setShowPaymentModal(false);
+            setPaymentUrl('');
+            setModalOrderId('');
+          }
+        }
+      ]
+    );
+  };
+
+  const handlePaymentModalClose = () => {
+    setShowPaymentModal(false);
+    setPaymentUrl('');
+    setModalOrderId('');
+  };
+
   const handlePayment = async () => {
     if (!acceptedTerms) {
       Alert.alert('Terms Required', 'Please accept the Terms and Conditions to proceed.');
@@ -270,6 +368,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
     }
 
     setIsProcessing(true);
+    setPaymentStatus('processing');
 
     try {
       // Get current user
@@ -422,12 +521,27 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
 
         paymentResult = await RazorpayService.initiatePayment(paymentData);
         console.log('✅ Fallback payment result:', paymentResult);
+
+        // If main service also fails, try web-based payment modal
+        if (!paymentResult.success) {
+          console.log('🔄 Both SDK and main service failed, trying web payment modal...');
+
+          // Create a web payment URL for fallback
+          const webPaymentUrl = `https://checkout.razorpay.com/v1/payment?key=rzp_test_your_key_here&amount=${RazorpaySDKService.formatAmount(currentPaymentAmount)}&currency=INR&name=SDM+E-Mobility&description=${description}&order_id=${orderData.order_id}&prefill[name]=${encodeURIComponent(customerName)}&prefill[email]=${encodeURIComponent(customerEmail)}&prefill[contact]=${encodeURIComponent(customerPhone)}&theme[color]=%233ccfa0`;
+
+          setPaymentUrl(webPaymentUrl);
+          setModalOrderId(orderData.order_id);
+          setShowPaymentModal(true);
+          setIsProcessing(false);
+          return;
+        }
       }
 
       setIsProcessing(false);
 
       if (paymentResult.success) {
         console.log('✅ Payment successful:', paymentResult);
+        setPaymentStatus('success');
 
         // Update booking status
         const { error: updateError } = await supabase
@@ -459,11 +573,17 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           },
         };
 
-        // // Navigate to ThankYou screen instead of calling callback
-        // navigation.navigate('ThankYou', { bookingData: completeBookingData });
+        // Navigate to ThankYou screen (serialize Date objects)
+        const serializedBookingData = {
+          ...completeBookingData,
+          scheduledDate: completeBookingData.scheduledDate?.toISOString(),
+          returnDate: completeBookingData.returnDate?.toISOString(),
+        };
+        navigation.navigate('ThankYou', { bookingData: serializedBookingData });
 
       } else {
         console.error('❌ Payment failed:', paymentResult.error);
+        setPaymentStatus('failed');
 
         // Handle specific error types
         let errorMessage = 'Payment failed';
@@ -490,11 +610,42 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
 
 
   return (
+    <>
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.primary }]}>Secure Payment</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Complete your payment to confirm your booking</Text>
+
+        {/* Payment Status Indicator */}
+        {paymentStatus !== 'idle' && (
+          <View style={[styles.statusContainer, { backgroundColor: colors.surface }]}>
+            {paymentStatus === 'processing' && (
+              <View style={styles.statusRow}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[styles.statusText, { color: colors.textSecondary }]}>
+                  Processing payment...
+                </Text>
+              </View>
+            )}
+            {paymentStatus === 'success' && (
+              <View style={styles.statusRow}>
+                <MaterialIcons name="check-circle" size={16} color={colors.primary} />
+                <Text style={[styles.statusText, { color: colors.primary }]}>
+                  Payment successful!
+                </Text>
+              </View>
+            )}
+            {paymentStatus === 'failed' && (
+              <View style={styles.statusRow}>
+                <MaterialIcons name="error" size={16} color="#ff6b6b" />
+                <Text style={[styles.statusText, { color: "#ff6b6b" }]}>
+                  Payment failed - Please try again
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
       </View>
 
       {/* Trip Summary */}
@@ -506,8 +657,8 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
 
         <View style={styles.summaryRow}>
           <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Service Type</Text>
-          <View style={[styles.serviceBadge, { backgroundColor: colors.primaryLight }]}>
-            <Text style={[styles.serviceBadgeText, { color: colors.primary }]}>
+          <View style={[styles.serviceBadge, { backgroundColor: colors.primary }]}>
+            <Text style={[styles.serviceBadgeText, { color: colors.surface }]}>
               {bookingData.serviceType.charAt(0).toUpperCase() + bookingData.serviceType.slice(1)} {bookingData.tripType}
             </Text>
           </View>
@@ -540,12 +691,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
           </View>
           <Text style={[styles.summaryValue, { color: colors.text }]}>
             {bookingData.scheduledDate ?
-              `${bookingData.scheduledDate.toLocaleDateString('en-IN', {
-                weekday: 'short',
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-              })}, ${bookingData.scheduledTime}` :
+              `${formatDate(bookingData.scheduledDate)}, ${bookingData.scheduledTime}` :
               'Immediate pickup'}
           </Text>
         </View>
@@ -557,12 +703,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
               <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Return Time</Text>
             </View>
             <Text style={[styles.summaryValue, { color: colors.text }]}>
-              {`${bookingData.returnDate.toLocaleDateString('en-IN', {
-                weekday: 'short',
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-              })}, ${bookingData.returnTime}`}
+              {`${formatDate(bookingData.returnDate)}, ${bookingData.returnTime}`}
             </Text>
           </View>
         )}
@@ -743,7 +884,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
             style={[
               styles.paymentAmountOption,
               { borderColor: colors.border },
-              paymentAmount === 'partial' && [styles.paymentAmountOptionSelected, { borderColor: colors.primary, backgroundColor: colors.primaryLight }],
+              paymentAmount === 'partial' && [styles.paymentAmountOptionSelected, { borderColor: colors.primary, backgroundColor: colors.primary }],
             ]}
             onPress={() => setPaymentAmount('partial')}
           >
@@ -751,21 +892,30 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
               {paymentAmount === 'partial' && <View style={[styles.radioButtonInner, { backgroundColor: colors.primary }]} />}
             </View>
             <View style={styles.paymentAmountContent}>
-              <Text style={[styles.paymentAmountTitle, { color: colors.text }]}>
+              <Text style={[
+                styles.paymentAmountTitle,
+                { color: paymentAmount === 'partial' ? colors.surface : colors.text }
+              ]}>
                 Partial Payment (25%)
               </Text>
-              <Text style={[styles.paymentAmountDescription, { color: colors.textSecondary }]}>
+              <Text style={[
+                styles.paymentAmountDescription,
+                { color: paymentAmount === 'partial' ? colors.surface : colors.textSecondary }
+              ]}>
                 Pay remaining after ride
               </Text>
             </View>
-            <Text style={[styles.paymentAmountValue, { color: colors.primary }]}>₹{partialPayment}</Text>
+            <Text style={[
+              styles.paymentAmountValue,
+              { color: paymentAmount === 'partial' ? colors.surface : colors.primary }
+            ]}>₹{partialPayment}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[
               styles.paymentAmountOption,
               { borderColor: colors.border },
-              paymentAmount === 'full' && [styles.paymentAmountOptionSelected, { borderColor: colors.primary, backgroundColor: colors.primaryLight }],
+              paymentAmount === 'full' && [styles.paymentAmountOptionSelected, { borderColor: colors.primary, backgroundColor: colors.primary }],
             ]}
             onPress={() => setPaymentAmount('full')}
           >
@@ -773,14 +923,23 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
               {paymentAmount === 'full' && <View style={[styles.radioButtonInner, { backgroundColor: colors.primary }]} />}
             </View>
             <View style={styles.paymentAmountContent}>
-              <Text style={[styles.paymentAmountTitle, { color: colors.text }]}>
+              <Text style={[
+                styles.paymentAmountTitle,
+                { color: paymentAmount === 'full' ? colors.surface : colors.text }
+              ]}>
                 Full Payment
               </Text>
-              <Text style={[styles.paymentAmountDescription, { color: colors.textSecondary }]}>
+              <Text style={[
+                styles.paymentAmountDescription,
+                { color: paymentAmount === 'full' ? colors.surface : colors.textSecondary }
+              ]}>
                 Pay complete fare now
               </Text>
             </View>
-            <Text style={[styles.paymentAmountValue, { color: colors.primary }]}>₹{estimatedFare}</Text>
+            <Text style={[
+              styles.paymentAmountValue,
+              { color: paymentAmount === 'full' ? colors.surface : colors.primary }
+            ]}>₹{estimatedFare}</Text>
           </TouchableOpacity>
         </View>
 
@@ -801,25 +960,31 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
               style={[
                 styles.paymentMethodOption,
                 { backgroundColor: colors.surface, borderColor: colors.border },
-                paymentMethod === method.id && [styles.paymentMethodOptionSelected, { borderColor: colors.primary, backgroundColor: colors.primaryLight }],
+                paymentMethod === method.id && [styles.paymentMethodOptionSelected, { borderColor: colors.primary, backgroundColor: colors.primary }],
               ]}
               onPress={() => setPaymentMethod(method.id)}
             >
               <View style={[styles.radioButton, { borderColor: colors.border }]}>
                 {paymentMethod === method.id && <View style={[styles.radioButtonInner, { backgroundColor: colors.primary }]} />}
               </View>
-              <View style={[styles.paymentMethodIcon, { backgroundColor: colors.primaryLight }]}>
+              <View style={styles.paymentMethodIcon}>
                 <MaterialIcons
                   name={method.icon as any}
                   size={24}
-                  color={colors.primary}
+                  color={paymentMethod === method.id ? colors.surface : colors.text}
                 />
               </View>
               <View style={styles.paymentMethodDetails}>
-                <Text style={[styles.paymentMethodName, { color: colors.text }]}>
+                <Text style={[
+                  styles.paymentMethodName,
+                  { color: paymentMethod === method.id ? colors.surface : colors.text }
+                ]}>
                   {method.name}
                 </Text>
-                <Text style={[styles.paymentMethodDescription, { color: colors.textSecondary }]}>
+                <Text style={[
+                  styles.paymentMethodDescription,
+                  { color: paymentMethod === method.id ? colors.surface : colors.textSecondary }
+                ]}>
                   {method.description}
                 </Text>
               </View>
@@ -893,6 +1058,17 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       </TouchableOpacity>
 
     </ScrollView>
+
+    {/* Payment Modal for web-based payments */}
+    <PaymentModal
+      visible={showPaymentModal}
+      paymentUrl={paymentUrl}
+      orderId={modalOrderId}
+      onPaymentSuccess={handlePaymentModalSuccess}
+      onPaymentFailure={handlePaymentModalFailure}
+      onClose={handlePaymentModalClose}
+    />
+  </>
   );
 };
 
@@ -913,6 +1089,22 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     textAlign: 'center',
+  },
+  statusContainer: {
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   card: {
     marginHorizontal: 16,
@@ -1060,12 +1252,13 @@ const styles = StyleSheet.create({
     // Colors applied inline with theme
   },
   paymentMethodIcon: {
-    width: 40,
-    height: 40,
+    width: 48,
+    height: 48,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+    backgroundColor: 'transparent',
   },
   paymentMethodDetails: {
     flex: 1,

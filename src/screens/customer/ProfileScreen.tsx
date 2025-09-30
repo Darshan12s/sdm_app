@@ -23,6 +23,8 @@ import { supabase } from '../../services/supabase/client';
 import { uploadWithRestAPI } from '../../utils/storageTest';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system';
+// @ts-ignore - React Native doesn't have Blob by default
+declare const Blob: any;
 
 // Import theme
 import { useTheme } from '../../contexts/ThemeContext';
@@ -46,6 +48,21 @@ const PREDEFINED_TITLES = [
 ];
 
 export const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+
+// Helper function to convert blob to base64 for React Native compatibility
+const blobToBase64 = (blob: Blob): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Remove the data:image/jpeg;base64, prefix if present
+      const base64Data = result.split(',')[1] || result;
+      resolve(base64Data);
+    };
+    reader.onerror = () => reject(new Error('Failed to convert blob to base64'));
+    reader.readAsDataURL(blob);
+  });
+};
 
 // Karnataka bounding box coordinates
 const KARNATAKA_BOUNDS = {
@@ -105,6 +122,9 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
   const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
   const [isAddressSearching, setIsAddressSearching] = useState(false);
   const searchTimer = useRef<NodeJS.Timeout | null>(null);
+  // Upload states
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadAttempts, setUploadAttempts] = useState(0);
 
   useEffect(() => {
     loadProfileData();
@@ -307,9 +327,16 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
     }
   };
 
-  const uploadProfileImage = async (uri: string) => {
+  const uploadProfileImage = async (uri: string, retryCount = 0) => {
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 1000; // 1 second
+
     try {
-      console.log('🚀 Starting profile image upload...');
+      setIsUploading(true);
+      setUploadAttempts(retryCount + 1);
+
+      console.log(`🚀 Starting profile image upload (attempt ${retryCount + 1})...`);
+
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) {
         console.error('❌ Session error:', sessionError);
@@ -318,124 +345,192 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
       if (!session?.user) {
         throw new Error('No user session found');
       }
+
       console.log('✅ User session found:', session.user.id);
-      // Convert image to blob
-      console.log('📸 Fetching image from URI:', uri);
-      const response = await fetch(uri);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+
+      // Convert image to base64 for React Native compatibility
+      console.log('📸 Converting image to base64:', uri);
+      let base64Data: string;
+
+      try {
+        // Use FileSystem for React Native compatibility
+        if (Platform.OS === 'web') {
+          // Web: use blob approach
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+          const response = await fetch(uri, { signal: controller.signal });
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+          }
+          const blob = await response.blob();
+          console.log('📦 Image blob size:', blob.size);
+
+          if (blob.size === 0) throw new Error('Image file is empty');
+
+          // Convert blob to base64 for upload
+          base64Data = await blobToBase64(blob);
+        } else {
+          // React Native: use FileSystem
+          const fileInfo = await FileSystem.getInfoAsync(uri);
+          if (!fileInfo.exists) {
+            throw new Error('Image file does not exist');
+          }
+
+          console.log('📦 Image file size:', fileInfo.size);
+          if (fileInfo.size === 0) {
+            throw new Error('Image file is empty');
+          }
+
+          // Read file as base64
+          base64Data = await FileSystem.readAsStringAsync(uri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+        }
+      } catch (conversionError: any) {
+        console.error('❌ Image conversion error:', conversionError);
+        if (conversionError.message?.includes('timed out') || conversionError.name === 'AbortError') {
+          throw new Error('Image processing timed out. Please try again.');
+        }
+        throw conversionError;
       }
-      const blob = await response.blob();
-      console.log('📦 Image blob size:', blob.size);
-      if (blob.size === 0) throw new Error('Image file is empty');
+
       // Generate a unique filename
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
       const filePath = `${session.user.id}/${fileName}`;
+
       console.log('📁 Uploading to path:', filePath);
-      // Skip bucket validation since user confirmed bucket exists
-      console.log('🔍 Skipping bucket validation (user confirmed bucket exists)');
-      console.log('📤 Proceeding with direct upload to drivers_profile_pictures...');
-      // Try multiple upload methods
-      console.log('📤 Starting upload to Supabase storage...');
+      console.log('📤 Proceeding with upload to drivers_profile_pictures...');
+
       let uploadData, uploadError;
-      // Method 1: Standard Supabase upload
-      try {
-        console.log('🔄 Trying standard upload method...');
-        const result = await supabase.storage
-          .from('drivers_profile_pictures')
-          .upload(filePath, blob, {
-            contentType: 'image/jpeg',
-            upsert: true,
-            cacheControl: '3600'
-          });
-        uploadData = result.data;
-        uploadError = result.error;
-      } catch (method1Error: any) {
-        console.error('❌ Standard upload failed:', method1Error);
-        // Method 2: Try with different options
+
+      // Try multiple upload methods with retry logic
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        if (attempt > 0) {
+          console.log(`🔄 Retry attempt ${attempt}/${MAX_RETRIES}...`);
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * attempt));
+        }
+
         try {
-          console.log('🔄 Trying alternative upload method...');
-          const result = await supabase.storage
-            .from('drivers_profile_pictures')
-            .upload(filePath, blob, {
-              contentType: 'image/jpeg',
-              upsert: true,
-              duplex: 'half'
-            });
-          uploadData = result.data;
-          uploadError = result.error;
-        } catch (method2Error: any) {
-          console.error('❌ Alternative upload also failed:', method2Error);
-          uploadError = method2Error;
+          console.log(`📤 Upload attempt ${attempt + 1}...`);
+
+          if (Platform.OS === 'web') {
+            // Web: use blob upload
+            const result = await supabase.storage
+              .from('drivers_profile_pictures')
+              .upload(filePath, base64Data, {
+                contentType: 'image/jpeg',
+                upsert: true,
+                cacheControl: '3600'
+              });
+            uploadData = result.data;
+            uploadError = result.error;
+          } else {
+            // React Native: use base64 upload
+            const result = await supabase.storage
+              .from('drivers_profile_pictures')
+              .upload(filePath, base64Data, {
+                contentType: 'image/jpeg',
+                upsert: true,
+                cacheControl: '3600'
+              });
+            uploadData = result.data;
+            uploadError = result.error;
+          }
+
+          break; // Success, exit retry loop
+        } catch (methodError: any) {
+          console.error(`❌ Upload attempt ${attempt + 1} failed:`, methodError);
+          uploadError = methodError;
+
+          // If it's the last attempt, try REST API fallback
+          if (attempt === MAX_RETRIES) {
+            try {
+              console.log('🔄 Primary upload failed, trying REST API fallback...');
+              const restResult = await uploadWithRestAPI(filePath, base64Data, 'image/jpeg');
+              if (restResult.success) {
+                uploadData = restResult.data;
+                uploadError = null;
+                break;
+              } else {
+                uploadError = new Error(restResult.error);
+              }
+            } catch (restError: any) {
+              console.error('❌ REST API fallback also failed:', restError);
+              uploadError = restError;
+            }
+          }
         }
       }
+
       if (uploadError) {
         console.error('❌ Upload error details:', uploadError);
         console.error('❌ Upload error message:', uploadError.message);
-        // Try REST API fallback for network issues
+
+        // Handle network-related errors with retry
         if (uploadError.message?.includes('Network request failed') ||
             uploadError.message?.includes('Failed to fetch') ||
             uploadError.message?.includes('NetworkError') ||
-            uploadError.message?.includes('StorageUnknownError')) {
-          console.log('🔄 Primary upload failed, trying REST API fallback...');
-          try {
-            const restResult = await uploadWithRestAPI(filePath, blob, 'image/jpeg');
-            if (restResult.success) {
-              console.log('✅ REST API upload successful!');
-              uploadData = restResult.data;
-              uploadError = null;
-            } else {
-              console.error('❌ REST API fallback also failed:', restResult.error);
-              throw new Error('Network connection issue. Both upload methods failed. Please check your internet connection and try again.');
-            }
-          } catch (restError: any) {
-            console.error('❌ REST API fallback error:', restError);
-            throw new Error('Network connection issue. Please check your internet connection and try again. If the problem persists, contact support.');
-          }
-        } else {
-          // Handle other types of errors
-          if (uploadError.message?.includes('Bucket not found')) {
-            throw new Error('Storage bucket not configured. Please contact support.');
-          } else if (uploadError.message?.includes('row-level security') ||
-                     uploadError.message?.includes('RLS') ||
-                     uploadError.message?.includes('violates row-level security policy')) {
-            console.log('🔒 ROOT CAUSE FOUND: RLS Policy Issue');
-            console.log('🔧 SOLUTION: Go to Supabase Dashboard > Storage > drivers_profile_pictures > Policies');
-            console.log('🔧 1. Check if RLS is enabled');
-            console.log('🔧 2. Create or update policies to allow uploads');
-            console.log('🔧 3. Or disable RLS for this bucket');
-            throw new Error('Upload blocked by security policy. Please check Supabase Storage policies for drivers_profile_pictures bucket.');
-          } else if (uploadError.message?.includes('Unauthorized') ||
-                     uploadError.message?.includes('403')) {
-            throw new Error('Upload permission denied. Please try logging out and back in.');
-          } else if (uploadError.message?.includes('Duplicate')) {
-            throw new Error('File already exists. Please try again.');
-          } else if (uploadError.message?.includes('Payload too large') ||
-                     uploadError.message?.includes('413')) {
-            throw new Error('Image file is too large. Please choose a smaller image.');
-          } else if (uploadError.message?.includes('404')) {
-            throw new Error('Storage bucket not found. Please contact support.');
-          } else if (uploadError.message?.includes('CORS')) {
-            throw new Error('CORS policy blocking upload. Please contact support.');
-          } else if (uploadError.message?.includes('timeout')) {
-            throw new Error('Upload timed out. Please check your connection and try again.');
+            uploadError.message?.includes('StorageUnknownError') ||
+            uploadError.message?.includes('timeout') ||
+            uploadError.message?.includes('network')) {
+
+          if (retryCount < MAX_RETRIES) {
+            console.log(`🔄 Network error detected, retrying... (${retryCount + 1}/${MAX_RETRIES})`);
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+            return uploadProfileImage(uri, retryCount + 1);
           } else {
-            throw new Error(`Upload failed: ${uploadError.message || 'Unknown error'}`);
+            console.log('❌ Max retries reached for network error');
+            throw new Error('Network connection issue. Please check your internet connection and try again.');
           }
         }
+
+        // Handle authentication errors
+        if (uploadError.message?.includes('Invalid Compact JWS') ||
+            uploadError.message?.includes('invalid_jwt') ||
+            uploadError.message?.includes('Unauthorized') ||
+            uploadError.message?.includes('403')) {
+          throw new Error('Authentication failed. Please log out and log back in.');
+        }
+
+        // Handle other critical errors that should be shown to user
+        if (uploadError.message?.includes('Bucket not found') ||
+            uploadError.message?.includes('404')) {
+          throw new Error('Storage service unavailable. Please contact support.');
+        } else if (uploadError.message?.includes('row-level security') ||
+                   uploadError.message?.includes('RLS') ||
+                   uploadError.message?.includes('violates row-level security policy')) {
+          throw new Error('Upload permission denied. Please check your account permissions.');
+        } else if (uploadError.message?.includes('Payload too large') ||
+                   uploadError.message?.includes('413')) {
+          throw new Error('Image file is too large. Please choose a smaller image (under 5MB).');
+        } else if (uploadError.message?.includes('CORS')) {
+          throw new Error('Upload blocked by security policy. Please contact support.');
+        } else {
+          // For other errors, throw a generic error
+          throw new Error(`Upload failed: ${uploadError.message || 'Unknown error'}`);
+        }
       }
+
       console.log('✅ Upload successful:', uploadData);
+
       // Get the public URL
       const { data: { publicUrl } } = supabase.storage
         .from('drivers_profile_pictures')
         .getPublicUrl(filePath);
+
       if (!publicUrl) {
-        throw new Error('Failed to get public URL');
+        throw new Error('Failed to generate image URL');
       }
+
       console.log('🔗 Public URL generated:', publicUrl);
+
       // Update the profile image with cache busting
       const imageUrl = `${publicUrl}?t=${Date.now()}`;
       setProfileImage(imageUrl);
+
       // Update user profile with image URL
       const { error: updateError } = await supabase
         .from('users')
@@ -444,18 +539,49 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
           updated_at: new Date().toISOString()
         })
         .eq('id', session.user.id);
+
       if (updateError) {
         console.error('⚠️ Profile update error:', updateError);
-        // Don't throw here as the image was uploaded successfully
+        // Show warning but don't fail the upload
         Alert.alert('Warning', 'Image uploaded but profile update failed. Please refresh the page.');
       }
+
       console.log('🎉 Profile image upload completed successfully');
-      Alert.alert('Success', 'Profile image uploaded successfully!');
+
+      // Only show success message if it was a retry or took multiple attempts
+      if (retryCount > 0) {
+        Alert.alert('Success', 'Profile image uploaded successfully!');
+      }
+
     } catch (error: any) {
       console.error('💥 Upload image error:', error);
       console.error('💥 Error stack:', error.stack);
+
       const errorMessage = error.message || 'Failed to upload image';
-      Alert.alert('Upload Error', errorMessage);
+
+      // Show appropriate error messages to user based on error type
+      if (errorMessage.includes('Authentication failed') ||
+          errorMessage.includes('permission denied') ||
+          errorMessage.includes('log out and log back in')) {
+        Alert.alert('Authentication Error', errorMessage);
+      } else if (errorMessage.includes('Network connection issue') ||
+                 errorMessage.includes('check your internet connection')) {
+        Alert.alert('Network Error', errorMessage);
+      } else if (errorMessage.includes('too large') ||
+                 errorMessage.includes('under 5MB')) {
+        Alert.alert('File Size Error', errorMessage);
+      } else if (errorMessage.includes('contact support') ||
+                 errorMessage.includes('security policy') ||
+                 errorMessage.includes('service unavailable')) {
+        Alert.alert('Service Error', errorMessage);
+      } else {
+        // For other errors, show a generic message
+        Alert.alert('Upload Failed', 'Failed to upload image. Please try again.');
+        console.error('Upload failed (other error):', errorMessage);
+      }
+    } finally {
+      setIsUploading(false);
+      setUploadAttempts(0);
     }
   };
 
@@ -1099,8 +1225,12 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
                 <Ionicons name="person" size={40} color={colors.textSecondary} />
               </View>
             )}
-            <View style={[styles.cameraButton, { backgroundColor: colors.text }]}>
-              <Ionicons name="camera" size={20} color={colors.surface} />
+            <View style={[styles.cameraButton, { backgroundColor: isUploading ? colors.textSecondary : colors.text }]}>
+              {isUploading ? (
+                <ActivityIndicator size="small" color={colors.surface} />
+              ) : (
+                <Ionicons name="camera" size={20} color={colors.surface} />
+              )}
             </View>
           </TouchableOpacity>
           <Text style={[styles.userName, { color: colors.text }]}>{userName || 'Your Name'}</Text>

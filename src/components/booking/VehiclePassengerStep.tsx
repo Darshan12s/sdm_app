@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, ActivityIndicator } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, ActivityIndicator, Image } from 'react-native';
 import { VehicleType, ServiceType } from '@/types';
 import { useFareCalculation } from '@/hooks/useFareCalculation';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -40,7 +39,6 @@ export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
 }) => {
   const { colors } = useTheme();
   const [showPassengerModal, setShowPassengerModal] = useState(false);
-  const [showFareBreakdown, setShowFareBreakdown] = useState<string | null>(null);
 
   // Calculate distance and duration from coordinates
   const calculateDistanceAndDuration = () => {
@@ -122,38 +120,35 @@ export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
       type: 'sedan' as VehicleType,
       label: 'Sedan',
       capacity: '4 passengers',
-      icon: 'directions-car',
-      iconType: 'MaterialIcons',
       description: 'Comfortable and economical',
       fareData: adjustedSedanFare,
       distance: distanceKm > 0 ? `${distanceKm.toFixed(1)} km` : 'Calculating...',
       duration: durationMinutes > 0 ? `${Math.round(durationMinutes)} min` : 'Calculating...',
       features: ['AC', 'Music System', 'GPS'],
+      imageSource: require('../../../assets/sedan.png'),
     },
     {
       type: 'suv' as VehicleType,
       label: 'SUV',
       capacity: '6 passengers',
-      icon: 'airport-shuttle',
-      iconType: 'MaterialIcons',
       description: 'Spacious for groups',
       fareData: adjustedSuvFare,
       distance: distanceKm > 0 ? `${distanceKm.toFixed(1)} km` : 'Calculating...',
       duration: durationMinutes > 0 ? `${Math.round(durationMinutes)} min` : 'Calculating...',
       features: ['AC', 'Extra Space', 'GPS'],
+      imageSource: require('../../../assets/suv.png'),
     },
     {
       type: 'premium' as VehicleType,
       label: 'Premium',
       capacity: '4 passengers',
-      icon: 'local-taxi',
-      iconType: 'MaterialIcons',
       description: 'Luxury experience',
       fareData: adjustedPremiumFare,
       distance: distanceKm > 0 ? `${distanceKm.toFixed(1)} km` : 'Calculating...',
       duration: durationMinutes > 0 ? `${Math.round(durationMinutes)} min` : 'Calculating...',
       comingSoon: true,
       features: ['AC', 'Leather Seats', 'Music System', 'GPS'],
+      imageSource: require('../../../assets/premium.png'),
     },
   ];
 
@@ -180,12 +175,12 @@ export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
           onPress={() => setShowPassengerModal(true)}
         >
           <View style={styles.passengerContent}>
-            <MaterialIcons name="people" size={20} color={colors.primary} />
+            <Text style={[styles.passengerIcon, { color: colors.primary }]}>👥</Text>
             <Text style={[styles.passengerText, { color: colors.text }]}>
               {passengers} Guests
             </Text>
           </View>
-          <MaterialIcons name="chevron-right" size={20} color={colors.textSecondary} />
+          <Text style={[styles.chevronIcon, { color: colors.textSecondary }]}>›</Text>
         </TouchableOpacity>
 
         {/* Vehicle Type Selection */}
@@ -200,17 +195,17 @@ export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
                 style={[
                   styles.vehicleCard,
                   { backgroundColor: colors.surface, borderColor: colors.border },
-                  vehicleType === vehicle.type && [styles.vehicleCardActive, { borderColor: colors.primary, backgroundColor: colors.primaryLight }],
+                  vehicleType === vehicle.type && [styles.vehicleCardActive, { borderColor: colors.primary, backgroundColor: colors.primary }],
                 ]}
                 onPress={() => onVehicleTypeChange(vehicle.type)}
                 disabled={vehicle.comingSoon}
               >
                 <View style={styles.vehicleCardContent}>
-                  <View style={[styles.vehicleIconContainer, { backgroundColor: colors.primaryLight }]}>
-                    <MaterialIcons
-                      name={vehicle.icon as any}
-                      size={24}
-                      color={colors.primary}
+                  <View style={styles.vehicleIconContainer}>
+                    <Image
+                      source={vehicle.imageSource}
+                      style={styles.vehicleImage}
+                      resizeMode="contain"
                     />
                   </View>
                   
@@ -230,24 +225,21 @@ export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
                     </Text>
                     <View style={styles.vehicleMetaRow}>
                       <View style={styles.vehicleMeta}>
-                        <MaterialIcons name="person" size={14} color={colors.textSecondary} />
+                        <Text style={[styles.metaIcon, { color: colors.textSecondary }]}>👤</Text>
                         <Text style={[styles.vehicleMetaText, { color: colors.textSecondary }]}>{vehicle.capacity.split(' ')[0]}</Text>
                       </View>
                       <View style={styles.vehicleMeta}>
-                        <MaterialIcons name="map" size={14} color={colors.textSecondary} />
+                        <Text style={[styles.metaIcon, { color: colors.textSecondary }]}>📍</Text>
                         <Text style={[styles.vehicleMetaText, { color: colors.textSecondary }]}>{vehicle.distance}</Text>
                       </View>
                       <View style={styles.vehicleMeta}>
-                        <MaterialIcons name="schedule" size={14} color={colors.textSecondary} />
+                        <Text style={[styles.metaIcon, { color: colors.textSecondary }]}>⏱️</Text>
                         <Text style={[styles.vehicleMetaText, { color: colors.textSecondary }]}>{vehicle.duration}</Text>
                       </View>
                     </View>
                   </View>
                   
-                  <TouchableOpacity
-                    style={styles.vehiclePriceContainer}
-                    onPress={() => setShowFareBreakdown(showFareBreakdown === vehicle.type ? null : vehicle.type)}
-                  >
+                  <View style={styles.vehiclePriceContainer}>
                     {vehicle.fareData ? (
                       <>
                         <Text style={styles.vehiclePrice}>₹{vehicle.fareData.totalFare}</Text>
@@ -256,55 +248,14 @@ export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
                             {vehicle.fareData.surgeReason}
                           </Text>
                         )}
-                        <MaterialIcons
-                          name={showFareBreakdown === vehicle.type ? "expand-less" : "expand-more"}
-                          size={16}
-                          color={colors.textSecondary}
-                          style={styles.expandIcon}
-                        />
                       </>
                     ) : distanceKm > 0 ? (
                       <Text style={styles.errorText}>Price unavailable</Text>
                     ) : (
                       <ActivityIndicator size="small" color="#3ccfa0" />
                     )}
-                  </TouchableOpacity>
+                  </View>
 
-                  {/* Fare Breakdown */}
-                  {showFareBreakdown === vehicle.type && vehicle.fareData && (
-                    <View style={[styles.fareBreakdown, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                      <View style={styles.breakdownRow}>
-                        <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Base Fare</Text>
-                        <Text style={[styles.breakdownValue, { color: colors.text }]}>₹{vehicle.fareData.baseFare}</Text>
-                      </View>
-                      <View style={styles.breakdownRow}>
-                        <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Distance ({vehicle.distance})</Text>
-                        <Text style={[styles.breakdownValue, { color: colors.text }]}>₹{vehicle.fareData.distanceFare}</Text>
-                      </View>
-                      <View style={styles.breakdownRow}>
-                        <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Time ({vehicle.duration})</Text>
-                        <Text style={[styles.breakdownValue, { color: colors.text }]}>₹{vehicle.fareData.timeFare}</Text>
-                      </View>
-                      {vehicle.fareData.surgeMultiplier > 1 && (
-                        <View style={styles.breakdownRow}>
-                          <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Surge ({vehicle.fareData.surgeMultiplier}x)</Text>
-                          <Text style={[styles.breakdownValue, { color: colors.text }]}>
-                            ₹{Math.round((vehicle.fareData.baseFare + vehicle.fareData.distanceFare + vehicle.fareData.timeFare) * (vehicle.fareData.surgeMultiplier - 1))}
-                          </Text>
-                        </View>
-                      )}
-                      {vehicle.fareData.passengerSurcharge > 0 && (
-                        <View style={styles.breakdownRow}>
-                          <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>Passenger surcharge ({passengers} guests)</Text>
-                          <Text style={[styles.breakdownValue, { color: colors.text }]}>₹{vehicle.fareData.passengerSurcharge}</Text>
-                        </View>
-                      )}
-                      <View style={[styles.breakdownRow, styles.totalRow, { borderTopColor: colors.border }]}>
-                        <Text style={[styles.totalLabel, { color: colors.text }]}>Total</Text>
-                        <Text style={[styles.totalValue, { color: colors.primary }]}>₹{vehicle.fareData.totalFare}</Text>
-                      </View>
-                    </View>
-                  )}
                 </View>
               </TouchableOpacity>
             ))}
@@ -429,14 +380,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  passengerIcon: {
+    fontSize: 18,
+  },
   passengerText: {
     fontSize: 14,
     fontWeight: '500',
   },
+  chevronIcon: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   vehicleContainer: {
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 20,
+    padding: 20,
     margin: 16,
+    marginTop: 8,
+    marginBottom: 8,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -457,12 +417,14 @@ const styles = StyleSheet.create({
   },
   vehicleGrid: {
     gap: 16,
+    paddingHorizontal: 2,
   },
   vehicleCard: {
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
-    marginBottom: 8,
+    marginBottom: 12,
+    minHeight: 120,
   },
   vehicleCardActive: {
     // Colors applied inline with theme
@@ -471,17 +433,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 16,
     alignItems: 'center',
+    minHeight: 100,
   },
   vehicleIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 56,
+    height: 56,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 16,
+    backgroundColor: 'transparent',
+  },
+  vehicleImage: {
+    width: 68,
+    height: 78,
+    borderRadius: 10,
   },
   vehicleDetails: {
     flex: 1,
+    justifyContent: 'space-between',
+    paddingRight: 12,
   },
   vehicleNameRow: {
     flexDirection: 'row',
@@ -515,6 +486,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
+  metaIcon: {
+    fontSize: 12,
+  },
   vehicleMetaText: {
     fontSize: 12,
   },
@@ -522,6 +496,8 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
     alignItems: 'flex-end',
     justifyContent: 'center',
+    minWidth: 80,
+    paddingLeft: 8,
   },
   vehiclePrice: {
     fontSize: 18,
@@ -532,42 +508,6 @@ const styles = StyleSheet.create({
     color: '#f59e0b',
     marginTop: 2,
     textAlign: 'center',
-  },
-  expandIcon: {
-    marginTop: 2,
-  },
-  fareBreakdown: {
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 8,
-    borderWidth: 1,
-  },
-  breakdownRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  breakdownLabel: {
-    fontSize: 12,
-    flex: 1,
-  },
-  breakdownValue: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  totalRow: {
-    borderTopWidth: 1,
-    paddingTop: 8,
-    marginTop: 8,
-  },
-  totalLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  totalValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
   },
   errorText: {
     fontSize: 12,

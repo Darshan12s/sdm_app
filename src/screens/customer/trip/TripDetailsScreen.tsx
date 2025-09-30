@@ -150,7 +150,7 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ route, navigation
   };
 
   const capitalizeText = (text: string): string => {
-    if (!text) return '';
+    if (!text) return 'N/A';
     return text
       .split('_')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
@@ -205,27 +205,36 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ route, navigation
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.detailsHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      {/* <View style={[styles.detailsHeader, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={[styles.statusBadge, getStatusColor(booking.status)]}>
           <Text style={[styles.statusText, { color: getStatusColor(booking.status).color }]}>
             {capitalizeText(booking.status)}
           </Text>
         </View>
-      </View>
+      </View> */}
 
       <View style={styles.detailsContent}>
         {/* Trip Information */}
         <View style={[styles.section, { backgroundColor: colors.card }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Trip Information</Text>
           <View style={styles.sectionContent}>
+             <Text style={[styles.statusText, { color: getStatusColor(booking.status).color }]}>
+            {capitalizeText(booking.status)}
+          </Text>
             <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Service Type</Text>
-              <Text style={[styles.infoValue, { color: colors.text }]}>{capitalizeText(booking.service_type) || 'Standard'}</Text>
+              <MaterialIcons name="local-taxi" size={16} color={colors.primary} />
+              <View style={styles.infoTextContainer}>
+                <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Service Type</Text>
+                <Text style={[styles.infoValue, { color: colors.text }]}>{capitalizeText(booking.service_type) || 'Standard'}</Text>
+              </View>
             </View>
 
             <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Trip Type</Text>
-              <Text style={[styles.infoValue, { color: colors.text }]}>{(booking.trip_type) || 'One Way'}</Text>
+              <MaterialIcons name="sync-alt" size={16} color={colors.info} />
+              <View style={styles.infoTextContainer}>
+                <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Trip Type</Text>
+                <Text style={[styles.infoValue, { color: colors.text }]}>{(booking.trip_type) || 'One Way'}</Text>
+              </View>
             </View>
 
             <View style={styles.infoRow}>
@@ -335,13 +344,19 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ route, navigation
               </View>
 
               <View style={styles.infoRow}>
-                <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Vehicle Model</Text>
-                <Text style={[styles.infoValue, { color: colors.text }]}>{booking.vehicle?.model}</Text>
+                <MaterialIcons name="directions-car" size={16} color={colors.primary} />
+                <View style={styles.infoTextContainer}>
+                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Vehicle Model</Text>
+                  <Text style={[styles.infoValue, { color: colors.text }]}>{booking.vehicle?.model}</Text>
+                </View>
               </View>
 
               <View style={styles.infoRow}>
-                <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>License Plate</Text>
-                <Text style={[styles.infoValue, { color: colors.text }]}>{booking.vehicle?.license_plate}</Text>
+                <MaterialIcons name="confirmation-number" size={16} color={colors.primary} />
+                <View style={styles.infoTextContainer}>
+                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>License Plate</Text>
+                  <Text style={[styles.infoValue, { color: colors.text }]}>{booking.vehicle?.license_plate}</Text>
+                </View>
               </View>
             </View>
           </View>
@@ -398,25 +413,31 @@ const TripDetailsScreen: React.FC<TripDetailsScreenProps> = ({ route, navigation
             </View>
 
             <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Payment Status</Text>
-              <View style={[
-                styles.paymentStatusBadge,
-                booking.payment_status === 'paid' ? { backgroundColor: colors.success + '20', borderColor: colors.success + '50' } :
-                booking.payment_status === 'pending' ? { backgroundColor: colors.warning + '20', borderColor: colors.warning + '50' } :
-                { backgroundColor: colors.error + '20', borderColor: colors.error + '50' }
-              ]}>
-                <Text style={[styles.paymentStatusText, {
-                  color: booking.payment_status === 'paid' ? colors.success :
-                         booking.payment_status === 'pending' ? colors.warning :
-                         colors.error
-                }]}>{(booking.payment_status)}</Text>
+              <MaterialIcons name="info" size={16} color={colors.primary} />
+              <View style={styles.infoTextContainer}>
+                <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Payment Status</Text>
+                <View style={[
+                  styles.paymentStatusBadge,
+                  booking.payment_status === 'paid' ? { backgroundColor: colors.success + '20', borderColor: colors.success + '50' } :
+                  booking.payment_status === 'pending' ? { backgroundColor: colors.warning + '20', borderColor: colors.warning + '50' } :
+                  { backgroundColor: colors.error + '20', borderColor: colors.error + '50' }
+                ]}>
+                  <Text style={[styles.paymentStatusText, {
+                    color: booking.payment_status === 'paid' ? colors.success :
+                           booking.payment_status === 'pending' ? colors.warning :
+                           colors.error
+                  }]}>{(booking.payment_status)}</Text>
+                </View>
               </View>
             </View>
 
             {booking.payment?.transaction_id && (
               <View style={styles.infoRow}>
-                <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Transaction ID</Text>
-                <Text style={[styles.transactionId, { color: colors.textMuted }]}>{booking.payment.transaction_id}</Text>
+                <MaterialIcons name="receipt" size={16} color={colors.primary} />
+                <View style={styles.infoTextContainer}>
+                  <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Transaction ID</Text>
+                  <Text style={[styles.transactionId, { color: colors.textMuted }]}>{booking.payment.transaction_id}</Text>
+                </View>
               </View>
             )}
           </View>

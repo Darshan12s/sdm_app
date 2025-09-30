@@ -309,7 +309,7 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
                     styles.quickDateButton,
                     { backgroundColor: colors.surface, borderColor: colors.border },
                     isDisabled && [styles.quickDateButtonDisabled, { backgroundColor: colors.border, borderColor: colors.borderLight, opacity: 0.6 }],
-                    (activePicker === 'scheduled' && scheduledDate?.toDateString() === new Date(Date.now() + option.value * 24 * 60 * 60 * 1000).toDateString()) && [styles.quickDateButtonActive, { borderColor: colors.primary, backgroundColor: colors.primaryLight }]
+                    (activePicker === 'scheduled' && scheduledDate?.toDateString() === new Date(Date.now() + option.value * 24 * 60 * 60 * 1000).toDateString()) && [styles.quickDateButtonActive, { borderColor: colors.primary, backgroundColor: colors.primary }]
                   ]}
                   onPress={() => {
                     if (isDisabled) {
@@ -325,7 +325,7 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
                     styles.quickDateText,
                     { color: colors.textSecondary },
                     isDisabled && [styles.quickDateTextDisabled, { color: colors.textMuted }],
-                    (activePicker === 'scheduled' && scheduledDate?.toDateString() === new Date(Date.now() + option.value * 24 * 60 * 60 * 1000).toDateString()) && [styles.quickDateTextActive, { color: colors.primary }]
+                    (activePicker === 'scheduled' && scheduledDate?.toDateString() === new Date(Date.now() + option.value * 24 * 60 * 60 * 1000).toDateString()) && [styles.quickDateTextActive, { color: colors.surface }]
                   ]}>
                     {option.label}
                   </Text>
@@ -346,7 +346,7 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
               onPress={() => openDatePicker('scheduled')}
             >
               <View style={styles.dateTimeContent}>
-                <MaterialIcons name="event" size={20} color={colors.primary} />
+                <MaterialIcons name="event" size={20} color={colors.text} />
                 <View style={styles.dateTimeTextContainer}>
                   <Text style={[styles.dateTimeLabel, { color: colors.textSecondary }]}>Date</Text>
                   <Text style={[styles.dateTimeValue, { color: colors.text }]}>
@@ -361,7 +361,7 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
               onPress={() => openTimePicker('scheduled')}
             >
               <View style={styles.dateTimeContent}>
-                <MaterialIcons name="schedule" size={20} color={colors.primary} />
+                <MaterialIcons name="schedule" size={20} color={colors.text} />
                 <View style={styles.dateTimeTextContainer}>
                   <Text style={[styles.dateTimeLabel, { color: colors.textSecondary }]}>Time</Text>
                   <Text style={[styles.dateTimeValue, { color: colors.text }]}>
@@ -390,7 +390,7 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
                       styles.quickDateButton,
                       { backgroundColor: colors.surface, borderColor: colors.border },
                       isDisabled && [styles.quickDateButtonDisabled, { backgroundColor: colors.border, borderColor: colors.borderLight, opacity: 0.6 }],
-                      (activePicker === 'return' && returnDate?.toDateString() === returnDateOption.toDateString()) && [styles.quickDateButtonActive, { borderColor: colors.primary, backgroundColor: colors.primaryLight }]
+                      (activePicker === 'return' && returnDate?.toDateString() === returnDateOption.toDateString()) && [styles.quickDateButtonActive, { borderColor: colors.primary, backgroundColor: colors.primary }]
                     ]}
                     onPress={() => {
                       if (isDisabled) {
@@ -406,7 +406,7 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
                       styles.quickDateText,
                       { color: colors.textSecondary },
                       isDisabled && [styles.quickDateTextDisabled, { color: colors.textMuted }],
-                      (activePicker === 'return' && returnDate?.toDateString() === returnDateOption.toDateString()) && [styles.quickDateTextActive, { color: colors.primary }]
+                      (activePicker === 'return' && returnDate?.toDateString() === returnDateOption.toDateString()) && [styles.quickDateTextActive, { color: colors.surface }]
                     ]}>
                       {option.label}
                     </Text>
@@ -422,7 +422,7 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
                 onPress={() => openDatePicker('return')}
               >
                 <View style={styles.dateTimeContent}>
-                  <MaterialIcons name="event" size={20} color={colors.primary} />
+                  <MaterialIcons name="event" size={20} color={colors.text} />
                   <View style={styles.dateTimeTextContainer}>
                     <Text style={[styles.dateTimeLabel, { color: colors.textSecondary }]}>Return Date</Text>
                     <Text style={[styles.dateTimeValue, { color: colors.text }]}>
@@ -437,7 +437,7 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
                 onPress={() => openTimePicker('return')}
               >
                 <View style={styles.dateTimeContent}>
-                  <MaterialIcons name="schedule" size={20} color={colors.primary} />
+                  <MaterialIcons name="schedule" size={20} color={colors.text} />
                   <View style={styles.dateTimeTextContainer}>
                     <Text style={[styles.dateTimeLabel, { color: colors.textSecondary }]}>Return Time</Text>
                     <Text style={[styles.dateTimeValue, { color: colors.text }]}>

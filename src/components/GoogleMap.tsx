@@ -458,8 +458,13 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
             }}
             title="Pickup Location"
             description={pickupLocation.address || 'Pickup Location'}
-            pinColor="green"
-          />
+          >
+            <Image
+              source={require('../../assets/pinpickup.png')}
+              style={{ width: 40, height: 40 }}
+              resizeMode="contain"
+            />
+          </Marker>
         )}
 
         {/* Dropoff Marker */}
@@ -472,8 +477,13 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
             }}
             title="Drop-off Location"
             description={dropoffLocation.address || 'Drop-off Location'}
-            pinColor="red"
-          />
+          >
+            <Image
+              source={require('../../assets/pindropup.png')}
+              style={{ width: 40, height: 40 }}
+              resizeMode="contain"
+            />
+          </Marker>
         )}
 
         {/* Current Location Marker */}
@@ -553,7 +563,7 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
               styles.locationButtonText,
               mapActiveMarker === 'dropoff' && styles.locationButtonTextActive,
             ]}>
-              Set Drop-off Location
+              Set Drop-off Location📍
             </Text>
           </TouchableOpacity>
         </View>
@@ -712,14 +722,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pickupMarker: {
-    top: '40%',
-    left: '45%',
-  },
-  dropoffMarker: {
-    top: '50%',
-    right: '45%',
-  },
   markerText: {
     fontSize: 24,
   },
@@ -735,6 +737,67 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  markerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  markerPin: {
+    width: 60,
+    height: 60,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  markerIcon: {
+    fontSize: 16,
+  },
+  markerLabel: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 2,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.22,
+    shadowRadius: 2.22,
+    elevation: 3,
+  },
+  markerLabelText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  pickupMarker: {
+    backgroundColor: '#000000', // Black
+  },
+  pickupLabel: {
+    borderColor: '#000000',
+  },
+  dropoffMarker: {
+    backgroundColor: '#ef4444', // Red
+  },
+  dropoffLabel: {
+    borderColor: '#ef4444',
+  },
+  Image:{
+    width: 150,
+    height: 100,
+  }
 });
 
 export const GoogleMap = GoogleMapComponent;

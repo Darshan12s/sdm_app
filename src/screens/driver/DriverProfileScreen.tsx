@@ -57,6 +57,10 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
   // Date picker state
   const [showDatePicker, setShowDatePicker] = useState(false);
 
+  // Upload states
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadAttempts, setUploadAttempts] = useState(0);
+
   // Menu items from the image
   const menuItems = [
     {
@@ -280,9 +284,15 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
       
     }
   };
-  const uploadProfileImage = async (uri: string) => {
+  const uploadProfileImage = async (uri: string, retryCount = 0) => {
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 1000; // 1 second
+
     try {
-      console.log('🚀 Starting driver profile image upload...');
+      setIsUploading(true);
+      setUploadAttempts(retryCount + 1);
+
+      console.log(`🚀 Starting driver profile image upload (attempt ${retryCount + 1})...`);
 
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) {
@@ -295,63 +305,82 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
 
       console.log('✅ User session found:', session.user.id);
 
-      // Convert image to blob
+      // Convert image to blob with timeout
       console.log('📸 Fetching image from URI:', uri);
-      const response = await fetch(uri);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      let blob: Blob;
+      try {
+        const response = await fetch(uri, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+        }
+        blob = await response.blob();
+        console.log('📦 Image blob size:', blob.size);
+
+        if (blob.size === 0) throw new Error('Image file is empty');
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Image fetch timed out. Please try again.');
+        }
+        throw fetchError;
       }
-
-      const blob = await response.blob();
-      console.log('📦 Image blob size:', blob.size);
-
-      if (blob.size === 0) throw new Error('Image file is empty');
 
       // Generate a unique filename
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
       const filePath = `${session.user.id}/${fileName}`;
 
       console.log('📁 Uploading to path:', filePath);
-
-      // Skip bucket validation since user confirmed bucket exists
-      console.log('🔍 Skipping bucket validation (user confirmed bucket exists)');
-      console.log('📤 Proceeding with direct upload to drivers_profile_pictures...');
-
-      // Try multiple upload methods
-      console.log('📤 Starting upload to Supabase storage...');
+      console.log('📤 Proceeding with upload to drivers_profile_pictures...');
 
       let uploadData, uploadError;
 
-      // Method 1: Standard Supabase upload
-      try {
-        console.log('🔄 Trying standard upload method...');
-        const result = await supabase.storage
-          .from('drivers_profile_pictures')
-          .upload(filePath, blob, {
-            contentType: 'image/jpeg',
-            upsert: true,
-            cacheControl: '3600'
-          });
-        uploadData = result.data;
-        uploadError = result.error;
-      } catch (method1Error: any) {
-        console.error('❌ Standard upload failed:', method1Error);
+      // Try multiple upload methods with retry logic
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        if (attempt > 0) {
+          console.log(`🔄 Retry attempt ${attempt}/${MAX_RETRIES}...`);
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * attempt));
+        }
 
-        // Method 2: Try with different options
         try {
-          console.log('🔄 Trying alternative upload method...');
+          console.log(`📤 Upload attempt ${attempt + 1}...`);
           const result = await supabase.storage
             .from('drivers_profile_pictures')
             .upload(filePath, blob, {
               contentType: 'image/jpeg',
               upsert: true,
-              duplex: 'half'
+              cacheControl: '3600'
             });
           uploadData = result.data;
           uploadError = result.error;
-        } catch (method2Error: any) {
-          console.error('❌ Alternative upload also failed:', method2Error);
-          uploadError = method2Error;
+          break; // Success, exit retry loop
+        } catch (methodError: any) {
+          console.error(`❌ Upload attempt ${attempt + 1} failed:`, methodError);
+          uploadError = methodError;
+
+          // If it's the last attempt, try alternative method
+          if (attempt === MAX_RETRIES) {
+            try {
+              console.log('🔄 Trying alternative upload method...');
+              const result = await supabase.storage
+                .from('drivers_profile_pictures')
+                .upload(filePath, blob, {
+                  contentType: 'image/jpeg',
+                  upsert: true,
+                  duplex: 'half'
+                });
+              uploadData = result.data;
+              uploadError = result.error;
+              break;
+            } catch (altError: any) {
+              console.error('❌ Alternative upload also failed:', altError);
+              uploadError = altError;
+            }
+          }
         }
       }
 
@@ -359,58 +388,45 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
         console.error('❌ Upload error details:', uploadError);
         console.error('❌ Upload error message:', uploadError.message);
 
-        // Try REST API fallback for network issues
+        // Handle network-related errors with retry
         if (uploadError.message?.includes('Network request failed') ||
             uploadError.message?.includes('Failed to fetch') ||
             uploadError.message?.includes('NetworkError') ||
-            uploadError.message?.includes('StorageUnknownError')) {
+            uploadError.message?.includes('StorageUnknownError') ||
+            uploadError.message?.includes('timeout')) {
 
-          console.log('🔄 Primary upload failed, trying REST API fallback...');
-
-          try {
-            const restResult = await uploadWithRestAPI(filePath, blob, 'image/jpeg');
-            if (restResult.success) {
-              console.log('✅ REST API upload successful!');
-              uploadData = restResult.data;
-              uploadError = null;
-            } else {
-              console.error('❌ REST API fallback also failed:', restResult.error);
-              throw new Error('Network connection issue. Both upload methods failed. Please check your internet connection and try again.');
-            }
-          } catch (restError: any) {
-            console.error('❌ REST API fallback error:', restError);
-            throw new Error('Network connection issue. Please check your internet connection and try again. If the problem persists, contact support.');
-          }
-        } else {
-          // Handle other types of errors
-          if (uploadError.message?.includes('Bucket not found')) {
-            throw new Error('Storage bucket not configured. Please contact support.');
-          } else if (uploadError.message?.includes('row-level security') ||
-                     uploadError.message?.includes('RLS') ||
-                     uploadError.message?.includes('violates row-level security policy')) {
-            console.log('🔒 ROOT CAUSE FOUND: RLS Policy Issue');
-            console.log('🔧 SOLUTION: Go to Supabase Dashboard > Storage > drivers_profile_pictures > Policies');
-            console.log('🔧 1. Check if RLS is enabled');
-            console.log('🔧 2. Create or update policies to allow uploads');
-            console.log('🔧 3. Or disable RLS for this bucket');
-            throw new Error('Upload blocked by security policy. Please check Supabase Storage policies for drivers_profile_pictures bucket.');
-          } else if (uploadError.message?.includes('Unauthorized') ||
-                     uploadError.message?.includes('403')) {
-            throw new Error('Upload permission denied. Please try logging out and back in.');
-          } else if (uploadError.message?.includes('Duplicate')) {
-            throw new Error('File already exists. Please try again.');
-          } else if (uploadError.message?.includes('Payload too large') ||
-                     uploadError.message?.includes('413')) {
-            throw new Error('Image file is too large. Please choose a smaller image.');
-          } else if (uploadError.message?.includes('404')) {
-            throw new Error('Storage bucket not found. Please contact support.');
-          } else if (uploadError.message?.includes('CORS')) {
-            throw new Error('CORS policy blocking upload. Please contact support.');
-          } else if (uploadError.message?.includes('timeout')) {
-            throw new Error('Upload timed out. Please check your connection and try again.');
+          if (retryCount < MAX_RETRIES) {
+            console.log(`🔄 Network error detected, retrying... (${retryCount + 1}/${MAX_RETRIES})`);
+            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+            return uploadProfileImage(uri, retryCount + 1);
           } else {
-            throw new Error(`Upload failed: ${uploadError.message || 'Unknown error'}`);
+            console.log('❌ Max retries reached for network error');
+            // Don't show alert for network errors, just log them
+            console.error('Network upload failed after max retries');
+            return;
           }
+        }
+
+        // Handle other critical errors that should be shown to user
+        if (uploadError.message?.includes('Bucket not found') ||
+            uploadError.message?.includes('404')) {
+          throw new Error('Storage service unavailable. Please contact support.');
+        } else if (uploadError.message?.includes('row-level security') ||
+                   uploadError.message?.includes('RLS') ||
+                   uploadError.message?.includes('violates row-level security policy')) {
+          throw new Error('Upload permission denied. Please try logging out and back in.');
+        } else if (uploadError.message?.includes('Unauthorized') ||
+                   uploadError.message?.includes('403')) {
+          throw new Error('Upload permission denied. Please try logging out and back in.');
+        } else if (uploadError.message?.includes('Payload too large') ||
+                   uploadError.message?.includes('413')) {
+          throw new Error('Image file is too large. Please choose a smaller image (under 5MB).');
+        } else if (uploadError.message?.includes('CORS')) {
+          throw new Error('Upload blocked by security policy. Please contact support.');
+        } else {
+          // For other errors, don't show to user unless it's critical
+          console.error('Non-critical upload error:', uploadError.message);
+          return;
         }
       }
 
@@ -422,7 +438,7 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
         .getPublicUrl(filePath);
 
       if (!publicUrl) {
-        throw new Error('Failed to get public URL');
+        throw new Error('Failed to generate image URL');
       }
 
       console.log('🔗 Public URL generated:', publicUrl);
@@ -442,18 +458,36 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
 
       if (updateError) {
         console.error('⚠️ Profile update error:', updateError);
-        // Don't throw here as the image was uploaded successfully
+        // Show warning but don't fail the upload
         Alert.alert('Warning', 'Image uploaded but profile update failed. Please refresh the page.');
       }
 
       console.log('🎉 Driver profile image upload completed successfully');
-      Alert.alert('Success', 'Profile image uploaded successfully!');
+
+      // Only show success message if it was a retry or took multiple attempts
+      if (retryCount > 0) {
+        Alert.alert('Success', 'Profile image uploaded successfully!');
+      }
+
     } catch (error: any) {
       console.error('💥 Upload image error:', error);
       console.error('💥 Error stack:', error.stack);
 
       const errorMessage = error.message || 'Failed to upload image';
-      Alert.alert('Upload Error', errorMessage);
+
+      // Only show critical errors to user, not network issues
+      if (errorMessage.includes('permission denied') ||
+          errorMessage.includes('too large') ||
+          errorMessage.includes('contact support') ||
+          errorMessage.includes('security policy')) {
+        Alert.alert('Upload Error', errorMessage);
+      } else {
+        // For network or temporary errors, just log them
+        console.error('Upload failed (non-critical):', errorMessage);
+      }
+    } finally {
+      setIsUploading(false);
+      setUploadAttempts(0);
     }
   };
 
@@ -713,7 +747,11 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
               </View>
             )}
             <View style={styles(colors).cameraButton}>
-              <Ionicons name="camera" size={20} color={colors.text} />
+              {isUploading ? (
+                <ActivityIndicator size="small" color={colors.text} />
+              ) : (
+                <Ionicons name="camera" size={20} color={colors.text} />
+              )}
             </View>
           </TouchableOpacity>
           <Text style={styles(colors).userName}>{userName || 'Driver'}</Text>

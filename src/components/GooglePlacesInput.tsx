@@ -229,14 +229,14 @@ export const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
 
   const getIcon = () => {
     switch (icon) {
-      case 'pickup':
-        return <MaterialIcons name="location-on" size={18} color="green" />;
-      case 'dropoff':
-        return <MaterialIcons name="flag" size={18} color="red" />;
-      default:
-        return <MaterialIcons name="location-on" size={18} color={colors.primary} />;
-    }
-  };
+       case 'pickup':
+         return <MaterialIcons name="location-on" size={18} color="green" />;
+       case 'dropoff':
+         return <MaterialIcons name="flag" size={18} color="red" />;
+       default:
+         return <MaterialIcons name="location-on" size={18} color="black" />;
+     }
+   };
 
 
   return (
@@ -308,7 +308,7 @@ export const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
         <TouchableOpacity
           style={[
             styles.currentLocationButton,
-            { backgroundColor: colors.primaryLight },
+            { backgroundColor: colors.surface, borderColor: colors.border },
             isGettingLocation && [styles.currentLocationButtonDisabled, { backgroundColor: colors.border }]
           ]}
           onPress={getCurrentLocation}
@@ -318,7 +318,7 @@ export const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
             <MaterialIcons
               name={isGettingLocation ? "location-searching" : "my-location"}
               size={16}
-              color={isGettingLocation ? colors.textSecondary : colors.primary}
+              color={isGettingLocation ? colors.textSecondary : colors.text}
             />
             {/* <Text style={[
               styles.currentLocationText,
@@ -397,8 +397,9 @@ const styles = StyleSheet.create({
   },
   currentLocationButton: {
     marginTop: 8,
-    padding: 8,
+    padding: 12,
     borderRadius: 8,
+    borderWidth: 1,
     alignItems: 'center',
   },
   currentLocationButtonDisabled: {

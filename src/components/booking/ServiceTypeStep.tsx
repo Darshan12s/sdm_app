@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { ServiceType } from '@/types';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -39,46 +39,51 @@ export const ServiceTypeStep: React.FC<ServiceTypeStepProps> = ({
       </View>
      
       <View style={[styles.serviceTypeContainer, { backgroundColor: colors.card }]}>
-        <View style={styles.serviceGrid}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+        >
+          <View style={styles.serviceGrid}>
           {serviceTypes.map((service) => (
             <TouchableOpacity
               key={service.id}
               style={[
                 styles.serviceCard,
                 { backgroundColor: colors.surface, borderColor: colors.border },
-                serviceType === service.id && [styles.serviceCardActive, { borderColor: colors.primary, backgroundColor: colors.primaryLight }],
+                serviceType === service.id && [styles.serviceCardActive, { borderColor: colors.primary, backgroundColor: colors.primary }],
               ]}
               onPress={() => onServiceTypeChange(service.id)}
             >
               <View style={[
                 styles.serviceIconContainer,
-                { backgroundColor: colors.primaryLight },
-                serviceType === service.id && [styles.serviceIconContainerActive, { backgroundColor: colors.primary }]
+                { backgroundColor: 'transparent' },
+                serviceType === service.id && styles.serviceIconContainerActive
               ]}>
                 {service.iconType === 'MaterialIcons' ? (
                   <MaterialIcons
                     name={service.icon as any}
                     size={24}
-                    color={serviceType === service.id ? colors.surface : colors.primary}
+                    color={serviceType === service.id ? colors.surface : colors.text}
                   />
                 ) : (
                   <Ionicons
                     name={service.icon as any}
                     size={24}
-                    color={serviceType === service.id ? colors.surface : colors.primary}
+                    color={serviceType === service.id ? colors.surface : colors.text}
                   />
                 )}
               </View>
               <Text style={[
                 styles.serviceName,
-                { color: colors.textSecondary },
-                serviceType === service.id && [styles.serviceNameActive, { color: colors.primary }],
+                { color: colors.text },
+                serviceType === service.id && [styles.serviceNameActive, { color: colors.surface }],
               ]}>
                 {service.name}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
+        </ScrollView>
       </View>
 
       {/* Trip Type Selection */}
@@ -232,9 +237,10 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   serviceTypeContainer: {
-    borderRadius: 16,
-    padding: 16,
-    margin: 16,
+    borderRadius: 12,
+    padding: 12,
+    margin: 12,
+    marginVertical: 8,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -246,36 +252,41 @@ const styles = StyleSheet.create({
   },
   serviceGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 4,
+    flexWrap: 'nowrap',
+    alignItems: 'center',
+    minWidth: '100%',
+    gap: 6,
   },
   serviceCard: {
-    width: 'auto',
-    borderRadius: 12,
-    padding: 8,
+    width: 100,
+    height: 90,
+    borderRadius: 10,
+    padding: 10,
     flexDirection: 'column',
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
+    marginHorizontal: 3,
   },
   serviceCardActive: {
     // Colors applied inline with theme
   },
   serviceIconContainer: {
-    width: 24,
-    height: 24,
+    width: 36,
+    height: 36,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   serviceIconContainerActive: {
-    // Colors applied inline with theme
+    // Background color applied inline with theme
   },
   serviceName: {
     fontSize: 12,
     fontWeight: '500',
     textAlign: 'center',
+    lineHeight: 14,
   },
   serviceNameActive: {
     fontWeight: '600',

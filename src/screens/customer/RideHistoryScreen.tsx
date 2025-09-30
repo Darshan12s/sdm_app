@@ -157,7 +157,7 @@ const RideHistoryScreen = ({ navigation }: { navigation: CompositeNavigationProp
     navigation.navigate('ReviewModal', {
       bookingId: booking.id,
       driverId: booking.driver_id,
-      driverName: booking.driver.user.full_name
+      driverName: booking.driver.user.full_name || 'Driver'
     });
   };
 
@@ -167,16 +167,16 @@ const RideHistoryScreen = ({ navigation }: { navigation: CompositeNavigationProp
   };
 
   const getFilteredBookings = () => {
-    return bookings.filter(booking => booking.status === activeTab);
+    return bookings.filter(booking => (booking.status || 'pending') === activeTab);
   };
 
   const renderBookingItem = ({ item }: { item: Booking }) => (
     <View style={[styles.bookingCard, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
       <View style={styles.bookingHeader}>
         <View style={styles.statusContainer}>
-          <View style={[styles.statusBadge, getStatusColor(item.status)]}>
-            <Text style={[styles.statusText, { color: getStatusColor(item.status).color }]}>
-              {item.status}
+          <View style={[styles.statusBadge, getStatusColor(item.status || 'pending')]}>
+            <Text style={[styles.statusText, { color: getStatusColor(item.status || 'pending').color }]}>
+              {item.status || 'Pending'}
             </Text>
           </View>
           {/* <View style={[styles.paymentBadge, { borderColor: colors.border }]}>
@@ -212,14 +212,14 @@ const RideHistoryScreen = ({ navigation }: { navigation: CompositeNavigationProp
           <Text style={[styles.detailText, { color: colors.text }]}>{item.vehicle_type || 'Standard'}</Text>
         </View>
         <View style={styles.detailRow}>
-          <MaterialIcons name="payment" size={14} color={item.payment_status === 'paid' ? colors.success : colors.warning} />
+          <MaterialIcons name="payment" size={14} color={(item.payment_status === 'paid' || item.payment_status === 'completed') ? colors.success : colors.warning} />
           <Text style={[styles.detailText, { color: colors.text }]}>
-            {item.payment_status === 'paid' ? 'Paid' : 'Pending'}
+            {(item.payment_status === 'paid' || item.payment_status === 'completed') ? 'Paid' : 'Pending'}
           </Text>
         </View>
         <View style={styles.detailRow}>
           <MaterialIcons name="attach-money" size={14} color={colors.primary} />
-          <Text style={[styles.detailText, { color: colors.text }]}>₹{item.fare_amount}</Text>
+          <Text style={[styles.detailText, { color: colors.text }]}>₹{item.fare_amount || '0'}</Text>
         </View>
         {item.started_at && item.completed_at && (
           <View style={styles.detailRow}>
@@ -234,7 +234,7 @@ const RideHistoryScreen = ({ navigation }: { navigation: CompositeNavigationProp
       <View style={[styles.footer, { borderTopColor: colors.border }]}>
         <Text style={[styles.tripId, { color: colors.textSecondary }]}>Trip ID: {item.id.slice(0, 8)}...</Text>
         <View style={styles.actionButtons}>
-          {(item.status === 'pending' || item.status === 'accepted') && (
+          {((item.status || 'pending') === 'pending' || (item.status || 'pending') === 'accepted') && (
             <TouchableOpacity
               style={[styles.cancelButton, { backgroundColor: colors.error + '20', borderColor: colors.error }]}
               onPress={() => {
@@ -245,7 +245,7 @@ const RideHistoryScreen = ({ navigation }: { navigation: CompositeNavigationProp
               <Text style={[styles.cancelButtonText, { color: colors.error }]}>Cancel</Text>
             </TouchableOpacity>
           )}
-          {item.status === 'completed' && item.driver_id && (
+          {(item.status || 'pending') === 'completed' && item.driver_id && (
             <TouchableOpacity
               style={[styles.rateButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
               onPress={() => handleRateTrip(item)}
@@ -301,11 +301,11 @@ const RideHistoryScreen = ({ navigation }: { navigation: CompositeNavigationProp
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+    <View >
+      {/* <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Trip History</Text>
         <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>View all your past and current bookings</Text>
-      </View>
+      </View> */}
 
       {/* Tabs */}
       <View style={[styles.tabsContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>

@@ -297,13 +297,17 @@ export const testNetworkConnectivity = async () => {
   }
 };
 
-export const uploadWithRestAPI = async (filePath: string, blob: Blob, mimeType: string) => {
+export const uploadWithRestAPI = async (filePath: string, data: Blob | string, mimeType: string) => {
   console.log('🔄 Trying REST API upload method...');
 
   try {
     // Get the Supabase URL and key from environment or configuration
     const supabaseUrl = 'https://gmualcoqyztvtsqhjlzb.supabase.co'; // Your Supabase URL
-    const supabaseKey = process.env.SUPABASE_ANON_KEY || 'your-anon-key'; // You'll need to get this
+    const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+
+    if (!supabaseAnonKey) {
+      throw new Error('Supabase anon key not found in environment variables');
+    }
 
     // Create the upload URL
     const uploadUrl = `${supabaseUrl}/storage/v1/object/drivers_profile_pictures/${filePath}`;
@@ -314,25 +318,68 @@ export const uploadWithRestAPI = async (filePath: string, blob: Blob, mimeType: 
       throw new Error('No auth token available');
     }
 
-    // Upload using fetch with service role key for bypassing RLS
+    // Prepare body data - handle both Blob and base64 string
+    let bodyData: Blob | string = data;
+    const headers: any = {
+      'Authorization': `Bearer ${supabaseAnonKey}`,
+      'x-upsert': 'true'
+    };
+
+    if (typeof data === 'string') {
+      // If data is base64 string, set appropriate content type
+      headers['Content-Type'] = 'image/jpeg';
+      bodyData = data;
+    } else {
+      // If data is Blob, let fetch set the content type
+      headers['Content-Type'] = mimeType;
+      bodyData = data;
+    }
+
+    console.log('📤 Making REST API request to:', uploadUrl);
+
+    // Upload using fetch
     const response = await fetch(uploadUrl, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${supabaseKey}`, // Use anon key instead of user token
-        'Content-Type': 'image/jpeg',
-        'x-upsert': 'true'
-      },
-      body: blob
+      headers,
+      body: bodyData
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error('❌ REST API response:', response.status, errorText);
 
-      // Check for RLS error
+      // Check for various error types
       if (errorText.includes('row-level security policy') || errorText.includes('RLS')) {
         console.log('🔒 RLS Policy blocking upload - this is the root cause!');
         throw new Error(`RLS Policy Error: Upload blocked by Supabase security policies. Please check bucket policies in Supabase Dashboard > Storage > drivers_profile_pictures > Policies`);
+      }
+
+      if (errorText.includes('Invalid Compact JWS') || errorText.includes('invalid_jwt')) {
+        console.log('🔐 JWT Token issue - trying with user access token instead of anon key');
+        // Retry with user access token instead of anon key
+        const userResponse = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': typeof data === 'string' ? 'image/jpeg' : mimeType,
+            'x-upsert': 'true'
+          },
+          body: bodyData
+        });
+
+        if (!userResponse.ok) {
+          const userErrorText = await userResponse.text();
+          console.error('❌ User token upload also failed:', userResponse.status, userErrorText);
+          throw new Error(`Authentication failed. Please log out and log back in. Error: ${userErrorText}`);
+        }
+
+        const userResult = await userResponse.json();
+        console.log('✅ User token upload successful:', userResult);
+        return {
+          success: true,
+          data: userResult,
+          path: filePath
+        };
       }
 
       throw new Error(`REST API upload failed: ${response.status} ${response.statusText} - ${errorText}`);

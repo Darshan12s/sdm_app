@@ -267,7 +267,7 @@ export const LocationStep: React.FC<LocationStepProps> = ({
                   style={[
                     styles.terminalButton,
                     { backgroundColor: colors.surface, borderColor: colors.border },
-                    pickupLocation === terminal.address && [styles.terminalButtonActive, { borderColor: colors.primary, backgroundColor: colors.primaryLight }]
+                    pickupLocation === terminal.address && [styles.terminalButtonActive, { borderColor: colors.primary, backgroundColor: colors.primary }]
                   ]}
                   onPress={() => {
                     onPickupLocationChange(terminal.address);
@@ -280,7 +280,7 @@ export const LocationStep: React.FC<LocationStepProps> = ({
                   <Text style={[
                     styles.terminalText,
                     { color: colors.textSecondary },
-                    pickupLocation === terminal.address && [styles.terminalTextActive, { color: colors.primary }]
+                    pickupLocation === terminal.address && [styles.terminalTextActive, { color: colors.surface }]
                   ]}>
                     {terminal.name}
                   </Text>
@@ -329,7 +329,7 @@ export const LocationStep: React.FC<LocationStepProps> = ({
                     style={[
                       styles.terminalButton,
                       { backgroundColor: colors.surface, borderColor: colors.border },
-                      dropoffLocation === terminal.address && [styles.terminalButtonActive, { borderColor: colors.primary, backgroundColor: colors.primaryLight }]
+                      dropoffLocation === terminal.address && [styles.terminalButtonActive, { borderColor: colors.primary, backgroundColor: colors.primary }]
                     ]}
                     onPress={() => {
                       onDropoffLocationChange(terminal.address);
@@ -342,7 +342,7 @@ export const LocationStep: React.FC<LocationStepProps> = ({
                     <Text style={[
                       styles.terminalText,
                       { color: colors.textSecondary },
-                      dropoffLocation === terminal.address && [styles.terminalTextActive, { color: colors.primary }]
+                      dropoffLocation === terminal.address && [styles.terminalTextActive, { color: colors.surface }]
                     ]}>
                       {terminal.name}
                     </Text>

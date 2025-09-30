@@ -124,7 +124,7 @@ export default function SupportScreen() {
       icon: 'phone',
       iconType: 'MaterialIcons',
       action: () => {
-        const phoneNumber = '+91-1800-XXX-XXXX';
+        const phoneNumber = '+91-9844663345';
         Alert.alert(
           'Call Support',
           `Call ${phoneNumber}?`,
@@ -153,7 +153,7 @@ export default function SupportScreen() {
       icon: 'chat',
       iconType: 'MaterialIcons',
       action: () => {
-        const phoneNumber = '+91-9876543210';
+        const phoneNumber = '+91-9844663345';
         const message = 'Hi, I need help with SDM Cab Hailing';
         const url = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
         Linking.openURL(url).catch(() => {

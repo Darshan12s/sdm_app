@@ -43,14 +43,20 @@ export default function ThankYouScreen({}: ThankYouScreenProps) {
     }
   };
 
-  const formatDateTime = (date: Date, time: string) => {
+  const formatDateTime = (date: Date | string | null | undefined, time: string) => {
     if (!date) return 'Immediate pickup';
-    return `${date.toLocaleDateString('en-IN', {
-      weekday: 'short',
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })}, ${time}`;
+    try {
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+      return `${dateObj.toLocaleDateString('en-IN', {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })}, ${time}`;
+    } catch (error) {
+      console.error('Date formatting error in ThankYou screen:', error);
+      return 'Invalid date';
+    }
   };
 
   return (
@@ -73,7 +79,7 @@ export default function ThankYouScreen({}: ThankYouScreenProps) {
           {/* Booking ID */}
           {bookingData?.paymentDetails?.bookingId && (
             <TouchableOpacity
-              style={[styles.bookingIdContainer, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
+              style={[styles.bookingIdContainer, { backgroundColor: colors.surface, borderColor: colors.primary }]}
               onPress={handleCopyBookingId}
               activeOpacity={0.7}
             >
@@ -82,7 +88,7 @@ export default function ThankYouScreen({}: ThankYouScreenProps) {
                 <Text style={[styles.bookingIdValue, { color: colors.text }]}>{bookingData.paymentDetails.bookingId}</Text>
                 <MaterialIcons name="content-copy" size={16} color={colors.primary} />
               </View>
-              <Text style={[styles.copyHint, { color: colors.primary }]}>Tap to copy</Text>
+              <Text style={[styles.copyHint, { color: colors.textSecondary }]}>Tap to copy</Text>
             </TouchableOpacity>
           )}
         </View>
