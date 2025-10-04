@@ -524,14 +524,6 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
 
         // If main service also fails, try web-based payment modal
         if (!paymentResult.success) {
-          console.log('🔄 Both SDK and main service failed, trying web payment modal...');
-
-          // Create a web payment URL for fallback
-          const webPaymentUrl = `https://checkout.razorpay.com/v1/payment?key=rzp_test_your_key_here&amount=${RazorpaySDKService.formatAmount(currentPaymentAmount)}&currency=INR&name=SDM+E-Mobility&description=${description}&order_id=${orderData.order_id}&prefill[name]=${encodeURIComponent(customerName)}&prefill[email]=${encodeURIComponent(customerEmail)}&prefill[contact]=${encodeURIComponent(customerPhone)}&theme[color]=%233ccfa0`;
-
-          setPaymentUrl(webPaymentUrl);
-          setModalOrderId(orderData.order_id);
-          setShowPaymentModal(true);
           setIsProcessing(false);
           return;
         }

@@ -148,7 +148,7 @@ export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
       duration: durationMinutes > 0 ? `${Math.round(durationMinutes)} min` : 'Calculating...',
       comingSoon: true,
       features: ['AC', 'Leather Seats', 'Music System', 'GPS'],
-      imageSource: require('../../../assets/premium.png'),
+      imageSource: require('../../../assets/premium_backup.png'),
     },
   ];
 

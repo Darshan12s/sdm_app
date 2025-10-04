@@ -13,20 +13,15 @@ import {
   TextInput,
   Modal,
 } from "react-native";
-import { Ionicons, MaterialIcons, FontAwesome, Feather } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { AuthService } from '../../services/supabase/auth';
 import { useAppStore } from '../../stores/appStore';
 import { supabase } from '../../services/supabase/client';
-import { uploadWithRestAPI } from '../../utils/storageTest';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system';
-// @ts-ignore - React Native doesn't have Blob by default
-declare const Blob: any;
-
-// Import theme
 import { useTheme } from '../../contexts/ThemeContext';
 
 // Address type definition
@@ -49,19 +44,25 @@ const PREDEFINED_TITLES = [
 
 export const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
-// Helper function to convert blob to base64 for React Native compatibility
-const blobToBase64 = (blob: Blob): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      // Remove the data:image/jpeg;base64, prefix if present
-      const base64Data = result.split(',')[1] || result;
-      resolve(base64Data);
-    };
-    reader.onerror = () => reject(new Error('Failed to convert blob to base64'));
-    reader.readAsDataURL(blob);
-  });
+
+// Simplified image processing for upload
+const processImageForUpload = async (uri: string): Promise<{ base64Data: string; contentType: string }> => {
+  try {
+    const extension = uri.toLowerCase().split('.').pop();
+    const contentType = extension === 'png' ? 'image/png' : 'image/jpeg';
+
+    const base64Data = await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    if (!base64Data || base64Data.length < 100) {
+      throw new Error('Invalid image data');
+    }
+
+    return { base64Data, contentType };
+  } catch (error: any) {
+    throw error;
+  }
 };
 
 // Karnataka bounding box coordinates
@@ -73,26 +74,30 @@ const KARNATAKA_BOUNDS = {
 };
 
 export default function ProfileScreen({ navigation }: { navigation: any }) {
-   const { colors } = useTheme();
-   const [isLoading, setIsLoading] = useState(true);
-   const [profileImage, setProfileImage] = useState<string | null>(null);
-   // Get user data from store
-   const { user, setUser } = useAppStore();
+  const { colors } = useTheme();
+  const [isLoading, setIsLoading] = useState(true);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const { user, setUser } = useAppStore();
+  
   // User information
   const [userName, setUserName] = useState(user?.full_name || '');
   const [phoneNumber, setPhoneNumber] = useState(user?.phone_no || '');
   const [email, setEmail] = useState(user?.email || '');
   const [formattedDob, setFormattedDob] = useState('');
   const [selectedDob, setSelectedDob] = useState<Date | null>(null);
+  
   // Stats
   const [rating, setRating] = useState(0.0);
   const [totalTrips, setTotalTrips] = useState(0);
   const [totalSpent, setTotalSpent] = useState(0);
+  
   // Addresses
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
+  
   // Editing states
   const [isEditingPersonalInfo, setIsEditingPersonalInfo] = useState(false);
   const [showAddAddressForm, setShowAddAddressForm] = useState(false);
+  
   // Temporary editing values
   const [tempUserName, setTempUserName] = useState(user?.full_name || '');
   const [tempPhoneNumber, setTempPhoneNumber] = useState(user?.phone_no || '');
@@ -100,32 +105,33 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
   const [newAddressTitle, setNewAddressTitle] = useState('');
   const [newAddress, setNewAddress] = useState('');
   const [isDefaultAddress, setIsDefaultAddress] = useState(false);
+  
   // Selected predefined title
   const [selectedTitleId, setSelectedTitleId] = useState<string | null>(null);
+  
   // Date picker state
   const [showDatePicker, setShowDatePicker] = useState(false);
+  
   // Map state
   const mapRef = useRef<MapView>(null);
   const [showMap, setShowMap] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{latitude: number; longitude: number; address: string} | null>(null);
   const [currentLocation, setCurrentLocation] = useState<{latitude: number; longitude: number} | null>(null);
   const [mapRegion, setMapRegion] = useState({
-    latitude: 12.9716, // Bangalore coordinates
+    latitude: 12.9716,
     longitude: 77.5946,
-    latitudeDelta: 2.0, // Wider view to show more of Karnataka
+    latitudeDelta: 2.0,
     longitudeDelta: 2.0,
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  
   // Address suggestions state
   const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
   const [isAddressSearching, setIsAddressSearching] = useState(false);
   const searchTimer = useRef<NodeJS.Timeout | null>(null);
-  // Upload states
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadAttempts, setUploadAttempts] = useState(0);
-
+  
   useEffect(() => {
     loadProfileData();
     requestPermissions();
@@ -134,14 +140,23 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
   const requestPermissions = async () => {
     if (Platform.OS !== 'web') {
       try {
-        const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
+        // Request permissions one by one to avoid conflicts
         const { status: libraryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        const { status: locationStatus } = await Location.requestForegroundPermissionsAsync();
-      
-        if (cameraStatus !== 'granted' || libraryStatus !== 'granted') {
-          Alert.alert('Permission needed', 'Sorry, we need camera and gallery permissions to make this work!');
+
+        if (libraryStatus !== 'granted') {
+          Alert.alert('Permission needed', 'Sorry, we need gallery permissions to make this work!');
         }
-      
+
+        // Request camera permission separately
+        const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
+
+        if (cameraStatus !== 'granted') {
+          Alert.alert('Permission needed', 'Sorry, we need camera permissions to make this work!');
+        }
+
+        // Location permissions
+        const { status: locationStatus } = await Location.requestForegroundPermissionsAsync();
+
         if (locationStatus !== 'granted') {
           Alert.alert('Permission needed', 'This app needs location permissions to select addresses on map');
         }
@@ -154,24 +169,19 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
   const loadProfileData = async () => {
     setIsLoading(true);
     try {
-      // Get current user
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
       if (sessionError) throw sessionError;
     
       if (session?.user) {
-        // Fetch user profile
         const profile = await AuthService.getUserProfile(session.user.id);
       
         if (profile) {
           setUserName(profile.full_name || '');
           setEmail(profile.email || '');
           setPhoneNumber(profile.phone_no || '');
-        
-          // Update store
           setUser(profile);
         
-          // Fetch additional data
           await fetchCustomerData(session.user.id);
           await fetchUserAddresses(session.user.id);
           await fetchUserStats(session.user.id);
@@ -188,13 +198,12 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
 
   const fetchCustomerData = async (userId: string) => {
     try {
-      // Fetch customer-specific data including DOB
       const { data, error } = await supabase
         .from('customers')
         .select('*')
         .eq('id', userId)
         .single();
-      if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+      if (error && error.code !== 'PGRST116') {
         console.error('Error fetching customer data:', error);
         return;
       }
@@ -204,7 +213,6 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
         const formatted = `${dob.getDate().toString().padStart(2, '0')}-${(dob.getMonth() + 1).toString().padStart(2, '0')}-${dob.getFullYear()}`;
         setFormattedDob(formatted);
       }
-      // Fetch profile picture if exists
       await fetchProfileImage(userId);
     } catch (error) {
       console.error('Error fetching customer data:', error);
@@ -213,46 +221,88 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
 
   const fetchProfileImage = async (userId: string) => {
     try {
-      // First try to get from user profile
+      // Get profile picture URL from users table
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('profile_picture_url')
         .eq('id', userId)
         .single();
+
       if (!userError && userData?.profile_picture_url) {
-        setProfileImage(`${userData.profile_picture_url}?t=${Date.now()}`);
+        let imageUrl = userData.profile_picture_url;
+
+        // Ensure the URL is properly formatted for React Native
+        if (!imageUrl.startsWith('http')) {
+          // Simple URL construction
+          const baseUrl = 'https://gmualcoqyztvtsqhjlzb.supabase.co/storage/v1/object/public/user_profile_pictures';
+          const cleanPath = imageUrl.replace(/^public\//, '');
+          imageUrl = `${baseUrl}/${cleanPath}`;
+        } else {
+          // Fix URL duplication issues
+          imageUrl = imageUrl.replace('/object/ppublic/', '/object/public/');
+          imageUrl = imageUrl.replace('/object/publlic/', '/object/public/');
+          imageUrl = imageUrl.replace('ppublic', 'public');
+          imageUrl = imageUrl.replace('publlic', 'public');
+        }
+
+        // Simple cache-busting
+        const separator = imageUrl.includes('?') ? '&' : '?';
+        imageUrl = `${imageUrl}${separator}t=${Date.now()}`;
+
+        // Set storage image directly for immediate display
+        setProfileImage(imageUrl);
         return;
       }
-      // Fallback: Check if profile image exists in storage
+
+      // Fallback: Check storage directly
       const { data: listData, error: listError } = await supabase
         .storage
-        .from('drivers_profile_pictures')
+        .from('user_profile_pictures')
         .list(userId);
+      
       if (listError) {
         console.error('Storage list error:', listError);
         return;
       }
+      
       if (listData && listData.length > 0) {
-        // Get the most recent profile image
         const sortedFiles = listData
           .filter(file => file.name && !file.name.startsWith('.'))
           .sort((a: any, b: any) =>
             new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
           );
+        
         if (sortedFiles.length > 0) {
           const { data: { publicUrl } } = supabase
             .storage
-            .from('drivers_profile_pictures')
+            .from('user_profile_pictures')
             .getPublicUrl(`${userId}/${sortedFiles[0].name}`);
+          
           if (publicUrl) {
-            // Add a timestamp to avoid caching issues
-            setProfileImage(`${publicUrl}?t=${Date.now()}`);
+            let imageUrl = publicUrl;
+            if (!imageUrl.startsWith('http')) {
+              // Simple URL construction
+              const baseUrl = 'https://gmualcoqyztvtsqhjlzb.supabase.co/storage/v1/object/public/user_profile_pictures';
+              imageUrl = `${baseUrl}/${userId}/${sortedFiles[0].name}`;
+            } else {
+              // Fix URL duplication issues
+              imageUrl = imageUrl.replace('/object/ppublic/', '/object/public/');
+              imageUrl = imageUrl.replace('/object/publlic/', '/object/public/');
+              imageUrl = imageUrl.replace('ppublic', 'public');
+              imageUrl = imageUrl.replace('publlic', 'public');
+            }
+
+            // Simple cache-busting
+            const separator = imageUrl.includes('?') ? '&' : '?';
+            imageUrl = `${imageUrl}${separator}t=${Date.now()}`;
+
+            // Set image directly for immediate display
+            setProfileImage(imageUrl);
           }
         }
       }
     } catch (error) {
       console.error('Error fetching profile image:', error);
-      // Don't show alert for fetch errors, just log them
     }
   };
 
@@ -273,7 +323,6 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
 
   const fetchUserStats = async (userId: string) => {
     try {
-      // Fetch real statistics from bookings table
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
         .select('*')
@@ -281,7 +330,6 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
 
       if (bookingsError) {
         console.error('Error fetching bookings:', bookingsError);
-        // Fallback to mock data if there's an error
         setRating(4.5);
         setTotalTrips(0);
         setTotalSpent(0);
@@ -289,12 +337,10 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
       }
 
       if (bookingsData && bookingsData.length > 0) {
-        // Calculate statistics from real data
         const completedBookings = bookingsData.filter(booking =>
           booking.status === 'completed'
         );
 
-        // Calculate average rating
         const ratings = completedBookings
           .filter(booking => booking.rating !== null && booking.rating !== undefined)
           .map(booking => booking.rating);
@@ -303,310 +349,136 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
           ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length
           : 0;
 
-        // Calculate total spent
         const totalSpentValue = completedBookings.reduce((sum, booking) =>
           sum + (booking.fare_amount || 0), 0
         );
 
-        // Set the calculated values
         setRating(parseFloat(averageRating.toFixed(1)));
         setTotalTrips(bookingsData.length);
         setTotalSpent(totalSpentValue);
       } else {
-        // No bookings found, set defaults
         setRating(0);
         setTotalTrips(0);
         setTotalSpent(0);
       }
     } catch (error) {
       console.error('Error fetching user stats:', error);
-      // Fallback to mock data
       setRating(4.5);
       setTotalTrips(0);
       setTotalSpent(0);
     }
   };
 
-  const uploadProfileImage = async (uri: string, retryCount = 0) => {
-    const MAX_RETRIES = 3;
-    const RETRY_DELAY = 1000; // 1 second
-
+  const uploadProfileImage = async (uri: string) => {
     try {
-      setIsUploading(true);
-      setUploadAttempts(retryCount + 1);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) throw new Error('No user session found');
 
-      console.log(`🚀 Starting profile image upload (attempt ${retryCount + 1})...`);
-
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) {
-        console.error('❌ Session error:', sessionError);
-        throw sessionError;
-      }
-      if (!session?.user) {
-        throw new Error('No user session found');
+      const { base64Data, contentType } = await processImageForUpload(uri);
+      if (!base64Data || base64Data.length < 100) {
+        throw new Error('Invalid image data');
       }
 
-      console.log('✅ User session found:', session.user.id);
-
-      // Convert image to base64 for React Native compatibility
-      console.log('📸 Converting image to base64:', uri);
-      let base64Data: string;
-
-      try {
-        // Use FileSystem for React Native compatibility
-        if (Platform.OS === 'web') {
-          // Web: use blob approach
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-          const response = await fetch(uri, { signal: controller.signal });
-          clearTimeout(timeoutId);
-
-          if (!response.ok) {
-            throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-          }
-          const blob = await response.blob();
-          console.log('📦 Image blob size:', blob.size);
-
-          if (blob.size === 0) throw new Error('Image file is empty');
-
-          // Convert blob to base64 for upload
-          base64Data = await blobToBase64(blob);
-        } else {
-          // React Native: use FileSystem
-          const fileInfo = await FileSystem.getInfoAsync(uri);
-          if (!fileInfo.exists) {
-            throw new Error('Image file does not exist');
-          }
-
-          console.log('📦 Image file size:', fileInfo.size);
-          if (fileInfo.size === 0) {
-            throw new Error('Image file is empty');
-          }
-
-          // Read file as base64
-          base64Data = await FileSystem.readAsStringAsync(uri, {
-            encoding: FileSystem.EncodingType.Base64,
-          });
-        }
-      } catch (conversionError: any) {
-        console.error('❌ Image conversion error:', conversionError);
-        if (conversionError.message?.includes('timed out') || conversionError.name === 'AbortError') {
-          throw new Error('Image processing timed out. Please try again.');
-        }
-        throw conversionError;
-      }
-
-      // Generate a unique filename
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
       const filePath = `${session.user.id}/${fileName}`;
 
-      console.log('📁 Uploading to path:', filePath);
-      console.log('📤 Proceeding with upload to drivers_profile_pictures...');
+      const result = await supabase.storage
+        .from('user_profile_pictures')
+        .upload(filePath, base64Data, {
+          contentType: contentType,
+          upsert: true,
+          cacheControl: '3600'
+        });
 
-      let uploadData, uploadError;
+      if (result.error) throw result.error;
 
-      // Try multiple upload methods with retry logic
-      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-        if (attempt > 0) {
-          console.log(`🔄 Retry attempt ${attempt}/${MAX_RETRIES}...`);
-          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * attempt));
-        }
-
-        try {
-          console.log(`📤 Upload attempt ${attempt + 1}...`);
-
-          if (Platform.OS === 'web') {
-            // Web: use blob upload
-            const result = await supabase.storage
-              .from('drivers_profile_pictures')
-              .upload(filePath, base64Data, {
-                contentType: 'image/jpeg',
-                upsert: true,
-                cacheControl: '3600'
-              });
-            uploadData = result.data;
-            uploadError = result.error;
-          } else {
-            // React Native: use base64 upload
-            const result = await supabase.storage
-              .from('drivers_profile_pictures')
-              .upload(filePath, base64Data, {
-                contentType: 'image/jpeg',
-                upsert: true,
-                cacheControl: '3600'
-              });
-            uploadData = result.data;
-            uploadError = result.error;
-          }
-
-          break; // Success, exit retry loop
-        } catch (methodError: any) {
-          console.error(`❌ Upload attempt ${attempt + 1} failed:`, methodError);
-          uploadError = methodError;
-
-          // If it's the last attempt, try REST API fallback
-          if (attempt === MAX_RETRIES) {
-            try {
-              console.log('🔄 Primary upload failed, trying REST API fallback...');
-              const restResult = await uploadWithRestAPI(filePath, base64Data, 'image/jpeg');
-              if (restResult.success) {
-                uploadData = restResult.data;
-                uploadError = null;
-                break;
-              } else {
-                uploadError = new Error(restResult.error);
-              }
-            } catch (restError: any) {
-              console.error('❌ REST API fallback also failed:', restError);
-              uploadError = restError;
-            }
-          }
-        }
-      }
-
-      if (uploadError) {
-        console.error('❌ Upload error details:', uploadError);
-        console.error('❌ Upload error message:', uploadError.message);
-
-        // Handle network-related errors with retry
-        if (uploadError.message?.includes('Network request failed') ||
-            uploadError.message?.includes('Failed to fetch') ||
-            uploadError.message?.includes('NetworkError') ||
-            uploadError.message?.includes('StorageUnknownError') ||
-            uploadError.message?.includes('timeout') ||
-            uploadError.message?.includes('network')) {
-
-          if (retryCount < MAX_RETRIES) {
-            console.log(`🔄 Network error detected, retrying... (${retryCount + 1}/${MAX_RETRIES})`);
-            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-            return uploadProfileImage(uri, retryCount + 1);
-          } else {
-            console.log('❌ Max retries reached for network error');
-            throw new Error('Network connection issue. Please check your internet connection and try again.');
-          }
-        }
-
-        // Handle authentication errors
-        if (uploadError.message?.includes('Invalid Compact JWS') ||
-            uploadError.message?.includes('invalid_jwt') ||
-            uploadError.message?.includes('Unauthorized') ||
-            uploadError.message?.includes('403')) {
-          throw new Error('Authentication failed. Please log out and log back in.');
-        }
-
-        // Handle other critical errors that should be shown to user
-        if (uploadError.message?.includes('Bucket not found') ||
-            uploadError.message?.includes('404')) {
-          throw new Error('Storage service unavailable. Please contact support.');
-        } else if (uploadError.message?.includes('row-level security') ||
-                   uploadError.message?.includes('RLS') ||
-                   uploadError.message?.includes('violates row-level security policy')) {
-          throw new Error('Upload permission denied. Please check your account permissions.');
-        } else if (uploadError.message?.includes('Payload too large') ||
-                   uploadError.message?.includes('413')) {
-          throw new Error('Image file is too large. Please choose a smaller image (under 5MB).');
-        } else if (uploadError.message?.includes('CORS')) {
-          throw new Error('Upload blocked by security policy. Please contact support.');
-        } else {
-          // For other errors, throw a generic error
-          throw new Error(`Upload failed: ${uploadError.message || 'Unknown error'}`);
-        }
-      }
-
-      console.log('✅ Upload successful:', uploadData);
-
-      // Get the public URL
       const { data: { publicUrl } } = supabase.storage
-        .from('drivers_profile_pictures')
+        .from('user_profile_pictures')
         .getPublicUrl(filePath);
 
-      if (!publicUrl) {
-        throw new Error('Failed to generate image URL');
-      }
+      if (!publicUrl) throw new Error('Failed to generate image URL');
 
-      console.log('🔗 Public URL generated:', publicUrl);
+      const cleanUrl = publicUrl.replace(/\/object\/p+ublic\//g, '/object/public/');
+      const finalImageUrl = `${cleanUrl}${cleanUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
 
-      // Update the profile image with cache busting
-      const imageUrl = `${publicUrl}?t=${Date.now()}`;
-      setProfileImage(imageUrl);
-
-      // Update user profile with image URL
-      const { error: updateError } = await supabase
+      await supabase
         .from('users')
         .update({
-          profile_picture_url: publicUrl,
+          profile_picture_url: filePath,
           updated_at: new Date().toISOString()
         })
         .eq('id', session.user.id);
 
-      if (updateError) {
-        console.error('⚠️ Profile update error:', updateError);
-        // Show warning but don't fail the upload
-        Alert.alert('Warning', 'Image uploaded but profile update failed. Please refresh the page.');
-      }
-
-      console.log('🎉 Profile image upload completed successfully');
-
-      // Only show success message if it was a retry or took multiple attempts
-      if (retryCount > 0) {
-        Alert.alert('Success', 'Profile image uploaded successfully!');
-      }
+      // Update with final uploaded image URL
+      setProfileImage(finalImageUrl);
+      Alert.alert('Success', 'Profile image uploaded successfully!');
 
     } catch (error: any) {
-      console.error('💥 Upload image error:', error);
-      console.error('💥 Error stack:', error.stack);
-
-      const errorMessage = error.message || 'Failed to upload image';
-
-      // Show appropriate error messages to user based on error type
-      if (errorMessage.includes('Authentication failed') ||
-          errorMessage.includes('permission denied') ||
-          errorMessage.includes('log out and log back in')) {
-        Alert.alert('Authentication Error', errorMessage);
-      } else if (errorMessage.includes('Network connection issue') ||
-                 errorMessage.includes('check your internet connection')) {
-        Alert.alert('Network Error', errorMessage);
-      } else if (errorMessage.includes('too large') ||
-                 errorMessage.includes('under 5MB')) {
-        Alert.alert('File Size Error', errorMessage);
-      } else if (errorMessage.includes('contact support') ||
-                 errorMessage.includes('security policy') ||
-                 errorMessage.includes('service unavailable')) {
-        Alert.alert('Service Error', errorMessage);
-      } else {
-        // For other errors, show a generic message
-        Alert.alert('Upload Failed', 'Failed to upload image. Please try again.');
-        console.error('Upload failed (other error):', errorMessage);
-      }
-    } finally {
-      setIsUploading(false);
-      setUploadAttempts(0);
+      console.error('Upload error:', error);
+      Alert.alert('Error', error.message || 'Failed to upload image');
+      // Don't clear the selected image if upload fails - keep showing the local image
     }
   };
 
   const pickImageFromSource = async (source: 'camera' | 'gallery') => {
     try {
-      let result;
-    
       const options: ImagePicker.ImagePickerOptions = {
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
       };
-    
+
+      let result;
+
       if (source === 'camera') {
+        // Check camera permission before launching
+        const { status } = await ImagePicker.getCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Camera Permission', 'Camera access is required to take photos');
+          return;
+        }
         result = await ImagePicker.launchCameraAsync(options);
       } else {
+        // Check gallery permission before launching
+        const { status } = await ImagePicker.getMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Gallery Permission', 'Gallery access is required to select photos');
+          return;
+        }
         result = await ImagePicker.launchImageLibraryAsync(options);
       }
-      // Upload image to Supabase bucket
+
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        await uploadProfileImage(result.assets[0].uri);
+        const selectedImage = result.assets[0];
+
+        // Show selected image immediately with a unique key to force refresh
+        const imageWithTimestamp = `${selectedImage.uri}?t=${Date.now()}`;
+        setProfileImage(imageWithTimestamp);
+
+        // Upload in background and update with final URL on success
+        uploadProfileImage(selectedImage.uri).catch((uploadError) => {
+          console.error('Upload failed, keeping local image:', uploadError);
+          // Keep showing the selected image even if upload fails
+          Alert.alert(
+            'Upload Issue',
+            'Image selected but upload had issues. The image will still be displayed.',
+            [{ text: 'OK' }]
+          );
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Image picker error:', error);
-      Alert.alert('Error', 'Failed to pick image');
+
+      // Handle specific error types
+      if (error.message?.includes('ActivityResultLauncher')) {
+        Alert.alert(
+          'Camera Error',
+          'Camera is not available. Please try selecting from gallery instead.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Error', 'Failed to pick image. Please try again.');
+      }
     }
   };
 
@@ -636,12 +508,13 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
     );
   };
 
+
   const removeProfileImage = async () => {
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
       if (!session?.user) throw new Error('No user session found');
-      // Update user profile to remove image URL
+      
       const { error: updateError } = await supabase
         .from('users')
         .update({
@@ -649,38 +522,43 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
           updated_at: new Date().toISOString()
         })
         .eq('id', session.user.id);
+      
       if (updateError) {
         console.error('Profile update error:', updateError);
       }
-      // List all files in the user's folder
+      
       const { data: listData, error: listError } = await supabase
         .storage
         .from('user_profile_pictures')
         .list(session.user.id);
+      
       if (listError) {
         console.error('Storage list error:', listError);
-        // Still clear the image even if listing fails
         setProfileImage(null);
         Alert.alert('Success', 'Profile image removed!');
         return;
       }
+      
       if (listData && listData.length > 0) {
-        // Create an array of file paths to remove
         const filesToRemove = listData
           .filter(file => file.name && !file.name.startsWith('.'))
           .map(file => `${session.user.id}/${file.name}`);
+        
         if (filesToRemove.length > 0) {
-          // Remove all files
           const { error: removeError } = await supabase.storage
             .from('user_profile_pictures')
             .remove(filesToRemove);
+          
           if (removeError) {
             console.error('Storage remove error:', removeError);
-            // Don't throw here, still clear the image
           }
         }
       }
+      
+      // Immediately clear image and show placeholder
       setProfileImage(null);
+      
+
       Alert.alert('Success', 'Profile image removed successfully!');
     } catch (error: any) {
       console.error('Remove image error:', error);
@@ -691,22 +569,18 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
 
   const toggleEditPersonalInfo = async () => {
     if (isEditingPersonalInfo) {
-      // Save changes
       try {
         if (!user) throw new Error('No user found');
       
-        // Only update fields that exist in your users table
         const updates = {
           full_name: tempUserName,
           email: tempEmail,
-          // Remove phone if it doesn't exist in your users table
-          // phone: tempPhoneNumber,
         };
       
         const { data, error } = await AuthService.updateProfile(user.id, updates);
       
         if (error) throw error;
-        // Update customer data with DOB
+        
         if (selectedDob) {
           const { error: customerError } = await supabase
             .from('customers')
@@ -719,7 +593,7 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
             });
           if (customerError) console.error('Error updating customer data:', customerError);
         }
-        // Update phone number in users table
+        
         if (tempPhoneNumber !== user?.phone_no) {
           const { error: phoneError } = await supabase
             .from('users')
@@ -741,7 +615,6 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
         Alert.alert('Error', 'Failed to update profile');
       }
     } else {
-      // Start editing
       setTempUserName(userName);
       setTempPhoneNumber(phoneNumber);
       setTempEmail(email);
@@ -749,13 +622,11 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
     }
   };
 
-  // Handle predefined title selection
   const handleTitleSelection = (title: string, id: string) => {
     setNewAddressTitle(title);
     setSelectedTitleId(id);
   };
 
-  // Clear title selection
   const clearTitleSelection = () => {
     setNewAddressTitle('');
     setSelectedTitleId(null);
@@ -770,7 +641,6 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) throw new Error('No user found');
     
-      // If setting as default, remove default from other addresses
       if (isDefaultAddress) {
         await supabase
           .from('saved_locations')
@@ -787,12 +657,15 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
         longitude: selectedLocation?.longitude,
         is_default: isDefaultAddress,
       };
+      
       const { data, error } = await supabase
         .from('saved_locations')
         .insert(addressData)
         .select()
         .single();
+      
       if (error) throw error;
+      
       setSavedAddresses([...savedAddresses, data]);
       setNewAddressTitle('');
       setNewAddress('');
@@ -842,7 +715,6 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
   };
 
   const onDateChange = (event: any, date?: Date) => {
-    // For Android, hide the picker after selection
     if (Platform.OS === 'android') {
       setShowDatePicker(false);
     }
@@ -854,7 +726,6 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
     }
   };
 
-  // Get current location function
   const getCurrentLocation = async () => {
     try {
       let { status } = await Location.requestForegroundPermissionsAsync();
@@ -862,22 +733,21 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
         Alert.alert('Permission denied', 'Location permission is needed to use this feature');
         return;
       }
+      
       let location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
-        
       });
       
-      // Check if current location is within Karnataka
       if (location.coords.latitude >= KARNATAKA_BOUNDS.south &&
           location.coords.latitude <= KARNATAKA_BOUNDS.north &&
           location.coords.longitude >= KARNATAKA_BOUNDS.west &&
           location.coords.longitude <= KARNATAKA_BOUNDS.east) {
+        
         setCurrentLocation({
           latitude: location.coords.latitude,
           longitude: location.coords.longitude
         });
         
-        // Reverse geocode to get current address
         try {
           let reverseGeocode = await Location.reverseGeocodeAsync({
             latitude: location.coords.latitude,
@@ -895,7 +765,6 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
               address.country
             ].filter(Boolean).join(', ');
             
-            // Update selected location with current location data
             setSelectedLocation({
               latitude: location.coords.latitude,
               longitude: location.coords.longitude,
@@ -908,7 +777,6 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
           setNewAddress(`Lat: ${location.coords.latitude.toFixed(6)}, Long: ${location.coords.longitude.toFixed(6)}`);
         }
         
-        // Animate to current location
         const newRegion = {
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
@@ -930,12 +798,10 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
 
   const openMap = async () => {
     try {
-      // Get current location first
       await getCurrentLocation();
       setShowMap(true);
     } catch (error) {
       console.error('Error opening map:', error);
-      // Still show map even if location fails
       setShowMap(true);
     }
   };
@@ -943,7 +809,6 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
   const handleMapPress = async (e: any) => {
     const { latitude, longitude } = e.nativeEvent.coordinate;
   
-    // Check if the tapped location is within Karnataka
     if (latitude >= KARNATAKA_BOUNDS.south &&
         latitude <= KARNATAKA_BOUNDS.north &&
         longitude >= KARNATAKA_BOUNDS.west &&
@@ -952,11 +817,10 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
       setSelectedLocation({ 
         latitude, 
         longitude,
-        address: '' // Will be filled by reverse geocoding
+        address: ''
       });
     
       try {
-        // Reverse geocode to get address from coordinates
         let reverseGeocode = await Location.reverseGeocodeAsync({
           latitude,
           longitude
@@ -974,7 +838,6 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
           ].filter(Boolean).join(', ');
         
           setNewAddress(formattedAddress);
-          // Update selected location with full address
           setSelectedLocation({
             latitude,
             longitude,
@@ -1044,7 +907,6 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
     );
   };
 
-  // New map control functions
   const goToCurrentLocation = async () => {
     await getCurrentLocation();
   };
@@ -1078,7 +940,6 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
   
     setIsSearching(true);
     try {
-      // Use Google Maps Places API to search for locations in Karnataka
       const response = await fetch(
         `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(searchQuery + ' Karnataka')}&key=${GOOGLE_MAPS_API_KEY}`
       );
@@ -1086,7 +947,6 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
       const data = await response.json();
     
       if (data.status === 'OK' && data.results.length > 0) {
-        // Filter results to only include those within Karnataka
         const karnatakaResults = data.results.filter((result: any) => {
           const lat = result.geometry.location.lat;
           const lng = result.geometry.location.lng;
@@ -1125,7 +985,6 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
   
     setSelectedLocation(location);
   
-    // Center map on selected location
     const newRegion = {
       latitude: result.geometry.location.lat,
       longitude: result.geometry.location.lng,
@@ -1138,10 +997,7 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
       mapRef.current.animateToRegion(newRegion, 1000);
     }
   
-    // Set the address
     setNewAddress(result.formatted_address);
-  
-    // Clear search results
     setSearchResults([]);
     setSearchQuery('');
   };
@@ -1211,26 +1067,24 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.header}>
-         
-          <View style={styles.headerSpacer} />
-        </View>
-
         <View style={styles.profileSection}>
           <TouchableOpacity onPress={showImagePickerOptions} style={styles.avatarContainer}>
             {profileImage ? (
-              <Image source={{ uri: profileImage }} style={styles.avatar} />
+              <Image
+                source={{
+                  uri: profileImage,
+                }}
+                style={styles.avatar}
+                resizeMode="cover"
+                key={profileImage}
+              />
             ) : (
               <View style={[styles.avatarPlaceholder, { backgroundColor: colors.surface }]}>
                 <Ionicons name="person" size={40} color={colors.textSecondary} />
               </View>
             )}
-            <View style={[styles.cameraButton, { backgroundColor: isUploading ? colors.textSecondary : colors.text }]}>
-              {isUploading ? (
-                <ActivityIndicator size="small" color={colors.surface} />
-              ) : (
-                <Ionicons name="camera" size={20} color={colors.surface} />
-              )}
+            <View style={[styles.cameraButton, { backgroundColor: colors.primary }]}>
+              <Ionicons name="camera" size={20} color={colors.surface} />
             </View>
           </TouchableOpacity>
           <Text style={[styles.userName, { color: colors.text }]}>{userName || 'Your Name'}</Text>
@@ -1390,7 +1244,6 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
         
           {showAddAddressForm && (
             <View style={styles.addAddressForm}>
-              {/* Predefined Title Banners */}
               <View style={styles.titleBannersContainer}>
                 <Text style={[styles.bannersTitle, { color: colors.text }]}>Quick Select:</Text>
                 <ScrollView
@@ -1426,7 +1279,6 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
-                {/* Clear selection button - show only if a title is selected */}
                 {selectedTitleId && (
                   <TouchableOpacity
                     style={styles.clearTitleButton}
@@ -1453,7 +1305,7 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
                     setSelectedTitleId(null);
                   }
                 }}
-                editable={!selectedTitleId} // Disable editing if banner is selected
+                editable={!selectedTitleId}
               />
 
               <TextInput
@@ -1531,31 +1383,6 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
           )}
         </View>
 
-        {/* Payment Section */}
-        {/* <View style={[styles.card, { backgroundColor: colors.card }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Payment & Billing</Text>
-          <TouchableOpacity
-            style={styles.settingsButton}
-            onPress={() => navigation.navigate('PaymentMethods')}
-          >
-            <View style={styles.settingsButtonContent}>
-              <MaterialIcons name="credit-card" size={24} color={colors.primary} />
-              <Text style={[styles.settingsButtonText, { color: colors.text }]}>Payment Methods</Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.settingsButton}
-            onPress={() => navigation.navigate('BillingHistory')}
-          >
-            <View style={styles.settingsButtonContent}>
-              <MaterialIcons name="receipt" size={24} color={colors.primary} />
-              <Text style={[styles.settingsButtonText, { color: colors.text }]}>Billing History</Text>
-            </View>
-            <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
-          </TouchableOpacity>
-        </View> */}
-
         {/* Settings Section */}
         <View style={[styles.card, { backgroundColor: colors.card }]}>
           <Text style={[styles.cardTitle, { color: colors.text }]}>Settings</Text>
@@ -1570,11 +1397,6 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
             <MaterialIcons name="chevron-right" size={24} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
-
-        {/* Logout Button */}
-        {/* <TouchableOpacity style={[styles.logoutButton, { backgroundColor: colors.error + '20', borderColor: colors.error }]} onPress={handleLogout}>
-          <Text style={[styles.logoutText, { color: colors.error }]}>Logout</Text>
-        </TouchableOpacity> */}
 
         {/* Date Picker */}
         {showDatePicker && (
@@ -1637,7 +1459,6 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
               showsUserLocation={true}
               showsMyLocationButton={false}
             >
-              {/* Current Location Marker - Green */}
               {currentLocation && (
                 <Marker
                   coordinate={{
@@ -1656,7 +1477,6 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
                 </Marker>
               )}
               
-              {/* Selected Location Marker - Red */}
               {selectedLocation && (
                 <Marker
                   coordinate={{
@@ -1676,7 +1496,6 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
               )}
             </MapView>
           
-            {/* Map Controls */}
             <View style={styles.mapControls}>
               <TouchableOpacity style={styles.mapControlButton} onPress={goToCurrentLocation}>
                 <View style={styles.currentLocationButton}>
@@ -1705,7 +1524,6 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
               </TouchableOpacity>
             </View>
 
-            {/* Legend */}
             <View style={[styles.mapLegend, { backgroundColor: colors.surface }]}>
               <View style={styles.legendItem}>
                 <View style={[styles.legendColor, { backgroundColor: colors.error }]} />
@@ -1736,23 +1554,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  backButton: {
-    padding: 8,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1e293b',
-  },
-  headerSpacer: {
-    width: 40,
   },
   profileSection: {
     alignItems: 'center',
@@ -1856,7 +1657,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fff',
   },
-  // New styles for title banners
   titleBannersContainer: {
     marginBottom: 12,
   },
@@ -1885,18 +1685,11 @@ const styles = StyleSheet.create({
     minWidth: 70,
     justifyContent: 'center',
   },
-  titleBannerSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
   titleBannerText: {
     marginLeft: 4,
     fontSize: 12,
     fontWeight: '500',
     color: '#64748b',
-  },
-  titleBannerTextSelected: {
-    color: '#fff',
   },
   clearTitleButton: {
     alignSelf: 'flex-start',
@@ -1911,10 +1704,6 @@ const styles = StyleSheet.create({
   },
   addressTitleInput: {
     marginTop: 4,
-  },
-  inputWithBannerSelected: {
-    backgroundColor: '#f8fafc',
-    borderColor: '#007AFF',
   },
   statsContainer: {
     flexDirection: 'row',
@@ -2038,19 +1827,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-  logoutButton: {
-    backgroundColor: '#fef2f2',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 32,
-  },
-  logoutText: {
-    color: '#dc2626',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
   mapContainer: {
     flex: 1,
   },
@@ -2106,38 +1882,6 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
-  },
-  locationInfoContainer: {
-    position: 'absolute',
-    top: 80,
-    left: 16,
-    right: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 12,
-    padding: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
-    zIndex: 1000,
-  },
-  locationInfoTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1e293b',
-    marginBottom: 4,
-  },
-  locationInfoAddress: {
-    fontSize: 14,
-    color: '#475569',
-    marginBottom: 4,
-    lineHeight: 18,
-  },
-  locationInfoCoords: {
-    fontSize: 12,
-    color: '#64748b',
-    fontFamily: 'monospace',
   },
   mapControls: {
     position: 'absolute',
@@ -2290,3 +2034,4 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
+

@@ -25,15 +25,15 @@ const TermsConditionsScreen: React.FC = () => {
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.headerBackground} />
       
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      {/* <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
-          {/* <Ionicons name="arrow-back" size={24} color={colors.text} /> */}
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        {/* <Text style={[styles.headerTitle, { color: colors.text }]}>Terms & Conditions</Text> */}
-        {/* <TouchableOpacity onPress={handleGoBack} style={styles.closeButton}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Terms & Conditions</Text>
+        <TouchableOpacity onPress={handleGoBack} style={styles.closeButton}>
           <Ionicons name="close" size={24} color={colors.text} />
-        </TouchableOpacity> */}
-      </View>
+        </TouchableOpacity>
+      </View> */}
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         <Text style={[styles.introText, { color: colors.textSecondary }]}>

@@ -137,7 +137,7 @@ export class RazorpaySDKService {
         if (!RazorpayCheckout || typeof RazorpayCheckout.open !== 'function') {
           console.log('ℹ️ RazorpayCheckout not available, using fallback');
           return {
-            success: true,
+            success: false,
             paymentId: 'fallback_payment_' + Date.now(),
             orderId: orderId,
             signature: 'fallback_signature',
