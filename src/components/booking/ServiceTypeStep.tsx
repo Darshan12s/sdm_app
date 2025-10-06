@@ -25,11 +25,46 @@ export const ServiceTypeStep: React.FC<ServiceTypeStepProps> = ({
 }) => {
   const { colors } = useTheme();
   const serviceTypes = [
-    { id: 'city' as ServiceType, name: 'City Ride', icon: 'location-city', iconType: 'MaterialIcons', description: 'Local city transportation' },
-    { id: 'outstation' as ServiceType, name: 'Outstation', icon: 'directions-car', iconType: 'MaterialIcons', description: 'Inter-city travel' },
-    { id: 'airport' as ServiceType, name: 'Airport Taxi', icon: 'flight', iconType: 'MaterialIcons', description: 'Airport transfers' },
-    // { id: 'hourly' as ServiceType, name: 'Ride Later', icon: 'schedule', iconType: 'MaterialIcons', description: 'Schedule for later' },
-  ];
+     {
+       id: 'city' as ServiceType,
+       name: 'City Ride',
+       icon: 'location-city',
+       iconType: 'MaterialIcons',
+       description: 'Local city transportation',
+       color: '#3ace9f',
+       bgColor: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+       iconBg: '#e0f2fe',
+       features: ['Quick & Easy', 'Local Routes', 'Best Price'],
+       cardBg: '#f0fdf4',
+       iconColor: '#059669'
+     },
+     {
+       id: 'outstation' as ServiceType,
+       name: 'Outstation',
+       icon: 'directions-car',
+       iconType: 'MaterialIcons',
+       description: 'Inter-city travel',
+       color: '#8b5cf6',
+       bgColor: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)',
+       iconBg: '#f3e8ff',
+       features: ['Long Distance', 'Comfortable', 'Door-to-Door'],
+       cardBg: '#faf5ff',
+       iconColor: '#7c3aed'
+     },
+     {
+       id: 'airport' as ServiceType,
+       name: 'Airport Taxi',
+       icon: 'flight-takeoff',
+       iconType: 'MaterialIcons',
+       description: 'Airport transfers',
+       color: '#f59e0b',
+       bgColor: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+       iconBg: '#fffbeb',
+       features: ['Flight Tracking', 'Punctual', 'Safe & Secure'],
+       cardBg: '#fffcf0',
+       iconColor: '#d97706'
+     },
+   ];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -56,20 +91,20 @@ export const ServiceTypeStep: React.FC<ServiceTypeStepProps> = ({
             >
               <View style={[
                 styles.serviceIconContainer,
-                { backgroundColor: 'transparent' },
+                { backgroundColor: service.iconBg },
                 serviceType === service.id && styles.serviceIconContainerActive
               ]}>
                 {service.iconType === 'MaterialIcons' ? (
                   <MaterialIcons
                     name={service.icon as any}
-                    size={24}
-                    color={serviceType === service.id ? colors.surface : colors.text}
+                    size={26}
+                    color={serviceType === service.id ? '#ffffff' : service.iconColor}
                   />
                 ) : (
                   <Ionicons
                     name={service.icon as any}
-                    size={24}
-                    color={serviceType === service.id ? colors.surface : colors.text}
+                    size={26}
+                    color={serviceType === service.id ? '#ffffff' : service.iconColor}
                   />
                 )}
               </View>
@@ -229,26 +264,40 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   title: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 8,
+    fontSize: 26,
+    fontWeight: '800',
+    marginBottom: 16,
+    color: '#0f172a',
+    fontFamily: 'Inter-Bold',
+    letterSpacing: 0.3,
+    textShadowColor: 'rgba(58, 206, 159, 0.1)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   subtitle: {
-    fontSize: 10,
+    fontSize: 16,
+    color: '#64748b',
+    fontWeight: '500',
+    lineHeight: 24,
+    fontFamily: 'Inter-Medium',
+    letterSpacing: 0.2,
   },
   serviceTypeContainer: {
-    borderRadius: 12,
-    padding: 12,
-    margin: 12,
-    marginVertical: 8,
-    shadowColor: '#000',
+    borderRadius: 24,
+    padding: 20,
+    margin: 16,
+    marginVertical: 20,
+    shadowColor: '#3ace9f',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 8,
     },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
+    borderWidth: 3,
+    borderColor: '#e8f8f0',
+    backgroundColor: '#ffffff',
   },
   serviceGrid: {
     flexDirection: 'row',
@@ -258,52 +307,86 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   serviceCard: {
-    width: 100,
-    height: 90,
+    width: 88,
+    height: 80,
     borderRadius: 10,
-    padding: 10,
+    padding: 2,
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    marginHorizontal: 3,
+    borderWidth: 0,
+    marginHorizontal: 8,
+    shadowColor: '#3ace9f',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
+    backgroundColor: '#ffffff',
   },
   serviceCardActive: {
-    // Colors applied inline with theme
+    borderColor: '#3ace9f',
+    backgroundColor: '#3ace9f',
+    shadowColor: '#3ace9f',
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+    transform: [{ scale: 1.05 }],
   },
   serviceIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
+    marginBottom: 12,
+    backgroundColor: '#F8FAFCFF',
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
   },
   serviceIconContainerActive: {
-    // Background color applied inline with theme
+    backgroundColor: '#22CAF8FF',
+    borderColor: '#3ace9f',
+    borderWidth: 3,
+    shadowColor: '#3ace9f',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
   },
   serviceName: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '700',
     textAlign: 'center',
-    lineHeight: 14,
+    lineHeight: 20,
+    color: '#0f172a',
+    fontFamily: 'Inter-Bold',
+    letterSpacing: 0.3,
+    marginBottom: 4,
   },
   serviceNameActive: {
-    fontWeight: '600',
+    fontWeight: '800',
+    color: '#ffffff',
+    fontFamily: 'Inter-Bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   tripTypeSection: {
-    borderRadius: 16,
-    padding: 8,
-    marginHorizontal: 8,
-    marginBottom: 8,
-    shadowColor: '#000',
+    borderRadius: 20,
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    shadowColor: '#3ace9f',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
+    borderWidth: 2,
+    borderColor: '#e8f8f0',
+    backgroundColor: '#ffffff',
   },
   tripTypeContainer: {
     flexDirection: 'row',
@@ -312,21 +395,39 @@ const styles = StyleSheet.create({
   },
   tripTypeButton: {
     flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    borderWidth: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderRadius: 16,
+    borderWidth: 2,
     alignItems: 'center',
+    shadowColor: '#3ace9f',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
   },
   tripTypeButtonActive: {
-    // Colors applied inline with theme
+    backgroundColor: '#3ace9f',
+    borderColor: '#3ace9f',
+    shadowColor: '#3ace9f',
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
+    transform: [{ scale: 1.02 }],
   },
   tripTypeButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#475569',
+    fontFamily: 'Inter-SemiBold',
+    letterSpacing: 0.2,
   },
   tripTypeButtonTextActive: {
-    fontWeight: '600',
+    fontWeight: '700',
+    color: '#ffffff',
+    fontFamily: 'Inter-Bold',
   },
   roundTripContainer: {
     marginTop: 8,
@@ -337,36 +438,52 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#ffffff',
   },
   checkboxChecked: {
-    // Colors applied inline with theme
+    backgroundColor: '#3ace9f',
+    borderColor: '#3ace9f',
   },
   checkboxLabel: {
-    fontSize: 14,
+    fontSize: 16,
+    color: '#374151',
+    fontWeight: '500',
+    fontFamily: 'System',
   },
   footer: {
-    padding: 16,
-    paddingBottom: 24,
+    padding: 20,
+    paddingBottom: 28,
   },
   nextButton: {
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: 20,
+    borderRadius: 16,
     alignItems: 'center',
+    shadowColor: '#3ace9f',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+    backgroundColor: '#3ace9f',
   },
   nextButtonDisabled: {
-    // Colors applied inline with theme
+    backgroundColor: '#cbd5e1',
+    shadowOpacity: 0.15,
   },
   nextButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#ffffff',
+    fontFamily: 'Inter-Bold',
+    letterSpacing: 0.3,
   },
   nextButtonTextDisabled: {
-    // Colors applied inline with theme
+    color: '#94a3b8',
   },
 });
+

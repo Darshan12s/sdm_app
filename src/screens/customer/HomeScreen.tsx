@@ -67,10 +67,10 @@ export default function HomeScreen() {
     {
       title: 'Book a Ride',
       subtitle: 'Find and book your next ride',
-      icon: 'directions-car',
+      icon: 'electric-car',
       iconType: 'MaterialIcons',
       onPress: handleBookRide,
-      color: '#f59e0b',
+      color: '#3ace9f',
     },
     {
       title: 'Ride History',
@@ -78,7 +78,7 @@ export default function HomeScreen() {
       icon: 'history',
       iconType: 'MaterialIcons',
       onPress: handleViewHistory,
-      color: '#f59e0b',
+      color: '#3ace9f',
     },
     {
       title: 'My Profile',
@@ -86,7 +86,7 @@ export default function HomeScreen() {
       icon: 'person',
       iconType: 'MaterialIcons',
       onPress: handleViewProfile,
-      color: '#f59e0b',
+      color: '#3ace9f',
     },
     {
       title: 'Support',
@@ -94,7 +94,7 @@ export default function HomeScreen() {
       icon: 'help',
       iconType: 'MaterialIcons',
       onPress: () => navigation.navigate('Support'),
-      color: '#f59e0b',
+      color: '#3ace9f',
     },
   ];
 
@@ -111,103 +111,119 @@ export default function HomeScreen() {
       </View> */}
 
       {/* Welcome Header */}
-      <View style={styles.header}>
-        <View style={styles.welcomeContainer}>
-          <Text style={[styles.welcomeText, { color: colors.textSecondary }]}>Welcome back,</Text>
-          <Text style={[styles.userName, { color: colors.text }]}>{user?.full_name || 'Customer'}</Text>
-        </View>
-        <TouchableOpacity style={[styles.bookRideButton, { backgroundColor: colors.primary }]} onPress={handleBookRide}>
-          <MaterialIcons name="directions-car" size={20} color="#fff" />
-          <Text style={styles.bookRideText}>Book a Ride</Text>
-        </TouchableOpacity>
-      </View>
+       <View style={styles.header}>
+         <View style={styles.headerContent}>
+           <View style={styles.welcomeSection}>
+             <View style={styles.welcomeBadge}>
+               <Text style={[styles.welcomeEmoji, { color: '#3ace9f' }]}>⚡</Text>
+               <Text style={[styles.welcomeText, { color: colors.textSecondary }]}>Welcome back,</Text>
+             </View>
+             <Text style={[styles.userName, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit>{user?.full_name || 'Customer'}</Text>
+           </View>
+           <TouchableOpacity style={[styles.bookRideButton, { backgroundColor: '#3ace9f' }]} onPress={handleBookRide}>
+             <View style={styles.buttonContent}>
+               <MaterialIcons name="electric-car" size={18} color="#fff" />
+               <Text style={styles.bookRideText}>Book Electric Ride</Text>
+               <View style={styles.buttonAccent}>
+                 <MaterialIcons name="bolt" size={14} color="#fbbf24" />
+               </View>
+             </View>
+           </TouchableOpacity>
+         </View>
+       </View>
 
       {/* Feature Cards */}
-      <View style={styles.featureSection}>
-        <View style={styles.featureRow}>
-          <View style={[styles.featureCard, { backgroundColor: colors.card }]}>
-            <View style={[styles.featureIconContainer, { backgroundColor: colors.surface }]}>
-              <MaterialIcons name="bolt" size={24} color={colors.primary} />
-            </View>
-            <Text style={[styles.featureTitle, { color: colors.text }]}>100% Electric Fleet</Text>
-            <Text style={[styles.featureDescription, { color: colors.textSecondary }]}>Zero-emission rides powered by clean energy</Text>
-          </View>
-          <View style={[styles.featureCard, { backgroundColor: colors.card }]}>
-            <View style={[styles.featureIconContainer, { backgroundColor: colors.surface }]}>
-              <MaterialIcons name="shield" size={24} color={colors.primary} />
-            </View>
-            <Text style={[styles.featureTitle, { color: colors.text }]}>Safe & Secure</Text>
-            <Text style={[styles.featureDescription, { color: colors.textSecondary }]}>Advanced safety features and verified drivers</Text>
-          </View>
-        </View>
-        <View style={styles.featureRow}>
-          <View style={[styles.featureCard, { backgroundColor: colors.card }]}>
-            <View style={[styles.featureIconContainer, { backgroundColor: colors.surface }]}>
-              <MaterialIcons name="schedule" size={24} color={colors.primary} />
-            </View>
-            <Text style={[styles.featureTitle, { color: colors.text }]}>Always On Time</Text>
-            <Text style={[styles.featureDescription, { color: colors.textSecondary }]}>Reliable rides with real-time tracking</Text>
-          </View>
-          <View style={[styles.featureCard, { backgroundColor: colors.card }]}>
-            <View style={[styles.featureIconContainer, { backgroundColor: colors.surface }]}>
-              <MaterialIcons name="star" size={24} color={colors.primary} />
-            </View>
-            <Text style={[styles.featureTitle, { color: colors.text }]}>Premium Experience</Text>
-            <Text style={[styles.featureDescription, { color: colors.textSecondary }]}>5-star rated service and customer support</Text>
-          </View>
-        </View>
-      </View>
+       <View style={styles.featureSection}>
+         <Text style={[styles.sectionBadge, { color: '#3ace9f' }]}>✨ Why Choose SDM?</Text>
+         <View style={styles.featureRow}>
+           <View style={[styles.featureCard, { backgroundColor: colors.card }]}>
+             <View style={[styles.featureIconContainer, { backgroundColor: '#e8f8f0' }]}>
+               <MaterialIcons name="bolt" size={28} color="#3ace9f" />
+             </View>
+             <Text style={[styles.featureTitle, { color: colors.text }]}> 100% Electric Fleet</Text>
+             <Text style={[styles.featureDescription, { color: colors.textSecondary }]}>Zero-emission rides powered by clean energy</Text>
+           </View>
+           <View style={[styles.featureCard, { backgroundColor: colors.card }]}>
+             <View style={[styles.featureIconContainer, { backgroundColor: '#e8f8f0' }]}>
+               <MaterialIcons name="security" size={28} color="#3ace9f" />
+             </View>
+             <Text style={[styles.featureTitle, { color: colors.text }]}> Safe & Secure</Text>
+             <Text style={[styles.featureDescription, { color: colors.textSecondary }]}>Advanced safety features and verified drivers</Text>
+           </View>
+         </View>
+         <View style={styles.featureRow}>
+           <View style={[styles.featureCard, { backgroundColor: colors.card }]}>
+             <View style={[styles.featureIconContainer, { backgroundColor: '#e8f8f0' }]}>
+               <MaterialIcons name="schedule" size={28} color="#3ace9f" />
+             </View>
+             <Text style={[styles.featureTitle, { color: colors.text }]}> Always On Time</Text>
+             <Text style={[styles.featureDescription, { color: colors.textSecondary }]}>Reliable rides with real-time tracking</Text>
+           </View>
+           <View style={[styles.featureCard, { backgroundColor: colors.card }]}>
+             <View style={[styles.featureIconContainer, { backgroundColor: '#e8f8f0' }]}>
+               <MaterialIcons name="stars" size={28} color="#3ace9f" />
+             </View>
+             <Text style={[styles.featureTitle, { color: colors.text }]}> Premium Experience</Text>
+             <Text style={[styles.featureDescription, { color: colors.textSecondary }]}>5-star rated service and customer support</Text>
+           </View>
+         </View>
+       </View>
 
       {/* Quick Actions */}
-      <View style={styles.actionsSection}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
-        <View style={styles.actionsGrid}>
-          {quickActions.map((action, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[styles.actionCard, { backgroundColor: colors.card }]}
-              onPress={action.onPress}
-            >
-              <View style={[styles.actionIconContainer, { backgroundColor: colors.primary }]}>
-                <MaterialIcons name={action.icon as any} size={24} color="#fff" />
-              </View>
-              <Text style={[styles.actionTitle, { color: colors.text }]}>{action.title}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
+       <View style={styles.actionsSection}>
+         <Text style={[styles.sectionTitle, { color: colors.text }]}>🚀 Quick Actions</Text>
+         <View style={styles.actionsGrid}>
+           {quickActions.map((action, index) => (
+             <TouchableOpacity
+               key={index}
+               style={[styles.actionCard, { backgroundColor: colors.card }]}
+               onPress={action.onPress}
+             >
+               <View style={[styles.actionIconContainer, { backgroundColor: action.color }]}>
+                 <MaterialIcons name={action.icon as any} size={26} color="#fff" />
+               </View>
+               <Text style={[styles.actionTitle, { color: colors.text }]}>{action.title}</Text>
+               <Text style={[styles.actionSubtitle, { color: colors.textSecondary }]}>{action.subtitle}</Text>
+             </TouchableOpacity>
+           ))}
+         </View>
+       </View>
 
       {/* Ready to Go Electric? */}
-      <View style={[styles.ctaSection, { backgroundColor: colors.card }]}>
-        <Text style={[styles.ctaTitle, { color: colors.text }]}>Ready to Go Electric?</Text>
-        <Text style={[styles.ctaDescription, { color: colors.textSecondary }]}>
-          Join millions of riders who've already made the switch to sustainable mobility
-        </Text>
-        <TouchableOpacity style={[styles.ctaButton, { backgroundColor: colors.primary }]} onPress={handleBookRide}>
-          <Text style={styles.ctaButtonText}>Start Riding Today</Text>
-          <MaterialIcons name="arrow-forward" size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
+       <View style={[styles.ctaSection, { backgroundColor: colors.card }]}>
+         <View style={styles.ctaHeader}>
+           <Text style={[styles.ctaBadge, { color: '#3ace9f' }]}>🌱 Sustainable Future</Text>
+           <Text style={[styles.ctaTitle, { color: colors.text }]}>Ready to Go Electric?</Text>
+         </View>
+         <Text style={[styles.ctaDescription, { color: colors.textSecondary }]}>
+           Join millions of riders who've already made the switch to sustainable mobility
+         </Text>
+         <TouchableOpacity style={[styles.ctaButton, { backgroundColor: '#3ace9f' }]} onPress={handleBookRide}>
+           <MaterialIcons name="electric-bolt" size={20} color="#fff" />
+           <Text style={styles.ctaButtonText}>Start Your Electric Journey</Text>
+           <MaterialIcons name="arrow-forward" size={20} color="#fff" />
+         </TouchableOpacity>
+       </View>
 
       {/* Footer */}
-      <View style={[styles.footer, { backgroundColor: colors.surface }]}>
-        <Text style={[styles.footerTitle, { color: colors.text }]}>SDM E-Mobility</Text>
-        <Text style={[styles.footerSubtitle, { color: colors.textSecondary }]}>Powering the future of sustainable transportation</Text>
-        <View style={styles.footerLinks}>
-          <TouchableOpacity>
-            <Text style={[styles.footerLink, { color: colors.textSecondary }]}>Privacy Policy</Text>
-          </TouchableOpacity>
-          <TouchableOpacity>
-            <Text style={[styles.footerLink, { color: colors.textSecondary }]}>Terms of Service</Text>
-          </TouchableOpacity>
-          <TouchableOpacity>
-            <Text style={[styles.footerLink, { color: colors.textSecondary }]}>Support</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleLogout}>
-            <Text style={[styles.footerLinkLogout, { color: colors.error }]}>Logout</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+       <View style={[styles.footer, { backgroundColor: colors.surface }]}>
+         <Text style={[styles.footerTitle, { color: colors.text }]}>⚡ SDM E-Mobility</Text>
+         <Text style={[styles.footerSubtitle, { color: colors.textSecondary }]}>Powering the future of sustainable transportation</Text>
+         {/* <View style={styles.footerLinks}>
+           <TouchableOpacity>
+             <Text style={[styles.footerLink, { color: colors.textSecondary }]}>🔒 Privacy Policy</Text>
+           </TouchableOpacity>
+           <TouchableOpacity>
+             <Text style={[styles.footerLink, { color: colors.textSecondary }]}>📋 Terms of Service</Text>
+           </TouchableOpacity>
+           <TouchableOpacity>
+             <Text style={[styles.footerLink, { color: colors.textSecondary }]}>🆘 Support</Text>
+           </TouchableOpacity>
+           <TouchableOpacity onPress={handleLogout}>
+             <Text style={[styles.footerLinkLogout, { color: colors.error }]}>🚪 Logout</Text>
+           </TouchableOpacity>
+         </View> */}
+       </View>
     </ScrollView>
   );
 }
@@ -246,46 +262,104 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   header: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    marginBottom: 12,
+  },
+  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 24,
+  },
+  welcomeSection: {
+    flex: 1,
+    paddingRight: 20,
   },
   welcomeContainer: {
     flex: 1,
   },
+  welcomeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  welcomeEmoji: {
+    fontSize: 22,
+    marginRight: 8,
+    fontFamily: 'System',
+  },
   welcomeText: {
     fontSize: 16,
-    color: '#64748b',
+    color: '#6b7280',
     marginBottom: 4,
+    fontFamily: 'System',
+    fontWeight: '500',
+    letterSpacing: 0.3,
   },
   userName: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1e293b',
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 0,
+    fontFamily: 'System',
+    letterSpacing: -0.4,
+    lineHeight: 28,
+  },
+  userTagline: {
+    marginBottom: 6,
+  },
+  userSubtitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    fontFamily: 'System',
+    letterSpacing: 0.2,
+  },
+  userSubtitleHighlight: {
+    fontSize: 18,
+    fontWeight: '700',
+    fontFamily: 'System',
+    letterSpacing: 0.2,
   },
   bookRideButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#2dd4bf',
+    backgroundColor: '#3ace9f',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    borderRadius: 12,
+    shadowColor: '#3ace9f',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
+    minWidth: 140,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  buttonAccent: {
+    marginLeft: 6,
   },
   bookRideText: {
     color: '#ffffff',
-    fontWeight: '600',
+    fontWeight: '800',
     marginLeft: 8,
+    fontSize: 16,
+    fontFamily: 'System',
   },
   featureSection: {
     paddingHorizontal: 20,
     marginBottom: 32,
+  },
+  sectionBadge: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#3ace9f',
+    textAlign: 'center',
+    marginBottom: 20,
+    fontFamily: 'System',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase' as const,
   },
   featureRow: {
     flexDirection: 'row',
@@ -295,43 +369,51 @@ const styles = StyleSheet.create({
   featureCard: {
     width: '48%',
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
+    borderRadius: 16,
+    padding: 18,
+    shadowColor: '#3ace9f',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#f0fdfa',
   },
   featureIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#f0fdfa',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#e8f8f0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   featureTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1e293b',
-    marginBottom: 8,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 10,
+    fontFamily: 'System',
+    letterSpacing: 0.1,
   },
   featureDescription: {
-    fontSize: 13,
-    color: '#64748b',
-    lineHeight: 18,
+    fontSize: 14,
+    color: '#6b7280',
+    lineHeight: 22,
+    fontFamily: 'System',
+    fontWeight: '400',
   },
   actionsSection: {
     paddingHorizontal: 20,
     marginBottom: 32,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1e293b',
-    marginBottom: 16,
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 20,
+    fontFamily: 'System',
+    letterSpacing: 0.2,
   },
   actionsGrid: {
     flexDirection: 'row',
@@ -341,89 +423,126 @@ const styles = StyleSheet.create({
   actionCard: {
     width: '48%',
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 18,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
+    shadowColor: '#3ace9f',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#f0fdfa',
   },
   actionIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#2dd4bf',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#3ace9f',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   actionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1e293b',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 6,
+    fontFamily: 'System',
+    letterSpacing: 0.1,
+  },
+  actionSubtitle: {
+    fontSize: 13,
+    color: '#6b7280',
+    lineHeight: 18,
+    fontFamily: 'System',
+    fontWeight: '400',
   },
   ctaSection: {
     margin: 20,
-    padding: 24,
+    padding: 28,
     backgroundColor: '#ffffff',
-    borderRadius: 16,
+    borderRadius: 20,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 15,
-    elevation: 4,
+    shadowColor: '#3ace9f',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: '#e8f8f0',
+  },
+  ctaHeader: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  ctaBadge: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#3ace9f',
+    marginBottom: 8,
+    fontFamily: 'System',
   },
   ctaTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1e293b',
-    marginBottom: 12,
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 16,
     textAlign: 'center',
+    fontFamily: 'System',
+    letterSpacing: -0.3,
   },
   ctaDescription: {
-    fontSize: 16,
-    color: '#64748b',
+    fontSize: 17,
+    color: '#6b7280',
     textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 24,
+    marginBottom: 28,
+    lineHeight: 26,
+    fontFamily: 'System',
+    fontWeight: '400',
   },
   ctaButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2dd4bf',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: '#3ace9f',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    shadowColor: '#3ace9f',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 5,
   },
   ctaButtonText: {
     color: '#ffffff',
-    fontWeight: '600',
+    fontWeight: '700',
     marginRight: 8,
+    fontSize: 16,
+    fontFamily: 'System',
   },
   footer: {
-    padding: 24,
+    padding: 28,
     backgroundColor: '#f1f5f9',
     alignItems: 'center',
+    marginTop: 16,
   },
   footerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1e293b',
-    marginBottom: 8,
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 10,
+    fontFamily: 'System',
+    letterSpacing: 0.2,
   },
   footerSubtitle: {
-    fontSize: 14,
-    color: '#64748b',
+    fontSize: 16,
+    color: '#6b7280',
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: 24,
+    lineHeight: 24,
+    fontFamily: 'System',
+    fontWeight: '400',
   },
   footerLinks: {
     flexDirection: 'row',
@@ -432,14 +551,18 @@ const styles = StyleSheet.create({
   },
   footerLink: {
     color: '#64748b',
-    fontSize: 14,
-    marginHorizontal: 8,
-    marginVertical: 4,
+    fontSize: 15,
+    marginHorizontal: 12,
+    marginVertical: 6,
+    fontWeight: '500',
+    fontFamily: 'System',
   },
   footerLinkLogout: {
     color: '#ef4444',
-    fontSize: 14,
-    marginHorizontal: 8,
-    marginVertical: 4,
+    fontSize: 15,
+    marginHorizontal: 12,
+    marginVertical: 6,
+    fontWeight: '600',
+    fontFamily: 'System',
   },
 });

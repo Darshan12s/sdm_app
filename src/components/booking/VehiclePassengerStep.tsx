@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, ActivityIndicator, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, ActivityIndicator, Image, Animated } from 'react-native';
 import { VehicleType, ServiceType } from '@/types';
 import { useFareCalculation } from '@/hooks/useFareCalculation';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -39,6 +39,17 @@ export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
 }) => {
   const { colors } = useTheme();
   const [showPassengerModal, setShowPassengerModal] = useState(false);
+  const [selectedCardScale] = useState(new Animated.Value(1));
+
+  // Animation functions
+  const animateCardPress = (pressed: boolean) => {
+    Animated.spring(selectedCardScale, {
+      toValue: pressed ? 0.95 : 1,
+      useNativeDriver: true,
+      tension: 300,
+      friction: 10,
+    }).start();
+  };
 
   // Calculate distance and duration from coordinates
   const calculateDistanceAndDuration = () => {
@@ -162,44 +173,71 @@ export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+    <View>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {/* Modern Header with Gradient Background */}
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.primary }]}>Choose Your Vehicle</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Select the perfect vehicle for your journey</Text>
+          <View style={styles.headerContent}>
+            <View style={styles.headerIconContainer}>
+              <Text style={styles.headerIcon}>🚗</Text>
+            </View>
+            <View style={styles.headerTextContainer}>
+              <Text style={[styles.title, { color: colors.surface }]}>Choose Your Perfect Ride</Text>
+              <Text style={[styles.subtitle, { color: colors.surface }]}>Premium vehicles for every journey</Text>
+            </View>
+          </View>
         </View>
 
-        {/* Passenger Selection */}
+        {/* Passenger Selection Card */}
         <TouchableOpacity
           style={[styles.passengerSelector, { backgroundColor: colors.surface, borderColor: colors.border }]}
           onPress={() => setShowPassengerModal(true)}
+          activeOpacity={0.9}
         >
           <View style={styles.passengerContent}>
-            <Text style={[styles.passengerIcon, { color: colors.primary }]}>👥</Text>
-            <Text style={[styles.passengerText, { color: colors.text }]}>
-              {passengers} Guests
-            </Text>
+            <View style={[styles.passengerIconContainer, { backgroundColor: colors.primary + '20' }]}>
+              <Text style={[styles.passengerIcon, { color: colors.primary }]}>👥</Text>
+            </View>
+            <View style={styles.passengerTextContainer}>
+              <Text style={[styles.passengerLabel, { color: colors.textSecondary }]}>Number of Passengers</Text>
+              <Text style={[styles.passengerText, { color: colors.text }]}>
+                {passengers} {passengers === 1 ? 'Guest' : 'Guests'}
+              </Text>
+            </View>
           </View>
-          <Text style={[styles.chevronIcon, { color: colors.textSecondary }]}>›</Text>
+          <View style={[styles.chevronContainer, { backgroundColor: colors.primary + '15' }]}>
+            <Text style={[styles.chevronIcon, { color: colors.primary }]}>⌄</Text>
+          </View>
         </TouchableOpacity>
 
         {/* Vehicle Type Selection */}
-        <View style={[styles.vehicleContainer, { backgroundColor: colors.card }]}>
-          <Text style={[styles.containerTitle, { color: colors.text }]}>Choose Your Vehicle</Text>
-          <Text style={[styles.containerSubtitle, { color: colors.textSecondary }]}>Select the perfect ride for your journey</Text>
-          
+        <View >
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionIcon, { color: colors.primary }]}>⭐</Text>
+            <Text style={[styles.containerTitle, { color: colors.text }]}>Premium Vehicle Collection</Text>
+          </View>
+          <Text style={[styles.containerSubtitle, { color: colors.textSecondary }]}>Handpicked vehicles for exceptional journeys</Text>
+
           <View style={styles.vehicleGrid}>
-            {vehicleTypes.map((vehicle) => (
-              <TouchableOpacity
+            {vehicleTypes.map((vehicle, index) => (
+              <Animated.View
                 key={vehicle.type}
                 style={[
-                  styles.vehicleCard,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
-                  vehicleType === vehicle.type && [styles.vehicleCardActive, { borderColor: colors.primary, backgroundColor: colors.primary }],
+                  { transform: [{ scale: vehicleType === vehicle.type ? selectedCardScale : 1 }] }
                 ]}
-                onPress={() => onVehicleTypeChange(vehicle.type)}
-                disabled={vehicle.comingSoon}
               >
+                <TouchableOpacity
+                  style={[
+                    styles.vehicleCard,
+                    { backgroundColor: colors.surface, borderColor: colors.border },
+                    vehicleType === vehicle.type && styles.vehicleCardActive,
+                  ]}
+                  onPress={() => onVehicleTypeChange(vehicle.type)}
+                  onPressIn={() => animateCardPress(true)}
+                  onPressOut={() => animateCardPress(false)}
+                  disabled={vehicle.comingSoon}
+                  activeOpacity={0.95}
+                >
                 <View style={styles.vehicleCardContent}>
                   <View style={styles.vehicleIconContainer}>
                     <Image
@@ -258,6 +296,7 @@ export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
 
                 </View>
               </TouchableOpacity>
+              </Animated.View>
             ))}
           </View>
         </View>
@@ -341,167 +380,318 @@ export const VehiclePassengerStep: React.FC<VehiclePassengerStepProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+ 
+  scrollContent: {
+    paddingBottom: 30,
   },
   header: {
-    padding: 16,
+    backgroundColor: '#3ace9f',
+    paddingHorizontal: 20,
+    paddingVertical: 30,
+    marginBottom: 20,
+    borderBottomLeftRadius: 4,
+    borderBottomRightRadius: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  headerContent: {
     alignItems: 'center',
-    marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  headerIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  headerIcon: {
+    fontSize: 28,
+  },
+  headerTextContainer: {
+    flex: 1,
+    alignItems: 'center',
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 32,
+    fontWeight: '900',
     marginBottom: 8,
+    fontFamily: 'Inter-Black',
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 18,
     textAlign: 'center',
+    fontFamily: 'Inter-SemiBold',
+    lineHeight: 26,
+    letterSpacing: 0.3,
+    fontWeight: '600',
+    opacity: 0.95,
   },
   passengerSelector: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 12,
+    padding: 20,
+    marginHorizontal: 20,
+    marginBottom: 24,
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    borderWidth: 1,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   passengerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 16,
+    flex: 1,
+  },
+  passengerIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   passengerIcon: {
-    fontSize: 18,
+    fontSize: 24,
+  },
+  passengerTextContainer: {
+    flex: 1,
+  },
+  passengerLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 4,
+    fontFamily: 'Inter-SemiBold',
   },
   passengerText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 20,
+    fontWeight: '800',
+    fontFamily: 'Inter-Bold',
+    letterSpacing: 0.3,
+  },
+  chevronContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   chevronIcon: {
     fontSize: 18,
     fontWeight: 'bold',
   },
-  vehicleContainer: {
-    borderRadius: 20,
-    padding: 20,
-    margin: 16,
-    marginTop: 8,
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+  
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionIcon: {
+    fontSize: 24,
+    marginRight: 12,
   },
   containerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 4,
+    fontSize: 23,
+    fontWeight: '900',
+    marginBottom: 8,
+    fontFamily: 'Inter-Black',
+    letterSpacing: 0.4,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   containerSubtitle: {
-    fontSize: 14,
-    marginBottom: 16,
+    fontSize: 18,
+    marginBottom: 24,
+    fontFamily: 'Inter-SemiBold',
+    lineHeight: 26,
+    letterSpacing: 0.3,
+    fontWeight: '600',
   },
   vehicleGrid: {
     gap: 16,
-    paddingHorizontal: 2,
+    paddingHorizontal: 4,
   },
   vehicleCard: {
-    borderWidth: 1,
-    borderRadius: 16,
+    borderWidth: 0,
+    borderRadius: 24,
     overflow: 'hidden',
-    marginBottom: 12,
-    minHeight: 120,
+    marginBottom: 16,
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8,
+    position: 'relative',
   },
   vehicleCardActive: {
-    // Colors applied inline with theme
+    borderWidth: 0,
+    backgroundColor: '#f0fdf4',
+    shadowColor: '#3ace9f',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
+    elevation: 16,
+    transform: [{ scale: 1.02 }],
   },
   vehicleCardContent: {
-    flexDirection: 'row',
-    padding: 16,
+    flexDirection: 'column',
+    padding: 20,
     alignItems: 'center',
     minHeight: 100,
+    backgroundColor: 'transparent',
+    justifyContent: 'space-between',
+    width: '105%',
+    alignSelf: 'stretch',
   },
   vehicleIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
+    width: 70,
+    height: 70,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
-    backgroundColor: 'transparent',
+    backgroundColor: '#f8fafc',
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
   },
   vehicleImage: {
-    width: 68,
-    height: 78,
-    borderRadius: 10,
+    width: 70,
+    height: 70,
+    borderRadius: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
   },
   vehicleDetails: {
     flex: 1,
     justifyContent: 'space-between',
     paddingRight: 12,
+    minHeight: 80,
+    alignSelf: 'stretch',
+    flexDirection: 'column',
   },
   vehicleNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   vehicleName: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '800',
+    fontFamily: 'Inter-Bold',
+    letterSpacing: 0.3,
+    marginBottom: 4,
   },
   comingSoonBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#ef4444',
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   comingSoonText: {
-    fontSize: 10,
-    fontWeight: '500',
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#ffffff',
+    fontFamily: 'Inter-Bold',
+    letterSpacing: 0.2,
   },
   vehicleDescription: {
-    fontSize: 12,
-    marginBottom: 8,
+    fontSize: 14,
+    marginBottom: 6,
+    color: '#64748b',
+    fontFamily: 'Inter-SemiBold',
+    lineHeight: 18,
+    fontWeight: '600',
   },
   vehicleMetaRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
+    marginTop: 4,
   },
   vehicleMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   metaIcon: {
-    fontSize: 12,
+    fontSize: 14,
+    color: '#3ace9f',
   },
   vehicleMetaText: {
-    fontSize: 12,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#475569',
+    fontFamily: 'Inter-SemiBold',
   },
   vehiclePriceContainer: {
-    marginLeft: 'auto',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 80,
-    paddingLeft: 8,
+    minWidth: 100,
+    marginLeft: 12,
+    backgroundColor: '#f0fdf4',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#3ace9f',
+    shadowColor: '#3ace9f',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   vehiclePrice: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#059669',
+    fontFamily: 'Inter-Black',
+    letterSpacing: 0.4,
   },
   surgeText: {
     fontSize: 10,
@@ -517,47 +707,62 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   modalContent: {
-    padding: 24,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    padding: 28,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 12,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 20,
+    fontSize: 24,
+    fontWeight: '900',
+    marginBottom: 24,
     textAlign: 'center',
+    fontFamily: 'Inter-Black',
+    letterSpacing: 0.4,
   },
   passengerGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 20,
+    gap: 16,
+    marginBottom: 24,
     justifyContent: 'center',
   },
   passengerOption: {
-    width: 80,
-    height: 80,
-    borderRadius: 12,
+    width: 90,
+    height: 90,
+    borderRadius: 20,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
   },
   passengerOptionActive: {
     // Colors applied inline with theme
   },
   passengerOptionText: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 26,
+    fontWeight: '900',
+    fontFamily: 'Inter-Black',
   },
   passengerOptionTextActive: {
     // Colors applied inline with theme
   },
   passengerOptionLabel: {
-    fontSize: 12,
+    fontSize: 14,
     marginTop: 4,
+    fontWeight: '600',
+    fontFamily: 'Inter-SemiBold',
   },
   passengerOptionLabelActive: {
     // Colors applied inline with theme
@@ -572,39 +777,68 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   footer: {
-    padding: 16,
-    paddingBottom: 24,
+    padding: 24,
+    paddingBottom: 36,
+    backgroundColor: '#ffffff',
     borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8,
   },
   buttonContainer: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
   },
   backButton: {
     flex: 1,
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: 18,
+    borderRadius: 16,
     alignItems: 'center',
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   backButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '800',
+    fontFamily: 'Inter-Bold',
+    letterSpacing: 0.4,
   },
   nextButton: {
     flex: 2,
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: 20,
+    borderRadius: 20,
     alignItems: 'center',
+    backgroundColor: '#3ace9f',
+    shadowColor: '#3ace9f',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   nextButtonDisabled: {
-    // Colors applied inline with theme
+    backgroundColor: '#cbd5e1',
+    shadowOpacity: 0.15,
   },
   nextButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 19,
+    fontWeight: '900',
+    fontFamily: 'Inter-Black',
+    letterSpacing: 0.4,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   nextButtonTextDisabled: {
-    // Colors applied inline with theme
+    color: '#94a3b8',
+    fontWeight: '600',
   },
 });
