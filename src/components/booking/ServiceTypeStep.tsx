@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { ServiceType } from '@/types';
 import { useTheme } from '@/contexts/ThemeContext';
+import { GoogleMap } from '@/components/GoogleMap';
 
 interface ServiceTypeStepProps {
   serviceType: ServiceType;
@@ -67,10 +68,10 @@ export const ServiceTypeStep: React.FC<ServiceTypeStepProps> = ({
    ];
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.primary }]}>Select Your Service Type</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Enter your trip details and see available options</Text>
+        <Text style={[styles.title, { color: colors.primary }]}>Choose Your Service</Text>
+        
       </View>
      
       <View style={[styles.serviceTypeContainer, { backgroundColor: colors.card }]}>
@@ -85,7 +86,7 @@ export const ServiceTypeStep: React.FC<ServiceTypeStepProps> = ({
               style={[
                 styles.serviceCard,
                 { backgroundColor: colors.surface, borderColor: colors.border },
-                serviceType === service.id && [styles.serviceCardActive, { borderColor: colors.primary, backgroundColor: colors.primary }],
+                serviceType === service.id && [styles.serviceCardActive, { borderColor: colors.primary }],
               ]}
               onPress={() => onServiceTypeChange(service.id)}
             >
@@ -111,7 +112,7 @@ export const ServiceTypeStep: React.FC<ServiceTypeStepProps> = ({
               <Text style={[
                 styles.serviceName,
                 { color: colors.text },
-                serviceType === service.id && [styles.serviceNameActive, { color: colors.surface }],
+                serviceType === service.id && [styles.serviceNameActive, { color: colors.primary }],
               ]}>
                 {service.name}
               </Text>
@@ -257,91 +258,72 @@ export const ServiceTypeStep: React.FC<ServiceTypeStepProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  
   header: {
     padding: 4,
   },
   title: {
-    fontSize: 26,
-    fontWeight: '800',
-    marginBottom: 16,
+    fontSize: 17,
+    fontWeight: '700',
     color: '#0f172a',
     fontFamily: 'Inter-Bold',
-    letterSpacing: 0.3,
-    textShadowColor: 'rgba(58, 206, 159, 0.1)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#64748b',
-    fontWeight: '500',
-    lineHeight: 24,
-    fontFamily: 'Inter-Medium',
     letterSpacing: 0.2,
   },
+ 
   serviceTypeContainer: {
-    borderRadius: 24,
-    padding: 20,
-    margin: 16,
-    marginVertical: 20,
+    borderRadius: 12,
+    marginHorizontal: 16,
+    marginVertical: 8,
     shadowColor: '#3ace9f',
     shadowOffset: {
       width: 0,
       height: 8,
     },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 8,
-    borderWidth: 3,
-    borderColor: '#e8f8f0',
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
+    borderWidth: 2,
+    borderColor: '#F8E8F7FF',
     backgroundColor: '#ffffff',
+    minWidth:'auto',
   },
   serviceGrid: {
     flexDirection: 'row',
-    flexWrap: 'nowrap',
-    alignItems: 'center',
-    minWidth: '100%',
-    gap: 6,
+    alignItems: 'flex-end',
+      justifyContent: 'space-between',
+      gap: 12,
+      width: '100%',
+      padding:4
   },
   serviceCard: {
-    width: 88,
-    height: 80,
-    borderRadius: 10,
-    padding: 2,
+    width: 78,
+    height: 64,
+    borderRadius: 12,
+    padding: 4,
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 0,
-    marginHorizontal: 8,
-    shadowColor: '#3ace9f',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 6,
-    backgroundColor: '#ffffff',
+    borderWidth: 2,
+    marginHorizontal: 4,
+
   },
   serviceCardActive: {
+    color:'#3ace9f',
     borderColor: '#3ace9f',
-    backgroundColor: '#3ace9f',
-    shadowColor: '#3ace9f',
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowColor: '#6D837CFF',
     transform: [{ scale: 1.05 }],
+        shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
+    borderWidth: 2,
   },
   serviceIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 18,
+    width: 48,
+    height: 48,
+    borderRadius: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
-    backgroundColor: '#F8FAFCFF',
-    borderWidth: 2,
-    borderColor: '#e2e8f0',
+
   },
   serviceIconContainerActive: {
     backgroundColor: '#22CAF8FF',
@@ -354,8 +336,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   serviceName: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 10,
     textAlign: 'center',
     lineHeight: 20,
     color: '#0f172a',
@@ -372,18 +353,18 @@ const styles = StyleSheet.create({
     textShadowRadius: 2,
   },
   tripTypeSection: {
-    borderRadius: 20,
-    padding: 16,
-    marginHorizontal: 16,
-    marginBottom: 16,
+    borderRadius: 16,
+    padding: 12,
+    marginHorizontal: 18,
+    marginBottom: 8,
     shadowColor: '#3ace9f',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 5,
     },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
     borderWidth: 2,
     borderColor: '#e8f8f0',
     backgroundColor: '#ffffff',
@@ -395,10 +376,11 @@ const styles = StyleSheet.create({
   },
   tripTypeButton: {
     flex: 1,
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-    borderRadius: 16,
-    borderWidth: 2,
+    paddingVertical: 6,
+    paddingHorizontal: 9,
+    borderRadius: 17,
+    borderWidth:2,
+    
     alignItems: 'center',
     shadowColor: '#3ace9f',
     shadowOffset: { width: 0, height: 3 },
@@ -418,7 +400,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.02 }],
   },
   tripTypeButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#475569',
     fontFamily: 'Inter-SemiBold',
@@ -438,8 +420,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   checkbox: {
-    width: 22,
-    height: 22,
+    width: 12,
+    height: 12,
     borderRadius: 11,
     borderWidth: 2,
     alignItems: 'center',
@@ -457,12 +439,12 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
   },
   footer: {
-    padding: 20,
-    paddingBottom: 28,
+    padding: 12,
+    paddingBottom: 16,
   },
   nextButton: {
-    paddingVertical: 20,
-    borderRadius: 16,
+    paddingVertical: 9,
+    borderRadius: 10,
     alignItems: 'center',
     shadowColor: '#3ace9f',
     shadowOffset: { width: 0, height: 6 },
@@ -476,14 +458,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
   },
   nextButtonText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: '#ffffff',
     fontFamily: 'Inter-Bold',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
   nextButtonTextDisabled: {
     color: '#94a3b8',
   },
 });
+
+
 

@@ -33,7 +33,7 @@ interface GoogleMapProps {
 const GoogleMapComponent: React.FC<GoogleMapProps> = ({
   pickupLocation,
   dropoffLocation,
-  height = '300px',
+  height = '100%',
   onRouteUpdate,
   interactive = false,
   onPickupChange,
@@ -575,6 +575,7 @@ const GoogleMapComponent: React.FC<GoogleMapProps> = ({
 const styles = StyleSheet.create({
   container: {
     position: 'relative',
+    flex: 1,
   },
   errorContainer: {
     justifyContent: 'center',
@@ -631,7 +632,7 @@ const styles = StyleSheet.create({
   },
   interactiveIndicator: {
     position: 'absolute',
-    top: 8,
+    bottom: 50,
     left: 8,
     backgroundColor: '#ffffff',
     padding: 8,
@@ -651,18 +652,18 @@ const styles = StyleSheet.create({
   },
   locationButtonsContainer: {
     position: 'absolute',
-    bottom: 16,
-    left: 16,
-    right: 16,
+    top: 50,
+    left: 10,
+    right: 10,
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   locationButton: {
     flex: 1,
     backgroundColor: '#ffffff',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    borderRadius: 10,
     borderWidth: 2,
     borderColor: '#e2e8f0',
     alignItems: 'center',
@@ -683,6 +684,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#475569',
+    padding:0,
   },
   locationButtonTextActive: {
     color: '#0d9488', // Darker teal for active text

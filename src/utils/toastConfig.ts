@@ -1,35 +1,52 @@
 import React from 'react';
 import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
 
-export const toastConfig = {
+interface ThemeColors {
+  card: string;
+  text: string;
+  textSecondary: string;
+  success: string;
+  error: string;
+  warning: string;
+  info: string;
+  shadow: string;
+}
+
+export const createToastConfig = (colors: ThemeColors, isDark: boolean) => ({
   success: (props: any) => (
     React.createElement(BaseToast, {
       ...props,
       style: {
-        borderLeftColor: 'hsl(120, 35%, 35%)', // Traditional forest green
-        backgroundColor: 'hsl(var(--card))',
-        borderLeftWidth: 5,
-        borderRadius: 8,
+        borderLeftColor: colors.success,
+        backgroundColor: colors.card,
+        borderLeftWidth: 4,
+        borderRadius: 12,
         marginHorizontal: 16,
-        shadowColor: '#000',
+        marginTop: 8,
+        shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 5,
+        shadowOpacity: isDark ? 0.3 : 0.15,
+        shadowRadius: 6,
+        elevation: 8,
+        minHeight: 56,
+        borderWidth: isDark ? 1 : 0,
+        borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
       },
       contentContainerStyle: {
         paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingVertical: 14,
+        flex: 1,
       },
       text1Style: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '600',
-        color: 'hsl(var(--foreground))',
+        color: colors.text,
+        marginBottom: 2,
       },
       text2Style: {
-        fontSize: 14,
-        color: 'hsl(var(--muted-foreground))',
-        lineHeight: 20,
+        fontSize: 13,
+        color: colors.textSecondary,
+        lineHeight: 18,
       },
     })
   ),
@@ -38,30 +55,36 @@ export const toastConfig = {
     React.createElement(ErrorToast, {
       ...props,
       style: {
-        borderLeftColor: 'hsl(var(--destructive))',
-        backgroundColor: 'hsl(var(--card))',
-        borderLeftWidth: 5,
-        borderRadius: 8,
+        borderLeftColor: colors.error,
+        backgroundColor: colors.card,
+        borderLeftWidth: 4,
+        borderRadius: 12,
         marginHorizontal: 16,
-        shadowColor: '#000',
+        marginTop: 8,
+        shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 5,
+        shadowOpacity: isDark ? 0.3 : 0.15,
+        shadowRadius: 6,
+        elevation: 8,
+        minHeight: 56,
+        borderWidth: isDark ? 1 : 0,
+        borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
       },
       contentContainerStyle: {
         paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingVertical: 14,
+        flex: 1,
       },
       text1Style: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '600',
-        color: 'hsl(var(--foreground))',
+        color: colors.text,
+        marginBottom: 2,
       },
       text2Style: {
-        fontSize: 14,
-        color: 'hsl(var(--muted-foreground))',
-        lineHeight: 20,
+        fontSize: 13,
+        color: colors.textSecondary,
+        lineHeight: 18,
       },
     })
   ),
@@ -70,30 +93,36 @@ export const toastConfig = {
     React.createElement(BaseToast, {
       ...props,
       style: {
-        borderLeftColor: 'hsl(var(--primary))',
-        backgroundColor: 'hsl(var(--card))',
-        borderLeftWidth: 5,
-        borderRadius: 8,
+        borderLeftColor: colors.info,
+        backgroundColor: colors.card,
+        borderLeftWidth: 4,
+        borderRadius: 12,
         marginHorizontal: 16,
-        shadowColor: '#000',
+        marginTop: 8,
+        shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 5,
+        shadowOpacity: isDark ? 0.3 : 0.15,
+        shadowRadius: 6,
+        elevation: 8,
+        minHeight: 56,
+        borderWidth: isDark ? 1 : 0,
+        borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
       },
       contentContainerStyle: {
         paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingVertical: 14,
+        flex: 1,
       },
       text1Style: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '600',
-        color: 'hsl(var(--foreground))',
+        color: colors.text,
+        marginBottom: 2,
       },
       text2Style: {
-        fontSize: 14,
-        color: 'hsl(var(--muted-foreground))',
-        lineHeight: 20,
+        fontSize: 13,
+        color: colors.textSecondary,
+        lineHeight: 18,
       },
     })
   ),
@@ -102,31 +131,37 @@ export const toastConfig = {
     React.createElement(BaseToast, {
       ...props,
       style: {
-        borderLeftColor: '#f59e0b',
-        backgroundColor: 'hsl(var(--card))',
-        borderLeftWidth: 5,
-        borderRadius: 8,
+        borderLeftColor: colors.warning,
+        backgroundColor: colors.card,
+        borderLeftWidth: 4,
+        borderRadius: 12,
         marginHorizontal: 16,
-        shadowColor: '#000',
+        marginTop: 8,
+        shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 5,
+        shadowOpacity: isDark ? 0.3 : 0.15,
+        shadowRadius: 6,
+        elevation: 8,
+        minHeight: 56,
+        borderWidth: isDark ? 1 : 0,
+        borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
       },
       contentContainerStyle: {
         paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingVertical: 14,
+        flex: 1,
       },
       text1Style: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '600',
-        color: 'hsl(var(--foreground))',
+        color: colors.text,
+        marginBottom: 2,
       },
       text2Style: {
-        fontSize: 14,
-        color: 'hsl(var(--muted-foreground))',
-        lineHeight: 20,
+        fontSize: 13,
+        color: colors.textSecondary,
+        lineHeight: 18,
       },
     })
   ),
-};
+});

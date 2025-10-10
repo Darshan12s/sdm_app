@@ -19,13 +19,15 @@ import { useRealtimeSubscriptions } from '@/hooks/useRealtimeSubscriptions';
 import AppNavigator from '@/navigation/AppNavigator';
 
 // Import toast configuration
-import { toastConfig } from '@/utils/toastConfig';
+import { createToastConfig } from '@/utils/toastConfig';
 
 // Import theme provider
-import ThemeProvider from '@/contexts/ThemeContext';
+import ThemeProvider, { useTheme } from '@/contexts/ThemeContext';
 
-export default function App() {
+// Component to handle theme-aware toast configuration
+const AppContent = () => {
   const { isLoading, isAuthenticated } = useAppStore();
+  const { colors, isDark } = useTheme();
 
   // Initialize real-time subscriptions
   useRealtimeSubscriptions();
@@ -44,6 +46,9 @@ export default function App() {
     initializeAuth();
   }, []);
 
+  // Create theme-aware toast config
+  const toastConfig = createToastConfig(colors, isDark);
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -54,13 +59,27 @@ export default function App() {
   }
 
   return (
+    <>
+      <NavigationContainer>
+        <AppNavigator />
+        <StatusBar style="auto" />
+      </NavigationContainer>
+      <Toast
+        config={toastConfig}
+        visibilityTime={2000}
+        autoHide={true}
+        topOffset={60}
+        bottomOffset={70}
+      />
+    </>
+  );
+};
+
+export default function App() {
+  return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <NavigationContainer>
-          <AppNavigator />
-          <StatusBar style="auto" />
-        </NavigationContainer>
-        <Toast config={toastConfig} />
+        <AppContent />
       </ThemeProvider>
     </SafeAreaProvider>
   );

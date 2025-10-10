@@ -28,7 +28,8 @@ import Config from 'react-native-config';
 import { useTheme } from '../../../contexts/ThemeContext';
 
 // Add your Google Maps API key here
-const GOOGLE_MAPS_APIKEY = Config.GOOGLE_MAPS_API_KEY || 'AIzaSyAejqe2t4TAptcLnkpoFTTNMhm0SFHFJgQ';
+const GOOGLE_MAPS_APIKEY = Config.GOOGLE_MAPS_API_KEY || 'AIzaSyC4Rx2LbWL5F2ilbio1WNaNEb-hS_focwg';
+
 
 interface ActiveBooking {
   id: string;

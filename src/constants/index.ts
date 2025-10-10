@@ -2,7 +2,9 @@
 export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 export const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 // Use environment variable with fallback to hardcoded key for physical devices
-export const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyAejqe2t4TAptcLnkpoFTTNMhm0SFHFJgQ';
+export const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyC4Rx2LbWL5F2ilbio1WNaNEb-hS_focwg';
+// Use environment variable for Places API key
+export const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || 'AIzaSyCyl86a7_holRCLkhRH4TjKxM4sMIseRfo';
 export const RAZORPAY_KEY_ID = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || '';
 
 // App Configuration

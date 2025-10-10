@@ -75,12 +75,19 @@ export class AuthService {
   // Sign out
   static async signOut() {
     try {
+      console.log('AuthService: Starting sign out process');
       const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      if (error) {
+        console.error('AuthService: Supabase sign out error:', error);
+        throw error;
+      }
 
+      console.log('AuthService: Supabase sign out successful, updating app store');
       useAppStore.getState().logout();
+      console.log('AuthService: App store logout completed');
       return { error: null };
     } catch (error) {
+      console.error('AuthService: Sign out process failed:', error);
       return { error: error as Error };
     }
   }
@@ -195,17 +202,28 @@ export class AuthService {
 
   // Initialize auth state listener
   static initializeAuthListener() {
+    console.log('AuthService: Initializing auth state listener');
     supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.id);
+      console.log('AuthService: Auth state changed:', event, {
+        userId: session?.user?.id,
+        sessionExists: !!session,
+        hasAccessToken: !!session?.access_token
+      });
 
       if (event === 'SIGNED_IN' && session?.user) {
+        console.log('AuthService: Processing SIGNED_IN event for user:', session.user.id);
         const profile = await this.getUserProfile(session.user.id);
         if (profile) {
           useAppStore.getState().setUser(profile);
           useAppStore.getState().setAuthenticated(true);
+          console.log('AuthService: User profile loaded and store updated');
+        } else {
+          console.log('AuthService: No profile found for signed in user');
         }
       } else if (event === 'SIGNED_OUT') {
+        console.log('AuthService: Processing SIGNED_OUT event, clearing user data');
         useAppStore.getState().logout();
+        console.log('AuthService: User data cleared from store');
       }
     });
   }

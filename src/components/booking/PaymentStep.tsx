@@ -603,11 +603,11 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
 
   return (
     <>
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
+    <ScrollView >
       {/* Header */}
-      <View style={styles.header}>
+      <View>
         <Text style={[styles.title, { color: colors.primary }]}>Secure Payment</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Complete your payment to confirm your booking</Text>
+        
 
         {/* Payment Status Indicator */}
         {paymentStatus !== 'idle' && (
@@ -876,7 +876,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
             style={[
               styles.paymentAmountOption,
               { borderColor: colors.border },
-              paymentAmount === 'partial' && [styles.paymentAmountOptionSelected, { borderColor: colors.primary, backgroundColor: colors.primary }],
+              paymentAmount === 'partial' && [styles.paymentAmountOptionSelected, { borderColor: '#3ace9f' }],
             ]}
             onPress={() => setPaymentAmount('partial')}
           >
@@ -886,20 +886,20 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
             <View style={styles.paymentAmountContent}>
               <Text style={[
                 styles.paymentAmountTitle,
-                { color: paymentAmount === 'partial' ? colors.surface : colors.text }
+                { color: paymentAmount === 'partial' ? colors.text : colors.text }
               ]}>
                 Partial Payment (25%)
               </Text>
               <Text style={[
                 styles.paymentAmountDescription,
-                { color: paymentAmount === 'partial' ? colors.surface : colors.textSecondary }
+                { color: paymentAmount === 'partial' ? colors.textSecondary : colors.textSecondary }
               ]}>
                 Pay remaining after ride
               </Text>
             </View>
             <Text style={[
               styles.paymentAmountValue,
-              { color: paymentAmount === 'partial' ? colors.surface : colors.primary }
+              { color: paymentAmount === 'partial' ? colors.primary : colors.primary }
             ]}>₹{partialPayment}</Text>
           </TouchableOpacity>
 
@@ -907,7 +907,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
             style={[
               styles.paymentAmountOption,
               { borderColor: colors.border },
-              paymentAmount === 'full' && [styles.paymentAmountOptionSelected, { borderColor: colors.primary, backgroundColor: colors.primary }],
+              paymentAmount === 'full' && [styles.paymentAmountOptionSelected, { borderColor: '#3ace9f' }],
             ]}
             onPress={() => setPaymentAmount('full')}
           >
@@ -917,20 +917,20 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
             <View style={styles.paymentAmountContent}>
               <Text style={[
                 styles.paymentAmountTitle,
-                { color: paymentAmount === 'full' ? colors.surface : colors.text }
+                { color: paymentAmount === 'full' ? colors.text : colors.text }
               ]}>
                 Full Payment
               </Text>
               <Text style={[
                 styles.paymentAmountDescription,
-                { color: paymentAmount === 'full' ? colors.surface : colors.textSecondary }
+                { color: paymentAmount === 'full' ? colors.textSecondary : colors.textSecondary }
               ]}>
                 Pay complete fare now
               </Text>
             </View>
             <Text style={[
               styles.paymentAmountValue,
-              { color: paymentAmount === 'full' ? colors.surface : colors.primary }
+              { color: paymentAmount === 'full' ? colors.primary : colors.primary }
             ]}>₹{estimatedFare}</Text>
           </TouchableOpacity>
         </View>
@@ -952,7 +952,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
               style={[
                 styles.paymentMethodOption,
                 { backgroundColor: colors.surface, borderColor: colors.border },
-                paymentMethod === method.id && [styles.paymentMethodOptionSelected, { borderColor: colors.primary, backgroundColor: colors.primary }],
+                paymentMethod === method.id && [styles.paymentMethodOptionSelected, { borderColor: '#3ace9f' }],
               ]}
               onPress={() => setPaymentMethod(method.id)}
             >
@@ -963,19 +963,19 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
                 <MaterialIcons
                   name={method.icon as any}
                   size={24}
-                  color={paymentMethod === method.id ? colors.surface : colors.text}
+                  color={paymentMethod === method.id ? colors.text : colors.text}
                 />
               </View>
               <View style={styles.paymentMethodDetails}>
                 <Text style={[
                   styles.paymentMethodName,
-                  { color: paymentMethod === method.id ? colors.surface : colors.text }
+                  { color: paymentMethod === method.id ? colors.text : colors.text }
                 ]}>
                   {method.name}
                 </Text>
                 <Text style={[
                   styles.paymentMethodDescription,
-                  { color: paymentMethod === method.id ? colors.surface : colors.textSecondary }
+                  { color: paymentMethod === method.id ? colors.textSecondary : colors.textSecondary }
                 ]}>
                   {method.description}
                 </Text>
@@ -1015,7 +1015,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
       <TouchableOpacity
         style={[
           styles.payButton,
-          { backgroundColor: colors.primary },
+          { backgroundColor: '#3ace9f' },
           (!acceptedTerms || isProcessing) && [styles.payButtonDisabled, { backgroundColor: colors.border }],
         ]}
         onPress={handlePayment}
@@ -1065,29 +1065,16 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    padding: 16,
-    alignItems: 'center',
-    marginBottom: 8,
-  },
+ 
   title: {
-    fontSize: 26,
+    fontSize: 17,
     fontWeight: '800',
     marginBottom: 12,
     color: '#0f172a',
     fontFamily: 'Inter-Bold',
     letterSpacing: 0.3,
   },
-  subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    color: '#64748b',
-    fontFamily: 'Inter-Medium',
-    lineHeight: 24,
-  },
+ 
   statusContainer: {
     marginTop: 12,
     paddingHorizontal: 12,
@@ -1105,10 +1092,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   card: {
-    marginHorizontal: 16,
-    marginBottom: 20,
-    padding: 20,
-    borderRadius: 20,
+    marginHorizontal: 8,
+    marginBottom: 10,
+    padding: 14,
+    borderRadius: 12,
     backgroundColor: '#ffffff',
     borderWidth: 2,
     borderColor: '#e8f8f0',
@@ -1122,7 +1109,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   cardTitle: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '700',
     marginBottom: 20,
     color: '#0f172a',
@@ -1202,7 +1189,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderRadius: 12,
-    padding: 16,
+    padding: 12,
   },
   paymentAmountOptionSelected: {
     // Colors applied inline with theme
@@ -1210,7 +1197,7 @@ const styles = StyleSheet.create({
   radioButton: {
     width: 20,
     height: 20,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1219,7 +1206,7 @@ const styles = StyleSheet.create({
   radioButtonInner: {
     width: 10,
     height: 10,
-    borderRadius: 5,
+    borderRadius: 12,
   },
   paymentAmountContent: {
     flex: 1,
@@ -1248,7 +1235,7 @@ const styles = StyleSheet.create({
   paymentMethodOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 2,
     borderRadius: 12,
     borderWidth: 1,
   },
@@ -1280,7 +1267,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 16,
     marginBottom: 16,
-    padding: 16,
+    padding: 12,
     borderRadius: 12,
     gap: 8,
     borderWidth: 1,
@@ -1292,7 +1279,7 @@ const styles = StyleSheet.create({
   termsCard: {
     marginHorizontal: 16,
     marginBottom: 16,
-    padding: 16,
+    padding: 12,
     borderRadius: 12,
     borderWidth: 1,
   },
@@ -1304,7 +1291,7 @@ const styles = StyleSheet.create({
   checkbox: {
     width: 20,
     height: 20,
-    borderRadius: 4,
+    borderRadius: 12,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1320,8 +1307,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   payButton: {
-    paddingVertical: 20,
-    borderRadius: 16,
+    paddingVertical: 11,
+    borderRadius: 12,
     alignItems: 'center',
     marginHorizontal: 16,
     marginBottom: 16,
@@ -1342,15 +1329,15 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   payButtonText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: '#ffffff',
     fontFamily: 'Inter-Bold',
     letterSpacing: 0.3,
   },
   backButton: {
-    paddingVertical: 18,
-    borderRadius: 14,
+    paddingVertical: 11,
+    borderRadius: 12,
     alignItems: 'center',
     marginHorizontal: 16,
     marginBottom: 28,
@@ -1383,7 +1370,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   fareBreakdown: {
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 12,
     marginTop: 8,
     borderWidth: 1,

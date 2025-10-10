@@ -41,7 +41,7 @@ const RideDetailsScreen: React.FC<RideDetailsScreenProps> = ({ route, navigation
   } | null>(null);
 
   // Google Maps API key
-  const GOOGLE_MAPS_APIKEY = Config.GOOGLE_MAPS_API_KEY || 'AIzaSyAejqe2t4TAptcLnkpoFTTNMhm0SFHFJgQ';
+  const GOOGLE_MAPS_APIKEY = Config.GOOGLE_MAPS_API_KEY || 'AIzaSyC4Rx2LbWL5F2ilbio1WNaNEb-hS_focwg';
 
   // Refresh map when booking status changes
   useEffect(() => {

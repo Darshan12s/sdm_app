@@ -23,6 +23,7 @@ import { supabase } from '../../services/supabase/client';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system';
 import { useTheme } from '../../contexts/ThemeContext';
+import { GOOGLE_PLACES_API_KEY } from '../../constants';
 
 // Address type definition
 type Address = {
@@ -45,22 +46,125 @@ const PREDEFINED_TITLES = [
 export const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
 
-// Simplified image processing for upload
-const processImageForUpload = async (uri: string): Promise<{ base64Data: string; contentType: string }> => {
-  try {
-    const extension = uri.toLowerCase().split('.').pop();
-    const contentType = extension === 'png' ? 'image/png' : 'image/jpeg';
+// Enhanced image upload handler with proper format handling
+const uploadImageToStorage = async (uri: string, userId: string): Promise<string> => {
+  console.log('📤 uploadImageToStorage called with URI:', uri, 'userId:', userId);
 
-    const base64Data = await FileSystem.readAsStringAsync(uri, {
-      encoding: FileSystem.EncodingType.Base64,
+  try {
+    // Generate a unique filename with proper extension
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substring(7);
+    const fileName = `${timestamp}_${randomId}.jpg`;
+    const filePath = `${userId}/${fileName}`;
+    console.log('📁 Generated filePath:', filePath);
+
+    // Get file information first
+    console.log('📋 Getting file information...');
+    const fileInfo = await FileSystem.getInfoAsync(uri);
+    console.log('📄 File info:', {
+      exists: fileInfo.exists,
+      uri: fileInfo.uri,
+      isDirectory: fileInfo.isDirectory
     });
 
-    if (!base64Data || base64Data.length < 100) {
-      throw new Error('Invalid image data');
+    if (!fileInfo.exists) {
+      throw new Error(`File does not exist at path: ${uri}`);
     }
 
-    return { base64Data, contentType };
-  } catch (error: any) {
+    if (fileInfo.isDirectory) {
+      throw new Error('Selected path is a directory, not a file');
+    }
+
+    console.log('📖 Reading file with proper encoding...');
+    let base64Data;
+
+    try {
+      base64Data = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      console.log('✅ File read successfully, base64 length:', base64Data.length);
+    } catch (readError: any) {
+      console.error('❌ File read error:', readError);
+      throw new Error(`Failed to read file: ${readError.message || readError.toString()}`);
+    }
+
+    // Validate base64 data
+    if (!base64Data || base64Data.length === 0) {
+      throw new Error('Base64 data is empty after reading file');
+    }
+
+    // Check if base64 data is valid (basic validation)
+    const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+    if (!base64Regex.test(base64Data)) {
+      console.warn('⚠️ Base64 format validation failed, but continuing with upload');
+    }
+
+    // Calculate expected file size from base64
+    const expectedSize = (base64Data.length * 3) / 4;
+    console.log('📊 Size validation:', {
+      base64Length: base64Data.length,
+      expectedSize: Math.round(expectedSize),
+      actualSize: fileInfo.size
+    });
+
+    // Convert base64 to proper buffer format for upload
+    console.log('🔄 Preparing data for upload...');
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    console.log('🚀 Uploading to Supabase storage...');
+    const { data, error } = await supabase.storage
+      .from('user_profile_pictures')
+      .upload(filePath, bytes, {
+        contentType: 'image/jpeg',
+        upsert: true,
+        cacheControl: '31536000', // Cache for 1 year
+      });
+
+    if (error) {
+      console.error('❌ Supabase upload error:', {
+        message: error.message,
+        statusCode: (error as any).statusCode,
+        error: (error as any).error,
+        details: (error as any).details
+      });
+      throw new Error(`Upload failed: ${error.message}`);
+    }
+
+    console.log('✅ Upload successful:', {
+      path: data.path,
+      fullPath: data.fullPath,
+      id: data.id
+    });
+
+    // Verify the upload by getting the public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('user_profile_pictures')
+      .getPublicUrl(filePath);
+
+    console.log('🔗 Generated public URL:', publicUrl);
+
+    // Validate the public URL format
+    try {
+      const url = new URL(publicUrl);
+      console.log('✅ Public URL is valid:', {
+        protocol: url.protocol,
+        hostname: url.hostname,
+        pathname: url.pathname,
+        href: url.href
+      });
+    } catch (urlError) {
+      console.error('❌ Invalid public URL format:', urlError);
+      throw new Error(`Invalid public URL generated: ${publicUrl}`);
+    }
+
+    console.log('🎯 Upload process completed successfully');
+    return filePath;
+  } catch (error) {
+    console.error('❌ Error in uploadImageToStorage:', error);
     throw error;
   }
 };
@@ -221,88 +325,66 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
 
   const fetchProfileImage = async (userId: string) => {
     try {
-      // Get profile picture URL from users table
-      const { data: userData, error: userError } = await supabase
+      console.log('🔍 fetchProfileImage called for userId:', userId);
+      const { data: userData, error } = await supabase
         .from('users')
         .select('profile_picture_url')
         .eq('id', userId)
         .single();
 
-      if (!userError && userData?.profile_picture_url) {
+      if (error) {
+        console.error('❌ Error fetching user data:', error);
+        return;
+      }
+
+      console.log('📋 userData from database:', userData);
+
+      if (userData?.profile_picture_url) {
         let imageUrl = userData.profile_picture_url;
+        console.log('🔗 Original imageUrl from database:', imageUrl);
 
-        // Ensure the URL is properly formatted for React Native
-        if (!imageUrl.startsWith('http')) {
-          // Simple URL construction
-          const baseUrl = 'https://gmualcoqyztvtsqhjlzb.supabase.co/storage/v1/object/public/user_profile_pictures';
-          const cleanPath = imageUrl.replace(/^public\//, '');
-          imageUrl = `${baseUrl}/${cleanPath}`;
+        // Handle different types of image URLs
+        if (imageUrl.startsWith('file://') || imageUrl.startsWith('content://')) {
+          console.log('📱 Local image URI detected, using directly:', imageUrl);
+          // For local URIs, use them directly
+          setProfileImage(imageUrl);
+        } else if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+          console.log('🌐 Remote URL detected, using directly:', imageUrl);
+          // Already a full remote URL - use directly without cache busting
+          setProfileImage(imageUrl);
         } else {
-          // Fix URL duplication issues
-          imageUrl = imageUrl.replace('/object/ppublic/', '/object/public/');
-          imageUrl = imageUrl.replace('/object/publlic/', '/object/public/');
-          imageUrl = imageUrl.replace('ppublic', 'public');
-          imageUrl = imageUrl.replace('publlic', 'public');
-        }
+          // It's a Supabase storage path - construct the full URL without cache busting
+          console.log('🏗️ Constructing Supabase URL for storage path:', imageUrl);
+          try {
+            const { data: { publicUrl } } = supabase.storage
+              .from('user_profile_pictures')
+              .getPublicUrl(imageUrl);
 
-        // Simple cache-busting
-        const separator = imageUrl.includes('?') ? '&' : '?';
-        imageUrl = `${imageUrl}${separator}t=${Date.now()}`;
+            console.log('✅ Final Supabase URL:', publicUrl);
 
-        // Set storage image directly for immediate display
-        setProfileImage(imageUrl);
-        return;
-      }
-
-      // Fallback: Check storage directly
-      const { data: listData, error: listError } = await supabase
-        .storage
-        .from('user_profile_pictures')
-        .list(userId);
-      
-      if (listError) {
-        console.error('Storage list error:', listError);
-        return;
-      }
-      
-      if (listData && listData.length > 0) {
-        const sortedFiles = listData
-          .filter(file => file.name && !file.name.startsWith('.'))
-          .sort((a: any, b: any) =>
-            new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
-          );
-        
-        if (sortedFiles.length > 0) {
-          const { data: { publicUrl } } = supabase
-            .storage
-            .from('user_profile_pictures')
-            .getPublicUrl(`${userId}/${sortedFiles[0].name}`);
-          
-          if (publicUrl) {
-            let imageUrl = publicUrl;
-            if (!imageUrl.startsWith('http')) {
-              // Simple URL construction
-              const baseUrl = 'https://gmualcoqyztvtsqhjlzb.supabase.co/storage/v1/object/public/user_profile_pictures';
-              imageUrl = `${baseUrl}/${userId}/${sortedFiles[0].name}`;
-            } else {
-              // Fix URL duplication issues
-              imageUrl = imageUrl.replace('/object/ppublic/', '/object/public/');
-              imageUrl = imageUrl.replace('/object/publlic/', '/object/public/');
-              imageUrl = imageUrl.replace('ppublic', 'public');
-              imageUrl = imageUrl.replace('publlic', 'public');
+            // Validate the constructed URL
+            try {
+              new URL(publicUrl);
+              console.log('✅ Constructed URL format is valid');
+              setProfileImage(publicUrl);
+            } catch (urlValidationError) {
+              console.error('❌ Constructed URL is invalid:', urlValidationError);
+              console.log('🔍 This might indicate an issue with the Supabase project URL or bucket configuration');
+              setProfileImage(null);
             }
-
-            // Simple cache-busting
-            const separator = imageUrl.includes('?') ? '&' : '?';
-            imageUrl = `${imageUrl}${separator}t=${Date.now()}`;
-
-            // Set image directly for immediate display
-            setProfileImage(imageUrl);
+          } catch (urlError) {
+            console.error('❌ Error constructing Supabase URL:', urlError);
+            console.log('🔍 This might indicate an issue with Supabase client configuration or network');
+            console.log('⚠️ Setting profile image to null due to URL construction failure');
+            setProfileImage(null);
           }
         }
+      } else {
+        console.log('⚠️ No profile_picture_url found in database');
+        setProfileImage(null);
       }
     } catch (error) {
-      console.error('Error fetching profile image:', error);
+      console.error('❌ Error fetching profile image:', error);
     }
   };
 
@@ -371,114 +453,131 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
 
   const uploadProfileImage = async (uri: string) => {
     try {
+      console.log('🚀 uploadProfileImage called with URI:', uri);
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) throw new Error('No user session found');
 
-      const { base64Data, contentType } = await processImageForUpload(uri);
-      if (!base64Data || base64Data.length < 100) {
-        throw new Error('Invalid image data');
-      }
+      console.log('👤 User session found, user ID:', session.user.id);
+      const filePath = await uploadImageToStorage(uri, session.user.id);
+      console.log('💾 File uploaded to path:', filePath);
 
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
-      const filePath = `${session.user.id}/${fileName}`;
-
-      const result = await supabase.storage
-        .from('user_profile_pictures')
-        .upload(filePath, base64Data, {
-          contentType: contentType,
-          upsert: true,
-          cacheControl: '3600'
-        });
-
-      if (result.error) throw result.error;
-
+      // Get the public URL for the uploaded file
       const { data: { publicUrl } } = supabase.storage
         .from('user_profile_pictures')
         .getPublicUrl(filePath);
 
-      if (!publicUrl) throw new Error('Failed to generate image URL');
+      console.log('🔗 Public URL for storage:', publicUrl);
 
-      const cleanUrl = publicUrl.replace(/\/object\/p+ublic\//g, '/object/public/');
-      const finalImageUrl = `${cleanUrl}${cleanUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
-
+      // Store the file path (not the full URL) in the database
+      console.log('💿 Updating user profile with filePath:', filePath);
       await supabase
         .from('users')
         .update({
-          profile_picture_url: filePath,
+          profile_picture_url: filePath, // Store the path, not the full URL
           updated_at: new Date().toISOString()
         })
         .eq('id', session.user.id);
 
-      // Update with final uploaded image URL
-      setProfileImage(finalImageUrl);
-      Alert.alert('Success', 'Profile image uploaded successfully!');
+      console.log('✅ Profile updated successfully');
 
+      // Force refresh the profile image with cache busting
+      await fetchProfileImage(session.user.id);
+
+      Alert.alert('Success', 'Profile image uploaded successfully!');
     } catch (error: any) {
-      console.error('Upload error:', error);
-      Alert.alert('Error', error.message || 'Failed to upload image');
-      // Don't clear the selected image if upload fails - keep showing the local image
+      console.error('❌ Upload error:', error);
+  
+      // Provide more specific error messages based on error type
+      let errorMessage = 'Failed to upload image';
+      if (error.message?.includes('network')) {
+        errorMessage = 'Network error. Please check your internet connection and try again.';
+      } else if (error.message?.includes('storage')) {
+        errorMessage = 'Storage error. Please try again in a few moments.';
+      } else if (error.message?.includes('permission')) {
+        errorMessage = 'Permission denied. Please allow storage permissions and try again.';
+      } else if (error.message?.includes('file')) {
+        errorMessage = 'File error. Please select a valid image file and try again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+  
+      Alert.alert('Upload Failed', errorMessage);
     }
   };
 
   const pickImageFromSource = async (source: 'camera' | 'gallery') => {
     try {
-      const options: ImagePicker.ImagePickerOptions = {
+      console.log('📸 pickImageFromSource called with source:', source);
+      const options = {
         allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
+        aspect: [1, 1] as [number, number],
+        quality: 0.7, // Reduced quality for better performance
+        base64: false,
       };
 
-      let result;
+      const result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync(options)
+        : await ImagePicker.launchImageLibraryAsync(options);
 
-      if (source === 'camera') {
-        // Check camera permission before launching
-        const { status } = await ImagePicker.getCameraPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Camera Permission', 'Camera access is required to take photos');
-          return;
-        }
-        result = await ImagePicker.launchCameraAsync(options);
-      } else {
-        // Check gallery permission before launching
-        const { status } = await ImagePicker.getMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Gallery Permission', 'Gallery access is required to select photos');
-          return;
-        }
-        result = await ImagePicker.launchImageLibraryAsync(options);
-      }
+      console.log('📋 Image picker result:', result);
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const selectedImage = result.assets[0];
+      if (!result.canceled && result.assets?.[0]) {
+        const selectedAsset = result.assets[0];
+        const originalUri = selectedAsset.uri;
 
-        // Show selected image immediately with a unique key to force refresh
-        const imageWithTimestamp = `${selectedImage.uri}?t=${Date.now()}`;
-        setProfileImage(imageWithTimestamp);
-
-        // Upload in background and update with final URL on success
-        uploadProfileImage(selectedImage.uri).catch((uploadError) => {
-          console.error('Upload failed, keeping local image:', uploadError);
-          // Keep showing the selected image even if upload fails
-          Alert.alert(
-            'Upload Issue',
-            'Image selected but upload had issues. The image will still be displayed.',
-            [{ text: 'OK' }]
-          );
+        console.log('🖼️ Selected image asset:', {
+          uri: originalUri,
+          width: selectedAsset.width,
+          height: selectedAsset.height,
+          type: selectedAsset.type,
+          fileSize: selectedAsset.fileSize
         });
+
+        // Validate and prepare the URI for display
+        let displayUri = originalUri;
+
+        // Handle different URI schemes
+        if (originalUri.startsWith('file://')) {
+          // For file URIs, use them directly without cache busting to avoid format issues
+          console.log('📱 File URI detected, using directly for display');
+        } else if (originalUri.startsWith('content://')) {
+          // Content URIs from gallery need special handling
+          console.log('📱 Content URI detected, using directly for display');
+        } else if (originalUri.startsWith('http')) {
+          // Remote URLs can use cache busting
+          displayUri = `${originalUri}?t=${Date.now()}`;
+          console.log('🌐 Remote URI with cache busting:', displayUri);
+        }
+
+        // Validate URI format before setting
+        try {
+          if (displayUri.startsWith('file://') || displayUri.startsWith('content://')) {
+            // For local URIs, just validate they exist
+            console.log('✅ Local URI format validated');
+          } else if (displayUri.startsWith('http')) {
+            // For remote URIs, validate URL format
+            new URL(displayUri);
+            console.log('✅ Remote URI format validated');
+          }
+
+          // First, set the local image for immediate display
+          console.log('✅ Setting local image for immediate display:', originalUri);
+          setProfileImage(originalUri);
+
+          // Then start the upload process
+          console.log('🚀 Starting upload process...');
+          await uploadProfileImage(originalUri);
+        } catch (uriError) {
+          console.error('❌ Invalid URI format:', displayUri, uriError);
+          Alert.alert('Error', 'Selected image format is not supported for display');
+          return;
+        }
+      } else {
+        console.log('❌ Image picker was canceled or no asset found');
       }
     } catch (error: any) {
-      console.error('Image picker error:', error);
-
-      // Handle specific error types
-      if (error.message?.includes('ActivityResultLauncher')) {
-        Alert.alert(
-          'Camera Error',
-          'Camera is not available. Please try selecting from gallery instead.',
-          [{ text: 'OK' }]
-        );
-      } else {
-        Alert.alert('Error', 'Failed to pick image. Please try again.');
-      }
+      console.error('❌ Image picker error:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
     }
   };
 
@@ -511,59 +610,30 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
 
   const removeProfileImage = async () => {
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
+      const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) throw new Error('No user session found');
-      
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({
-          profile_picture_url: null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', session.user.id);
-      
-      if (updateError) {
-        console.error('Profile update error:', updateError);
-      }
-      
-      const { data: listData, error: listError } = await supabase
-        .storage
-        .from('user_profile_pictures')
-        .list(session.user.id);
-      
-      if (listError) {
-        console.error('Storage list error:', listError);
-        setProfileImage(null);
-        Alert.alert('Success', 'Profile image removed!');
-        return;
-      }
-      
-      if (listData && listData.length > 0) {
-        const filesToRemove = listData
-          .filter(file => file.name && !file.name.startsWith('.'))
-          .map(file => `${session.user.id}/${file.name}`);
-        
-        if (filesToRemove.length > 0) {
-          const { error: removeError } = await supabase.storage
-            .from('user_profile_pictures')
-            .remove(filesToRemove);
-          
-          if (removeError) {
-            console.error('Storage remove error:', removeError);
-          }
-        }
-      }
-      
-      // Immediately clear image and show placeholder
-      setProfileImage(null);
-      
 
-      Alert.alert('Success', 'Profile image removed successfully!');
+      await supabase
+        .from('users')
+        .update({ profile_picture_url: null })
+        .eq('id', session.user.id);
+
+      setProfileImage(null);
+      Alert.alert('Success', 'Profile image removed!');
     } catch (error: any) {
-      console.error('Remove image error:', error);
-      const errorMessage = error.message || 'Failed to remove image';
-      Alert.alert('Remove Error', errorMessage);
+      console.error('❌ Remove image error:', error);
+  
+      // Provide more specific error messages
+      let errorMessage = 'Failed to remove image';
+      if (error.message?.includes('network')) {
+        errorMessage = 'Network error. Please check your internet connection and try again.';
+      } else if (error.message?.includes('permission')) {
+        errorMessage = 'Permission error. Please try again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+  
+      Alert.alert('Remove Failed', errorMessage);
     }
   };
 
@@ -941,7 +1011,7 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
     setIsSearching(true);
     try {
       const response = await fetch(
-        `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(searchQuery + ' Karnataka')}&key=${GOOGLE_MAPS_API_KEY}`
+        `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(searchQuery + ' Karnataka')}&key=${GOOGLE_PLACES_API_KEY}`
       );
     
       const data = await response.json();
@@ -1006,7 +1076,7 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
     setIsAddressSearching(true);
     try {
       const response = await fetch(
-        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query + ' Karnataka, India')}&key=${GOOGLE_MAPS_API_KEY}&components=country:IN`
+        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query + ' Karnataka, India')}&key=${GOOGLE_PLACES_API_KEY}&components=country:in`
       );
       const data = await response.json();
       if (data.status === 'OK') {
@@ -1025,7 +1095,7 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
   const selectAddressSuggestion = async (prediction: any) => {
     try {
       const response = await fetch(
-        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${prediction.place_id}&key=${GOOGLE_MAPS_API_KEY}`
+        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${prediction.place_id}&key=${GOOGLE_PLACES_API_KEY}`
       );
       const data = await response.json();
       if (data.status === 'OK') {
@@ -1073,10 +1143,45 @@ export default function ProfileScreen({ navigation }: { navigation: any }) {
               <Image
                 source={{
                   uri: profileImage,
+                  cache: 'reload' // Force reload to avoid caching issues
                 }}
                 style={styles.avatar}
                 resizeMode="cover"
-                key={profileImage}
+                key={`profile-${profileImage}-${Date.now()}`} // Add timestamp to force re-render
+                onError={(error) => {
+                  console.error('❌ Image display error:', error.nativeEvent.error);
+                  console.log('🔍 Image URI that failed:', profileImage);
+                  console.log('📋 Full error details:', {
+                    error: error.nativeEvent.error,
+                    uri: profileImage,
+                    isSupabaseUrl: profileImage?.includes('supabase.co'),
+                    uriLength: profileImage?.length
+                  });
+
+                  // Handle different error types
+                  const errorType = error.nativeEvent.error;
+                  if (errorType === 'unknown image format') {
+                    console.log('🚫 Unknown image format detected');
+
+                    // For Supabase URLs, the image might be corrupted or not exist
+                    if (profileImage?.includes('supabase.co')) {
+                      console.log('🔍 Issue might be with Supabase storage or image format');
+                      console.log('💡 Suggestion: Check if image exists in Supabase storage bucket');
+                    }
+                  }
+
+                  console.log('⚠️ Falling back to placeholder due to display error');
+                  setProfileImage(null);
+                }}
+                onLoad={() => {
+                  console.log('✅ Image loaded successfully:', profileImage);
+                }}
+                onLoadStart={() => {
+                  console.log('🔄 Image loading started:', profileImage);
+                }}
+                onLoadEnd={() => {
+                  console.log('🏁 Image loading ended:', profileImage);
+                }}
               />
             ) : (
               <View style={[styles.avatarPlaceholder, { backgroundColor: colors.surface }]}>
@@ -1548,7 +1653,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    padding: 16,
+    padding: 10,
   },
   centered: {
     flex: 1,
@@ -2021,7 +2126,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
+    paddingVertical: 12,
     paddingHorizontal: 4,
   },
   settingsButtonContent: {
@@ -2030,8 +2135,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   settingsButtonText: {
+
     fontSize: 16,
     fontWeight: '500',
   },
 });
-

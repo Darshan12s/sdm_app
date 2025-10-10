@@ -111,11 +111,11 @@ export default function HomeScreen() {
       </View> */}
 
       {/* Welcome Header */}
-       <View style={styles.header}>
+       <View style={[styles.header, { backgroundColor: colors.surface }]}>
          <View style={styles.headerContent}>
            <View style={styles.welcomeSection}>
              <View style={styles.welcomeBadge}>
-               <Text style={[styles.welcomeEmoji, { color: '#3ace9f' }]}>⚡</Text>
+              
                <Text style={[styles.welcomeText, { color: colors.textSecondary }]}>Welcome back,</Text>
              </View>
              <Text style={[styles.userName, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit>{user?.full_name || 'Customer'}</Text>
@@ -125,7 +125,7 @@ export default function HomeScreen() {
                <MaterialIcons name="electric-car" size={18} color="#fff" />
                <Text style={styles.bookRideText}>Book Electric Ride</Text>
                <View style={styles.buttonAccent}>
-                 <MaterialIcons name="bolt" size={14} color="#fbbf24" />
+                 <MaterialIcons name="bolt" size={14} color="#3ace9f" />
                </View>
              </View>
            </TouchableOpacity>
@@ -134,16 +134,16 @@ export default function HomeScreen() {
 
       {/* Feature Cards */}
        <View style={styles.featureSection}>
-         <Text style={[styles.sectionBadge, { color: '#3ace9f' }]}>✨ Why Choose SDM?</Text>
+         <Text style={[styles.sectionBadge, { color: '#3ace9f' }]}> Why Choose SDM?</Text>
          <View style={styles.featureRow}>
-           <View style={[styles.featureCard, { backgroundColor: colors.card }]}>
+           <View style={[styles.featureCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
              <View style={[styles.featureIconContainer, { backgroundColor: '#e8f8f0' }]}>
                <MaterialIcons name="bolt" size={28} color="#3ace9f" />
              </View>
              <Text style={[styles.featureTitle, { color: colors.text }]}> 100% Electric Fleet</Text>
              <Text style={[styles.featureDescription, { color: colors.textSecondary }]}>Zero-emission rides powered by clean energy</Text>
            </View>
-           <View style={[styles.featureCard, { backgroundColor: colors.card }]}>
+           <View style={[styles.featureCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
              <View style={[styles.featureIconContainer, { backgroundColor: '#e8f8f0' }]}>
                <MaterialIcons name="security" size={28} color="#3ace9f" />
              </View>
@@ -152,14 +152,14 @@ export default function HomeScreen() {
            </View>
          </View>
          <View style={styles.featureRow}>
-           <View style={[styles.featureCard, { backgroundColor: colors.card }]}>
+           <View style={[styles.featureCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
              <View style={[styles.featureIconContainer, { backgroundColor: '#e8f8f0' }]}>
                <MaterialIcons name="schedule" size={28} color="#3ace9f" />
              </View>
              <Text style={[styles.featureTitle, { color: colors.text }]}> Always On Time</Text>
              <Text style={[styles.featureDescription, { color: colors.textSecondary }]}>Reliable rides with real-time tracking</Text>
            </View>
-           <View style={[styles.featureCard, { backgroundColor: colors.card }]}>
+           <View style={[styles.featureCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
              <View style={[styles.featureIconContainer, { backgroundColor: '#e8f8f0' }]}>
                <MaterialIcons name="stars" size={28} color="#3ace9f" />
              </View>
@@ -171,12 +171,12 @@ export default function HomeScreen() {
 
       {/* Quick Actions */}
        <View style={styles.actionsSection}>
-         <Text style={[styles.sectionTitle, { color: colors.text }]}>🚀 Quick Actions</Text>
+         <Text style={[styles.sectionTitle, { color: colors.text }]}> Quick Actions</Text>
          <View style={styles.actionsGrid}>
            {quickActions.map((action, index) => (
              <TouchableOpacity
                key={index}
-               style={[styles.actionCard, { backgroundColor: colors.card }]}
+               style={[styles.actionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
                onPress={action.onPress}
              >
                <View style={[styles.actionIconContainer, { backgroundColor: action.color }]}>
@@ -190,9 +190,9 @@ export default function HomeScreen() {
        </View>
 
       {/* Ready to Go Electric? */}
-       <View style={[styles.ctaSection, { backgroundColor: colors.card }]}>
+       <View style={[styles.ctaSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
          <View style={styles.ctaHeader}>
-           <Text style={[styles.ctaBadge, { color: '#3ace9f' }]}>🌱 Sustainable Future</Text>
+           <Text style={[styles.ctaBadge, { color: '#3ace9f' }]}> Sustainable Future</Text>
            <Text style={[styles.ctaTitle, { color: colors.text }]}>Ready to Go Electric?</Text>
          </View>
          <Text style={[styles.ctaDescription, { color: colors.textSecondary }]}>
@@ -207,7 +207,7 @@ export default function HomeScreen() {
 
       {/* Footer */}
        <View style={[styles.footer, { backgroundColor: colors.surface }]}>
-         <Text style={[styles.footerTitle, { color: colors.text }]}>⚡ SDM E-Mobility</Text>
+         <Text style={[styles.footerTitle, { color: colors.text }]}> SDM E-Mobility</Text>
          <Text style={[styles.footerSubtitle, { color: colors.textSecondary }]}>Powering the future of sustainable transportation</Text>
          {/* <View style={styles.footerLinks}>
            <TouchableOpacity>
@@ -231,7 +231,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   topBar: {
     flexDirection: 'row',
@@ -239,9 +238,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
   },
   logoContainer: {
     flexDirection: 'row',
@@ -262,7 +259,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   header: {
-    backgroundColor: '#ffffff',
     paddingHorizontal: 20,
     paddingVertical: 24,
     marginBottom: 12,
@@ -368,7 +364,6 @@ const styles = StyleSheet.create({
   },
   featureCard: {
     width: '48%',
-    backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 18,
     shadowColor: '#3ace9f',
@@ -377,7 +372,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
     borderWidth: 1,
-    borderColor: '#f0fdfa',
   },
   featureIconContainer: {
     width: 56,
@@ -422,7 +416,6 @@ const styles = StyleSheet.create({
   },
   actionCard: {
     width: '48%',
-    backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 18,
     marginBottom: 16,
@@ -432,7 +425,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
     borderWidth: 1,
-    borderColor: '#f0fdfa',
   },
   actionIconContainer: {
     width: 48,
@@ -461,7 +453,6 @@ const styles = StyleSheet.create({
   ctaSection: {
     margin: 20,
     padding: 28,
-    backgroundColor: '#ffffff',
     borderRadius: 20,
     alignItems: 'center',
     shadowColor: '#3ace9f',
@@ -470,7 +461,6 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 8,
     borderWidth: 1,
-    borderColor: '#e8f8f0',
   },
   ctaHeader: {
     alignItems: 'center',
@@ -523,7 +513,6 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: 28,
-    backgroundColor: '#f1f5f9',
     alignItems: 'center',
     marginTop: 16,
   },

@@ -37,15 +37,56 @@ const SettingsScreen: React.FC = React.memo(() => {
     fetchSettingsData();
   }, []);
 
+  // Refetch data when authentication state changes
+  useEffect(() => {
+    const currentState = useAppStore.getState();
+    console.log('SettingsScreen: Auth state changed, refetching data:', {
+      isAuthenticated: currentState.isAuthenticated,
+      hasUser: !!currentState.user
+    });
+
+    if (currentState.isAuthenticated && currentState.user) {
+      fetchSettingsData();
+    }
+  }, [useAppStore.getState().isAuthenticated, useAppStore.getState().user?.id]);
+
   const fetchSettingsData = async (): Promise<void> => {
     try {
       setLoading(true);
 
+      console.log('SettingsScreen: fetchSettingsData called');
+
+      // Check authentication state from store first
+      const currentState = useAppStore.getState();
+      console.log('SettingsScreen: Current auth state from store:', {
+        isAuthenticated: currentState.isAuthenticated,
+        hasUser: !!currentState.user,
+        userId: currentState.user?.id
+      });
+
+      // Guard: Don't fetch data if user is not authenticated
+      if (!currentState.isAuthenticated || !currentState.user) {
+        console.log('SettingsScreen: User not authenticated, skipping data fetch');
+        setLoading(false);
+        return;
+      }
+
       // Get authenticated user
+      console.log('SettingsScreen: Calling supabase.auth.getUser()');
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-      if (authError) throw authError;
+
+      console.log('SettingsScreen: supabase.auth.getUser() result:', {
+        authUser: authUser ? { id: authUser.id, email: authUser.email } : null,
+        authError: authError ? { message: authError.message, code: authError.code } : null
+      });
+
+      if (authError) {
+        console.error('SettingsScreen: Auth error details:', authError);
+        throw authError;
+      }
 
       if (!authUser) {
+        console.log('SettingsScreen: No authenticated user found, returning early');
         setLoading(false);
         return;
       }
@@ -254,6 +295,27 @@ const SettingsScreen: React.FC = React.memo(() => {
     );
   }
 
+  // Show sign-in prompt if user is not authenticated
+  if (!user) {
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <Ionicons name="person-circle-outline" size={64} color={colors.textSecondary} />
+        <Text style={[styles.loadingText, { color: colors.textSecondary, fontSize: 18, marginTop: 16 }]}>
+          Please sign in to access settings
+        </Text>
+        <TouchableOpacity
+          style={[styles.signInButton, { backgroundColor: colors.primary }]}
+          onPress={() => {
+            console.log('SettingsScreen: Navigating to auth flow');
+            // Navigate to auth flow - this would need to be implemented based on your navigation structure
+          }}
+        >
+          <Text style={[styles.signInButtonText, { color: colors.background }]}>Sign In</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Account Information */}
@@ -453,20 +515,22 @@ const SettingsScreen: React.FC = React.memo(() => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding:6,
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
   },
   card: {
-    margin: 16,
+    margin: 8,
     borderRadius: 12,
-    padding: 16,
+    padding: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -493,6 +557,16 @@ const styles = StyleSheet.create({
   listItemSubtitle: {
     fontSize: 14,
     marginTop: 2,
+  },
+  signInButton: {
+    marginTop: 16,
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  signInButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

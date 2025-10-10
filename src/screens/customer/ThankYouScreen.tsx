@@ -33,7 +33,7 @@ export default function ThankYouScreen({}: ThankYouScreenProps) {
   };
 
   const handleViewBooking = () => {
-    navigation.navigate('RideHistory');
+    navigation.navigate('CustomerTabs', { screen: 'RideHistory' });
   };
 
   const handleCopyBookingId = async () => {

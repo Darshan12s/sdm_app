@@ -4,6 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { ServiceType } from '@/types';
 import { useTheme } from '@/contexts/ThemeContext';
+import { GoogleMap } from '@/components/GoogleMap';
 
 interface DateTimeStepProps {
   serviceType: ServiceType;
@@ -287,21 +288,100 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.primary }]}>Schedule Your Ride</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Choose when you want to travel</Text>
+    <View >
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: colors.primary }]}>Schedule Your Ride</Text>
+      </View>
+
+      {/* Scheduled Date & Time */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Pickup Date & Time</Text>
+
+        {/* Quick Date Selection */}
+        <View style={styles.quickDateContainer}>
+          {quickDateOptions.map((option) => {
+            const isDisabled = option.value === 0 && isTodayDisabled();
+            return (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.quickDateButton,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                  isDisabled && [styles.quickDateButtonDisabled, { backgroundColor: colors.border, borderColor: colors.borderLight, opacity: 0.6 }],
+                  (activePicker === 'scheduled' && scheduledDate?.toDateString() === new Date(Date.now() + option.value * 24 * 60 * 60 * 1000).toDateString()) && [styles.quickDateButtonActive, { borderColor: colors.primary, backgroundColor: colors.primary }]
+                ]}
+                onPress={() => {
+                  if (isDisabled) {
+                    alert('Too late to schedule for today. Minimum booking time is 2 hours from now.');
+                    return;
+                  }
+                  setActivePicker('scheduled');
+                  handleQuickDateSelect(option.value);
+                }}
+                disabled={isDisabled}
+              >
+                <Text style={[
+                  styles.quickDateText,
+                  { color: colors.textSecondary },
+                  isDisabled && [styles.quickDateTextDisabled, { color: colors.textMuted }],
+                  (activePicker === 'scheduled' && scheduledDate?.toDateString() === new Date(Date.now() + option.value * 24 * 60 * 60 * 1000).toDateString()) && [styles.quickDateTextActive, { color: colors.surface }]
+                ]}>
+                  {option.label}
+                </Text>
+                {option.value === 0 && !isDisabled && (
+                  <Text style={[styles.minTimeText, { color: colors.textSecondary }]}>
+                    from {getTodayMinTimeDisplay()}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
-        {/* Scheduled Date & Time */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Pickup Date & Time</Text>
+        {/* Date & Time Selection */}
+        <View style={styles.dateTimeContainer}>
+          <TouchableOpacity
+            style={[styles.dateTimeButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={() => openDatePicker('scheduled')}
+          >
+            <View style={styles.dateTimeContent}>
+              <MaterialIcons name="event" size={20} color={colors.text} />
+              <View style={styles.dateTimeTextContainer}>
+                <Text style={[styles.dateTimeLabel, { color: colors.textSecondary }]}>Date</Text>
+                <Text style={[styles.dateTimeValue, { color: colors.text }]}>
+                  {formatDate(scheduledDate)}
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
 
-          {/* Quick Date Selection */}
+          <TouchableOpacity
+            style={[styles.dateTimeButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            onPress={() => openTimePicker('scheduled')}
+          >
+            <View style={styles.dateTimeContent}>
+              <MaterialIcons name="schedule" size={20} color={colors.text} />
+              <View style={styles.dateTimeTextContainer}>
+                <Text style={[styles.dateTimeLabel, { color: colors.textSecondary }]}>Time</Text>
+                <Text style={[styles.dateTimeValue, { color: colors.text }]}>
+                  {formatTime(scheduledTime)}
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Return Date & Time for Round Trip */}
+      {isRoundTrip && (
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Return Date & Time</Text>
+
+          {/* Quick Date Selection for Return */}
           <View style={styles.quickDateContainer}>
             {quickDateOptions.map((option) => {
               const isDisabled = option.value === 0 && isTodayDisabled();
+              const returnDateOption = scheduledDate ? new Date(scheduledDate.getTime() + option.value * 24 * 60 * 60 * 1000) : new Date(Date.now() + option.value * 24 * 60 * 60 * 1000);
               return (
                 <TouchableOpacity
                   key={option.value}
@@ -309,14 +389,14 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
                     styles.quickDateButton,
                     { backgroundColor: colors.surface, borderColor: colors.border },
                     isDisabled && [styles.quickDateButtonDisabled, { backgroundColor: colors.border, borderColor: colors.borderLight, opacity: 0.6 }],
-                    (activePicker === 'scheduled' && scheduledDate?.toDateString() === new Date(Date.now() + option.value * 24 * 60 * 60 * 1000).toDateString()) && [styles.quickDateButtonActive, { borderColor: colors.primary, backgroundColor: colors.primary }]
+                    (activePicker === 'return' && returnDate?.toDateString() === returnDateOption.toDateString()) && [styles.quickDateButtonActive, { borderColor: colors.primary, backgroundColor: colors.primary }]
                   ]}
                   onPress={() => {
                     if (isDisabled) {
-                      alert('Too late to schedule for today. Minimum booking time is 2 hours from now.');
+                      alert('Cannot select today for return trip due to time constraints.');
                       return;
                     }
-                    setActivePicker('scheduled');
+                    setActivePicker('return');
                     handleQuickDateSelect(option.value);
                   }}
                   disabled={isDisabled}
@@ -325,32 +405,27 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
                     styles.quickDateText,
                     { color: colors.textSecondary },
                     isDisabled && [styles.quickDateTextDisabled, { color: colors.textMuted }],
-                    (activePicker === 'scheduled' && scheduledDate?.toDateString() === new Date(Date.now() + option.value * 24 * 60 * 60 * 1000).toDateString()) && [styles.quickDateTextActive, { color: colors.surface }]
+                    (activePicker === 'return' && returnDate?.toDateString() === returnDateOption.toDateString()) && [styles.quickDateTextActive, { color: colors.surface }]
                   ]}>
                     {option.label}
                   </Text>
-                  {option.value === 0 && !isDisabled && (
-                    <Text style={[styles.minTimeText, { color: colors.textSecondary }]}>
-                      from {getTodayMinTimeDisplay()}
-                    </Text>
-                  )}
                 </TouchableOpacity>
               );
             })}
           </View>
 
-          {/* Date & Time Selection */}
+          {/* Return Date & Time Selection */}
           <View style={styles.dateTimeContainer}>
             <TouchableOpacity
               style={[styles.dateTimeButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
-              onPress={() => openDatePicker('scheduled')}
+              onPress={() => openDatePicker('return')}
             >
               <View style={styles.dateTimeContent}>
                 <MaterialIcons name="event" size={20} color={colors.text} />
                 <View style={styles.dateTimeTextContainer}>
-                  <Text style={[styles.dateTimeLabel, { color: colors.textSecondary }]}>Date</Text>
+                  <Text style={[styles.dateTimeLabel, { color: colors.textSecondary }]}>Return Date</Text>
                   <Text style={[styles.dateTimeValue, { color: colors.text }]}>
-                    {formatDate(scheduledDate)}
+                    {formatDate(returnDate)}
                   </Text>
                 </View>
               </View>
@@ -358,136 +433,66 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
 
             <TouchableOpacity
               style={[styles.dateTimeButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
-              onPress={() => openTimePicker('scheduled')}
+              onPress={() => openTimePicker('return')}
             >
               <View style={styles.dateTimeContent}>
                 <MaterialIcons name="schedule" size={20} color={colors.text} />
                 <View style={styles.dateTimeTextContainer}>
-                  <Text style={[styles.dateTimeLabel, { color: colors.textSecondary }]}>Time</Text>
+                  <Text style={[styles.dateTimeLabel, { color: colors.textSecondary }]}>Return Time</Text>
                   <Text style={[styles.dateTimeValue, { color: colors.text }]}>
-                    {formatTime(scheduledTime)}
+                    {formatTime(returnTime)}
                   </Text>
                 </View>
               </View>
             </TouchableOpacity>
           </View>
         </View>
+      )}
 
-        {/* Return Date & Time for Round Trip */}
-        {isRoundTrip && (
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Return Date & Time</Text>
+      {/* Date Picker */}
+      {showDatePicker && (
+        <DateTimePicker
+          value={tempDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={handleDateChange}
+          minimumDate={getMinimumDate()}
+          maximumDate={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)} // 30 days from now
+        />
+      )}
 
-            {/* Quick Date Selection for Return */}
-            <View style={styles.quickDateContainer}>
-              {quickDateOptions.map((option) => {
-                const isDisabled = option.value === 0 && isTodayDisabled();
-                const returnDateOption = scheduledDate ? new Date(scheduledDate.getTime() + option.value * 24 * 60 * 60 * 1000) : new Date(Date.now() + option.value * 24 * 60 * 60 * 1000);
-                return (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[
-                      styles.quickDateButton,
-                      { backgroundColor: colors.surface, borderColor: colors.border },
-                      isDisabled && [styles.quickDateButtonDisabled, { backgroundColor: colors.border, borderColor: colors.borderLight, opacity: 0.6 }],
-                      (activePicker === 'return' && returnDate?.toDateString() === returnDateOption.toDateString()) && [styles.quickDateButtonActive, { borderColor: colors.primary, backgroundColor: colors.primary }]
-                    ]}
-                    onPress={() => {
-                      if (isDisabled) {
-                        alert('Cannot select today for return trip due to time constraints.');
-                        return;
-                      }
-                      setActivePicker('return');
-                      handleQuickDateSelect(option.value);
-                    }}
-                    disabled={isDisabled}
-                  >
-                    <Text style={[
-                      styles.quickDateText,
-                      { color: colors.textSecondary },
-                      isDisabled && [styles.quickDateTextDisabled, { color: colors.textMuted }],
-                      (activePicker === 'return' && returnDate?.toDateString() === returnDateOption.toDateString()) && [styles.quickDateTextActive, { color: colors.surface }]
-                    ]}>
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* Return Date & Time Selection */}
-            <View style={styles.dateTimeContainer}>
-              <TouchableOpacity
-                style={[styles.dateTimeButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                onPress={() => openDatePicker('return')}
-              >
-                <View style={styles.dateTimeContent}>
-                  <MaterialIcons name="event" size={20} color={colors.text} />
-                  <View style={styles.dateTimeTextContainer}>
-                    <Text style={[styles.dateTimeLabel, { color: colors.textSecondary }]}>Return Date</Text>
-                    <Text style={[styles.dateTimeValue, { color: colors.text }]}>
-                      {formatDate(returnDate)}
-                    </Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.dateTimeButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                onPress={() => openTimePicker('return')}
-              >
-                <View style={styles.dateTimeContent}>
-                  <MaterialIcons name="schedule" size={20} color={colors.text} />
-                  <View style={styles.dateTimeTextContainer}>
-                    <Text style={[styles.dateTimeLabel, { color: colors.textSecondary }]}>Return Time</Text>
-                    <Text style={[styles.dateTimeValue, { color: colors.text }]}>
-                      {formatTime(returnTime)}
-                    </Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* Date Picker */}
-        {showDatePicker && (
-          <DateTimePicker
-            value={tempDate}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={handleDateChange}
-            minimumDate={getMinimumDate()}
-            maximumDate={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)} // 30 days from now
-          />
-        )}
-
-        {/* Time Picker */}
-        {showTimePicker && (
-          <DateTimePicker
-            value={tempDate}
-            mode="time"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={handleTimeChange}
-            minuteInterval={30}
-            minimumDate={
-              (() => {
-                const selectedDate = activePicker === 'scheduled' ? scheduledDate : returnDate;
-                if (selectedDate) {
-                  return getMinimumTimeForDate(selectedDate);
-                }
-                return new Date();
-              })()
-            }
-          />
-        )}
-      </ScrollView>
+      {/* Time Picker */}
+      {showTimePicker && (
+        <DateTimePicker
+          value={tempDate}
+          mode="time"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={handleTimeChange}
+          minuteInterval={30}
+          minimumDate={
+            (() => {
+              const selectedDate = activePicker === 'scheduled' ? scheduledDate : returnDate;
+              if (selectedDate) {
+                return getMinimumTimeForDate(selectedDate);
+              }
+              return new Date();
+            })()
+          }
+        />
+      )}
 
       {/* Navigation */}
       <View style={[styles.footer, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
         <View style={styles.buttonContainer}>
           <TouchableOpacity
-            style={[styles.backButton, { borderColor: colors.border }]}
+            style={[
+              styles.backButton,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+                shadowColor: '#000000'
+              }
+            ]}
             onPress={onBack}
           >
             <Text style={[styles.backButtonText, { color: colors.textSecondary }]}>Back</Text>
@@ -516,45 +521,38 @@ export const DateTimeStep: React.FC<DateTimeStepProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+ 
   header: {
-    padding: 12,
-    alignItems: 'center',
+    padding: 6,
+    alignItems: 'flex-start',
   },
   title: {
-    fontSize: 24,
+    fontSize: 17,
     fontWeight: '800',
-    marginBottom: 8,
+    marginBottom: 4,
     color: '#0f172a',
     fontFamily: 'Inter-Bold',
     letterSpacing: 0.3,
   },
-  subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    color: '#64748b',
-    fontFamily: 'Inter-Medium',
-    lineHeight: 24,
-  },
+
   section: {
-    paddingHorizontal: 12,
-    marginBottom: 16,
+    paddingHorizontal: 8,
+    marginBottom: 12,
+    
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '600',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   quickDateContainer: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
+    gap: 9,
+    marginBottom: 24,
   },
   quickDateButton: {
     flex: 1,
-    padding: 14,
+    padding: 4,
     borderRadius: 12,
     borderWidth: 2,
     alignItems: 'center',
@@ -598,13 +596,13 @@ const styles = StyleSheet.create({
   },
   dateTimeContainer: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   dateTimeButton: {
     flex: 1,
-    padding: 16,
+    padding: 3,
     borderRadius: 12,
-    borderWidth: 2,
+    borderWidth: 1.5,
     backgroundColor: '#ffffff',
     borderColor: '#e2e8f0',
     shadowColor: '#3ace9f',
@@ -628,7 +626,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Medium',
   },
   dateTimeValue: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#0f172a',
     fontFamily: 'Inter-SemiBold',
@@ -664,7 +662,7 @@ const styles = StyleSheet.create({
   dateButton: {
     width: 60,
     height: 60,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -697,7 +695,7 @@ const styles = StyleSheet.create({
   timeButton: {
     width: 80,
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center',
   },
@@ -713,7 +711,7 @@ const styles = StyleSheet.create({
   },
   modalCancelButton: {
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
     marginTop: 16,
   },
@@ -722,10 +720,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   footer: {
-    padding: 20,
-    paddingBottom: 32,
-    borderTopWidth: 2,
-    borderTopColor: '#e8f8f0',
+    padding: 28,
+    paddingBottom: 12,
+    
     backgroundColor: '#ffffff',
   },
   buttonContainer: {
@@ -734,7 +731,7 @@ const styles = StyleSheet.create({
   },
   backButton: {
     flex: 1,
-    paddingVertical: 16,
+    paddingVertical: 9,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 2,
@@ -747,14 +744,14 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   backButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
     color: '#64748b',
     fontFamily: 'Inter-SemiBold',
   },
   nextButton: {
     flex: 2,
-    paddingVertical: 16,
+    paddingVertical: 9,
     borderRadius: 12,
     alignItems: 'center',
     backgroundColor: '#3ace9f',
@@ -769,7 +766,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
   },
   nextButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: '#ffffff',
     fontFamily: 'Inter-Bold',

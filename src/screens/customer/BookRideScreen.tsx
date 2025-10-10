@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RazorpayTest } from '@/components/RazorpayTest';
@@ -28,10 +28,10 @@ export default function BookRideScreen() {
   }, [navigation]);
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={{ flexGrow: 1 }}>
+    <View style={[styles.container, { backgroundColor: colors.background }]} >
       <BookingFlow onBookingComplete={handleBookingComplete} />
       {/* <RazorpayTest /> */}
-    </ScrollView>
+    </View>
   );
 }
 

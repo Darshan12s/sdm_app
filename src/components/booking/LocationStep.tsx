@@ -246,20 +246,72 @@ export const LocationStep: React.FC<LocationStepProps> = ({
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.primary }]}>Select Locations</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Choose your pickup and drop-off locations</Text>
-        </View>
+    <View>
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: colors.primary }]}>Select Locations</Text>
+      </View>
 
-        {/* Pickup Location */}
+      {/* Pickup Location */}
+      <View style={styles.locationSection}>
+        {serviceType === 'airport' && tripType === 'pickup' ? (
+          <View style={styles.terminalContainer}>
+            {Object.entries(airportTerminals).map(([key, terminal]) => (
+              <TouchableOpacity
+                key={key}
+                style={[
+                  styles.terminalButton,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                  pickupLocation === terminal.address && [styles.terminalButtonActive, { borderColor: colors.primary, backgroundColor: colors.primary }]
+                ]}
+                onPress={() => {
+                  onPickupLocationChange(terminal.address);
+                  onPickupCoordsChange({
+                    lat: 13.1986, lng: 77.7066, address: terminal.address
+                  });
+                  onPickupLocationError('');
+                }}
+              >
+                <Text style={[
+                  styles.terminalText,
+                  { color: colors.textSecondary },
+                  pickupLocation === terminal.address && [styles.terminalTextActive, { color: colors.surface }]
+                ]}>
+                  {terminal.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : (
+          <GooglePlacesInput
+            placeholder="Enter pickup location"
+            value={pickupLocation}
+            onChange={(value) => {
+              console.log('LocationStep: Pickup onChange called with value:', value);
+              console.log('LocationStep: pickupCoordsJustSetRef.current:', pickupCoordsJustSetRef.current);
+              onPickupLocationChange(value);
+              // Reset coordinates if input is cleared (empty value) or if coordinates weren't just set
+              if (value.trim() === '' || !pickupCoordsJustSetRef.current) {
+                console.log('LocationStep: Resetting pickup coordinates to null');
+                onPickupCoordsChange(null);
+              } else {
+                console.log('LocationStep: Skipping coordinate reset - coordinates were just set');
+              }
+            }}
+            onPlaceSelect={handlePickupSelect}
+            icon="pickup"
+            showCurrentLocation={true}
+          />
+        )}
+
+        {pickupLocationError ? (
+          <Text style={styles.errorText}>{pickupLocationError}</Text>
+        ) : null}
+      </View>
+
+      {/* Dropoff Location */}
+      {serviceType !== 'hourly' && (
         <View style={styles.locationSection}>
-          <Text style={[styles.locationLabel, { color: colors.text }]}>
-            {serviceType === 'airport' && tripType === 'pickup' ? 'Select Terminal' : 'Pickup Location'}
-          </Text>
-
-          {serviceType === 'airport' && tripType === 'pickup' ? (
+          {serviceType === 'airport' && tripType === 'drop' ? (
             <View style={styles.terminalContainer}>
               {Object.entries(airportTerminals).map(([key, terminal]) => (
                 <TouchableOpacity
@@ -267,20 +319,20 @@ export const LocationStep: React.FC<LocationStepProps> = ({
                   style={[
                     styles.terminalButton,
                     { backgroundColor: colors.surface, borderColor: colors.border },
-                    pickupLocation === terminal.address && [styles.terminalButtonActive, { borderColor: colors.primary, backgroundColor: colors.primary }]
+                    dropoffLocation === terminal.address && [styles.terminalButtonActive, { borderColor: colors.primary, backgroundColor: colors.primary }]
                   ]}
                   onPress={() => {
-                    onPickupLocationChange(terminal.address);
-                    onPickupCoordsChange({
+                    onDropoffLocationChange(terminal.address);
+                    onDropoffCoordsChange({
                       lat: 13.1986, lng: 77.7066, address: terminal.address
                     });
-                    onPickupLocationError('');
+                    onDropoffLocationError('');
                   }}
                 >
                   <Text style={[
                     styles.terminalText,
                     { color: colors.textSecondary },
-                    pickupLocation === terminal.address && [styles.terminalTextActive, { color: colors.surface }]
+                    dropoffLocation === terminal.address && [styles.terminalTextActive, { color: colors.surface }]
                   ]}>
                     {terminal.name}
                   </Text>
@@ -289,100 +341,43 @@ export const LocationStep: React.FC<LocationStepProps> = ({
             </View>
           ) : (
             <GooglePlacesInput
-              placeholder="Enter pickup location"
-              value={pickupLocation}
+              placeholder="Enter drop-off location"
+              value={dropoffLocation}
               onChange={(value) => {
-                console.log('LocationStep: Pickup onChange called with value:', value);
-                console.log('LocationStep: pickupCoordsJustSetRef.current:', pickupCoordsJustSetRef.current);
-                onPickupLocationChange(value);
+                console.log('LocationStep: Dropoff onChange called with value:', value);
+                console.log('LocationStep: dropoffCoordsJustSetRef.current:', dropoffCoordsJustSetRef.current);
+                onDropoffLocationChange(value);
                 // Reset coordinates if input is cleared (empty value) or if coordinates weren't just set
-                if (value.trim() === '' || !pickupCoordsJustSetRef.current) {
-                  console.log('LocationStep: Resetting pickup coordinates to null');
-                  onPickupCoordsChange(null);
+                if (value.trim() === '' || !dropoffCoordsJustSetRef.current) {
+                  console.log('LocationStep: Resetting dropoff coordinates to null');
+                  onDropoffCoordsChange(null);
                 } else {
                   console.log('LocationStep: Skipping coordinate reset - coordinates were just set');
                 }
               }}
-              onPlaceSelect={handlePickupSelect}
-              icon="pickup"
-              showCurrentLocation={true}
+              onPlaceSelect={handleDropoffSelect}
+              icon="dropoff"
             />
           )}
 
-          {pickupLocationError ? (
-            <Text style={styles.errorText}>{pickupLocationError}</Text>
+          {dropoffLocationError ? (
+            <Text style={styles.errorText}>{dropoffLocationError}</Text>
           ) : null}
         </View>
-
-        {/* Dropoff Location */}
-        {serviceType !== 'hourly' && (
-          <View style={styles.locationSection}>
-            <Text style={[styles.locationLabel, { color: colors.text }]}>
-              {serviceType === 'airport' && tripType === 'drop' ? 'Select Terminal' : 'Drop-off Location'}
-            </Text>
-
-            {serviceType === 'airport' && tripType === 'drop' ? (
-              <View style={styles.terminalContainer}>
-                {Object.entries(airportTerminals).map(([key, terminal]) => (
-                  <TouchableOpacity
-                    key={key}
-                    style={[
-                      styles.terminalButton,
-                      { backgroundColor: colors.surface, borderColor: colors.border },
-                      dropoffLocation === terminal.address && [styles.terminalButtonActive, { borderColor: colors.primary, backgroundColor: colors.primary }]
-                    ]}
-                    onPress={() => {
-                      onDropoffLocationChange(terminal.address);
-                      onDropoffCoordsChange({
-                        lat: 13.1986, lng: 77.7066, address: terminal.address
-                      });
-                      onDropoffLocationError('');
-                    }}
-                  >
-                    <Text style={[
-                      styles.terminalText,
-                      { color: colors.textSecondary },
-                      dropoffLocation === terminal.address && [styles.terminalTextActive, { color: colors.surface }]
-                    ]}>
-                      {terminal.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ) : (
-              <GooglePlacesInput
-                placeholder="Enter drop-off location"
-                value={dropoffLocation}
-                onChange={(value) => {
-                  console.log('LocationStep: Dropoff onChange called with value:', value);
-                  console.log('LocationStep: dropoffCoordsJustSetRef.current:', dropoffCoordsJustSetRef.current);
-                  onDropoffLocationChange(value);
-                  // Reset coordinates if input is cleared (empty value) or if coordinates weren't just set
-                  if (value.trim() === '' || !dropoffCoordsJustSetRef.current) {
-                    console.log('LocationStep: Resetting dropoff coordinates to null');
-                    onDropoffCoordsChange(null);
-                  } else {
-                    console.log('LocationStep: Skipping coordinate reset - coordinates were just set');
-                  }
-                }}
-                onPlaceSelect={handleDropoffSelect}
-                icon="dropoff"
-              />
-            )}
-
-            {dropoffLocationError ? (
-              <Text style={styles.errorText}>{dropoffLocationError}</Text>
-            ) : null}
-          </View>
-        )}
-
-      </ScrollView>
+      )}
 
       {/* Navigation */}
       <View style={[styles.footer, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
         <View style={styles.buttonContainer}>
           <TouchableOpacity
-            style={[styles.backButton, { borderColor: colors.border }]}
+            style={[
+              styles.backButton,
+              {
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+                shadowColor: '#000000'
+              }
+            ]}
             onPress={onBack}
           >
             <Text style={[styles.backButtonText, { color: colors.textSecondary }]}>Back</Text>
@@ -411,19 +406,15 @@ export const LocationStep: React.FC<LocationStepProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    position: 'relative',
-    backgroundColor: '#f8fafc',
-  },
+  
   header: {
-    padding: 16,
-    alignItems: 'center',
+    padding: 4,
+    alignItems: 'flex-start',
   },
   title: {
-    fontSize: 28,
+    fontSize: 17,
     fontWeight: '800',
-    marginBottom: 12,
+    marginBottom: 6,
     color: '#0f172a',
     fontFamily: 'Inter-Bold',
     letterSpacing: 0.4,
@@ -431,28 +422,14 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
-  subtitle: {
-    fontSize: 17,
-    textAlign: 'center',
-    color: '#64748b',
-    fontFamily: 'Inter-Medium',
-    lineHeight: 26,
-    letterSpacing: 0.2,
-    fontWeight: '500',
-  },
+
   locationSection: {
-    paddingHorizontal: 12,
-    marginBottom: 16,
-    backgroundColor: '#ffffff',
-    marginHorizontal: 16,
-    marginVertical: 8,
-    borderRadius: 16,
-    paddingVertical: 16,
-    shadowColor: '#3ace9f',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    paddingHorizontal: 8,
+    marginBottom: 6,
+    marginHorizontal: 8,
+    marginVertical: 2,
+    borderRadius: 12,
+    paddingVertical: 6,
   },
   locationLabel: {
     fontSize: 18,
@@ -468,7 +445,7 @@ const styles = StyleSheet.create({
   },
   terminalButton: {
     flex: 1,
-    padding: 16,
+    padding: 18,
     borderRadius: 12,
     borderWidth: 2,
     alignItems: 'center',
@@ -490,7 +467,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.02 }],
   },
   terminalText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: '#334155',
     fontFamily: 'Inter-Bold',
@@ -513,10 +490,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   footer: {
-    padding: 20,
-    paddingBottom: 36,
-    borderTopWidth: 2,
-    borderTopColor: '#e8f8f0',
+    padding: 28,
+    paddingBottom: 12,
+    
     zIndex: 0,
     backgroundColor: '#ffffff',
   },
@@ -526,20 +502,13 @@ const styles = StyleSheet.create({
   },
   backButton: {
     flex: 1,
-    paddingVertical: 16,
+    paddingVertical: 9,
     borderRadius: 12,
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#cbd5e1',
-    backgroundColor: '#f8fafc',
-    shadowColor: '#64748b',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    borderWidth:2,
   },
   backButtonText: {
-    fontSize: 17,
+    fontSize: 14,
     fontWeight: '700',
     color: '#64748b',
     fontFamily: 'Inter-Bold',
@@ -547,8 +516,8 @@ const styles = StyleSheet.create({
   },
   nextButton: {
     flex: 2,
-    paddingVertical: 18,
-    borderRadius: 14,
+    paddingVertical: 9,
+    borderRadius: 12,
     alignItems: 'center',
     backgroundColor: '#3ace9f',
     shadowColor: '#3ace9f',
@@ -556,14 +525,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 8,
+   
   },
   nextButtonDisabled: {
     backgroundColor: '#cbd5e1',
     shadowOpacity: 0.15,
   },
   nextButtonText: {
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '700',
     color: '#ffffff',
     fontFamily: 'Inter-Bold',
     letterSpacing: 0.3,
