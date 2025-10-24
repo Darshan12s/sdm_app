@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { GOOGLE_MAPS_API_KEY } from '@/constants';
+import { GOOGLE_PLACES_API_KEY } from '@/constants';
 import { useTheme } from '@/contexts/ThemeContext';
 
 interface GooglePlacesInputProps {
@@ -68,7 +68,7 @@ export const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
       const response = await fetch(
         `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
           query
-        )}&key=${GOOGLE_MAPS_API_KEY}&components=country:in&types=geocode|establishment&location=12.9716,77.5946&radius=50000`
+        )}&key=${GOOGLE_PLACES_API_KEY}&components=country:in&types=geocode|establishment&location=12.9716,77.5946&radius=50000`
       );
 
       const data = await response.json();
@@ -109,7 +109,7 @@ export const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
     try {
       // Get place details
       const detailsResponse = await fetch(
-        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${prediction.place_id}&key=${GOOGLE_MAPS_API_KEY}&fields=geometry,formatted_address`
+        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${prediction.place_id}&key=${GOOGLE_PLACES_API_KEY}&fields=geometry,formatted_address`
       );
 
       const detailsData = await detailsResponse.json();
@@ -175,7 +175,7 @@ export const GooglePlacesInput: React.FC<GooglePlacesInputProps> = ({
 
       // Reverse geocode to get address
       const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_MAPS_API_KEY}`
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_PLACES_API_KEY}`
       );
 
       const data = await response.json();

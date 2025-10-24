@@ -75,49 +75,131 @@ export const diagnoseStorageIssue = async () => {
 };
 
 export const findCorrectBucketName = async () => {
+   try {
+     const { data: buckets, error } = await supabase.storage.listBuckets();
+
+     if (error) {
+       return null;
+     }
+
+     // Common bucket names for profile pictures
+     const possibleNames = [
+       'user_profile_pictures',
+       'drivers_profile_pictures',
+       'profile_pictures',
+       'avatars',
+       'images',
+       'uploads',
+       'media',
+       'files',
+       'drivers-kyc-documents'
+     ];
+
+     const foundBucket = buckets?.find(bucket =>
+       possibleNames.includes(bucket.name)
+     );
+
+     if (foundBucket) {
+       return foundBucket.name;
+     } else {
+       return null;
+     }
+   } catch (error) {
+     return null;
+   }
+};
+
+export const checkDriversKYCBucket = async () => {
   try {
+    console.log('🔍 checkDriversKYCBucket: Listing all available buckets...');
     const { data: buckets, error } = await supabase.storage.listBuckets();
 
     if (error) {
-      return null;
+      console.error('❌ checkDriversKYCBucket: Cannot list buckets:', error);
+      return {
+        success: false,
+        error: 'Cannot access storage service',
+        details: error
+      };
     }
 
-    // Common bucket names for profile pictures
-    const possibleNames = [
-      'user_profile_pictures',
-      'drivers_profile_pictures',
-      'profile_pictures',
-      'avatars',
-      'images',
-      'uploads',
-      'media',
-      'files'
-    ];
+    console.log('✅ checkDriversKYCBucket: Available buckets:', buckets?.map(b => b.name) || []);
 
-    const foundBucket = buckets?.find(bucket =>
-      possibleNames.includes(bucket.name)
-    );
+    const kycBucket = buckets?.find(bucket => bucket.name === 'drivers-kyc-documents');
+    console.log('🔍 checkDriversKYCBucket: Looking for drivers-kyc-documents bucket:', !!kycBucket);
 
-    if (foundBucket) {
-      return foundBucket.name;
-    } else {
-      return null;
+    if (!kycBucket) {
+      // Find alternative buckets that might work
+      const alternativeBuckets = buckets?.filter(bucket =>
+        bucket.name.includes('profile') ||
+        bucket.name.includes('document') ||
+        bucket.name.includes('upload') ||
+        bucket.name.includes('file')
+      ) || [];
+
+      console.log('🔍 checkDriversKYCBucket: Found alternative buckets:', alternativeBuckets.map(b => b.name));
+
+      return {
+        success: false,
+        error: 'drivers-kyc-documents bucket not found',
+        solution: createDriversKYCBucketGuide(),
+        availableBuckets: buckets?.map(b => b.name) || [],
+        alternativeBuckets: alternativeBuckets.map(b => b.name),
+        canUseAlternative: alternativeBuckets.length > 0
+      };
     }
-  } catch (error) {
-    return null;
+
+    // Test if we can list files in the bucket
+    console.log('🔍 checkDriversKYCBucket: Testing bucket accessibility...');
+    const { data: files, error: listError } = await supabase.storage
+      .from('drivers-kyc-documents')
+      .list('', { limit: 1 });
+
+    if (listError) {
+      console.error('❌ checkDriversKYCBucket: Cannot access bucket:', listError);
+      return {
+        success: false,
+        error: 'Cannot access drivers-kyc-documents bucket',
+        details: listError,
+        solution: 'Check bucket permissions and RLS policies'
+      };
+    }
+
+    console.log('✅ checkDriversKYCBucket: Bucket is accessible, files:', files?.length || 0);
+    return {
+      success: true,
+      message: 'drivers-kyc-documents bucket is accessible',
+      bucket: kycBucket
+    };
+
+  } catch (error: any) {
+    console.error('❌ checkDriversKYCBucket: Unexpected error:', error);
+    return {
+      success: false,
+      error: 'Error checking drivers-kyc-documents bucket',
+      details: error
+    };
   }
 };
 
-export const createRLSPolicyGuide = () => {
+export const createDriversKYCBucketGuide = () => {
   return {
-    message: 'RLS Policy Creation Guide for user_profile_pictures bucket',
-    link: 'https://supabase.com/dashboard/project/gmualcoqyztvtsqhjlzb/storage/buckets/user_profile_pictures',
-    policies: [
-      `CREATE POLICY "Allow profile picture uploads" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'user_profile_pictures' AND auth.role() = 'authenticated');`,
-      `CREATE POLICY "Allow profile picture reads" ON storage.objects FOR SELECT USING (bucket_id = 'user_profile_pictures' AND auth.role() = 'authenticated');`,
-      `CREATE POLICY "Allow profile picture updates" ON storage.objects FOR UPDATE USING (bucket_id = 'user_profile_pictures' AND auth.role() = 'authenticated');`
+    message: 'Create drivers-kyc-documents bucket in Supabase Dashboard',
+    steps: [
+      '1. Go to your Supabase Dashboard',
+      '2. Navigate to Storage',
+      '3. Click "New Bucket"',
+      '4. Enter bucket name: "drivers-kyc-documents"',
+      '5. Set as PRIVATE bucket',
+      '6. Click "Create Bucket"'
     ],
-    suggestion: 'Alternative Quick Fix: Disable RLS entirely for this bucket (Go to Policies tab and toggle "Enable Row Level Security" to OFF)'
+    policies: [
+      `CREATE POLICY "Allow driver document uploads" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'drivers-kyc-documents' AND auth.role() = 'authenticated');`,
+      `CREATE POLICY "Allow driver document reads" ON storage.objects FOR SELECT USING (bucket_id = 'drivers-kyc-documents' AND auth.role() = 'authenticated');`,
+      `CREATE POLICY "Allow driver document updates" ON storage.objects FOR UPDATE USING (bucket_id = 'drivers-kyc-documents' AND auth.role() = 'authenticated');`
+    ],
+    alternative: 'Alternative: Disable RLS entirely for this bucket (Go to Policies tab and toggle "Enable Row Level Security" to OFF)',
+    dashboardLink: 'https://supabase.com/dashboard/project/gmualcoqyztvtsqhjlzb/storage/buckets'
   };
 };
 
@@ -193,19 +275,19 @@ export const testNetworkConnectivity = async () => {
   }
 };
 
-export const uploadWithRestAPI = async (filePath: string, data: Blob | string, mimeType: string) => {
-  try {
-    // Get the Supabase URL and key from environment or configuration
-    const supabaseUrl = 'https://gmualcoqyztvtsqhjlzb.supabase.co';
-    const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+export const uploadWithRestAPI = async (filePath: string, data: Blob | string, mimeType: string, bucketName: string = 'user_profile_pictures') => {
+   try {
+     // Get the Supabase URL and key from environment or configuration
+     const supabaseUrl = 'https://gmualcoqyztvtsqhjlzb.supabase.co';
+     const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
 
-    if (!supabaseAnonKey) {
-      throw new Error('Supabase anon key not found in environment variables');
-    }
+     if (!supabaseAnonKey) {
+       throw new Error('Supabase anon key not found in environment variables');
+     }
 
-    // Create the upload URL (ensure clean URL construction)
-    const cleanFilePath = filePath.replace(/^public\//, '');
-    const uploadUrl = `${supabaseUrl}/storage/v1/object/public/user_profile_pictures/${cleanFilePath}`;
+     // Create the upload URL (ensure clean URL construction)
+     const cleanFilePath = filePath.replace(/^public\//, '');
+     const uploadUrl = `${supabaseUrl}/storage/v1/object/public/${bucketName}/${cleanFilePath}`;
 
     // Get auth token
     const { data: { session } } = await supabase.auth.getSession();

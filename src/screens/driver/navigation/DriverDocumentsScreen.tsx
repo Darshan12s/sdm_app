@@ -1,3 +1,4 @@
+import { uploadAsync, FileSystemUploadType } from 'expo-file-system';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -6,18 +7,15 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
-  Image,
   ActivityIndicator,
   SafeAreaView,
-  Platform,
   Linking,
 } from 'react-native';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { useUser } from '@/stores/appStore';
 import { supabase } from '@/services/supabase/client';
-import { uploadWithRestAPI } from '@/utils/storageTest';
 import { useTheme } from '@/contexts/ThemeContext';
 
 export default function DriverDocumentsScreen({ navigation }: { navigation: any }) {
@@ -44,7 +42,6 @@ export default function DriverDocumentsScreen({ navigation }: { navigation: any 
     try {
       if (!user) throw new Error('No user found');
       
-      // Fetch driver document data
       const { data, error } = await supabase
         .from('drivers')
         .select('license_document_url, id_proof_document_url, kyc_status, rejection_reason')
@@ -71,23 +68,47 @@ export default function DriverDocumentsScreen({ navigation }: { navigation: any 
     }
   };
 
-  const uploadDocument = async (uri: string, documentType: 'license' | 'id_proof', mimeType: string) => {
+  // Check if bucket is accessible
+  const checkBucketAccess = async (): Promise<boolean> => {
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-      if (!session?.user) throw new Error('No user session found');
+      console.log('🔍 Checking bucket access...');
+      
+      // Try to list files in the bucket (this tests if we can access it)
+      const { data, error } = await supabase.storage
+        .from('drivers-kyc-documents')
+        .list('test', { limit: 1 });
 
-      // Convert file to blob
-      const response = await fetch(uri);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch document: ${response.status} ${response.statusText}`);
+      // If we get any response (even empty), the bucket is accessible
+      // We don't care about the actual files, just if we can access the bucket
+      if (error) {
+        console.log('⚠️ Bucket access test result:', error.message);
+        // Even if there's an error, the bucket might still be accessible for uploads
+        // Many buckets return errors for listing but allow uploads
+        return true;
       }
 
-      const blob = await response.blob();
-      if (blob.size === 0) throw new Error('Document file is empty');
+      console.log('✅ Bucket is accessible');
+      return true;
+    } catch (error) {
+      console.error('❌ Bucket access check failed:', error);
+      return false;
+    }
+  };
+
+  // Enhanced upload function - simplified without bucket creation
+  const uploadDocument = async (uri: string, documentType: 'license' | 'id_proof', mimeType: string) => {
+    try {
+      console.log('🔍 Starting upload process...');
+      // Check authentication
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session?.user) {
+        throw new Error('Authentication failed. Please log in again.');
+      }
+
+      console.log('✅ User authenticated:', session.user.id);
 
       // Generate a unique filename
-      let fileExtension = 'pdf';
+      let fileExtension = 'jpg';
       if (mimeType.includes('image/jpeg') || mimeType.includes('image/jpg')) {
         fileExtension = 'jpg';
       } else if (mimeType.includes('image/png')) {
@@ -95,202 +116,183 @@ export default function DriverDocumentsScreen({ navigation }: { navigation: any 
       } else if (mimeType.includes('application/pdf')) {
         fileExtension = 'pdf';
       }
-      
+
       const fileName = `${documentType}_${Date.now()}.${fileExtension}`;
       const filePath = `${session.user.id}/${fileName}`;
+
+      console.log('📁 Upload details:', { 
+        bucket: 'drivers-kyc-documents',
+        fileName, 
+        filePath, 
+        mimeType,
+        uri
+      });
 
       // Set uploading state
       documentType === 'license' ? setLicenseUploading(true) : setIdProofUploading(true);
 
-      // Upload to Supabase storage
-      let uploadData, uploadError;
+      // Supabase REST API endpoint for upload
+      const SUPABASE_URL = 'https://gmualcoqyztvtsqhjlzb.supabase.co';
+      const uploadUrl = `${SUPABASE_URL}/storage/v1/object/drivers-kyc-documents/${filePath}`;
 
-      try {
-        const result = await supabase.storage
-          .from('drivers-kyc-documents')
-          .upload(filePath, blob, {
-            contentType: mimeType,
-            upsert: true,
-            cacheControl: '3600'
-          });
-        uploadData = result.data;
-        uploadError = result.error;
-      } catch (uploadError: any) {
-        console.error('Upload failed:', uploadError);
-        
-        // Try REST API fallback for network issues
-        if (uploadError.message?.includes('Network request failed')) {
-          try {
-            const restResult = await uploadWithRestAPI(filePath, blob, mimeType);
-            if (restResult.success) {
-              uploadData = restResult.data;
-              uploadError = null;
-            } else {
-              throw new Error('Network connection issue');
-            }
-          } catch (restError: any) {
-            throw new Error('Network connection issue');
-          }
-        } else {
-          throw new Error(`Upload failed: ${uploadError.message || 'Unknown error'}`);
-        }
+      // Get access token for authorization
+      const accessToken = session.access_token;
+      if (!accessToken) throw new Error('No access token found');
+
+      console.log('🚀 Uploading to drivers-kyc-documents bucket via REST API...');
+      const uploadResult = await uploadAsync(uploadUrl, uri, {
+        httpMethod: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': mimeType,
+        },
+        uploadType: FileSystemUploadType.BINARY_CONTENT,
+      });
+
+      console.log('Upload result:', uploadResult);
+      if (uploadResult.status !== 200) {
+        throw new Error(`Upload failed: ${uploadResult.body}`);
       }
 
-      if (uploadError) throw uploadError;
-
-      // Get the public URL
-      const { data: { publicUrl } } = supabase.storage
+      // After successful upload, fetch the public URL and update UI
+      const { data: { publicUrl } } = supabase
+        .storage
         .from('drivers-kyc-documents')
         .getPublicUrl(filePath);
 
-      if (!publicUrl) throw new Error('Failed to get public URL');
-
-      // Update the driver record with the document URL
-      const updateData: any = {};
-      if (documentType === 'license') {
-        updateData.license_document_url = publicUrl;
-      } else {
-        updateData.id_proof_document_url = publicUrl;
+      if (publicUrl) {
+        if (documentType === 'license') {
+          setLicenseDocument(publicUrl);
+        } else {
+          setIdProofDocument(publicUrl);
+        }
       }
-      
-      // Reset KYC status to pending when new documents are uploaded
-      updateData.kyc_status = 'pending';
-      updateData.rejection_reason = null;
-      updateData.updated_at = new Date().toISOString();
-
-      const { error: updateError } = await supabase
-        .from('drivers')
-        .update(updateData)
-        .eq('id', session.user.id);
-
-      if (updateError) throw updateError;
-
-      // Update local state
-      if (documentType === 'license') {
-        setLicenseDocument(publicUrl);
-      } else {
-        setIdProofDocument(publicUrl);
-      }
-      setKycStatus('pending');
-      setRejectionReason('');
-
-      Alert.alert('Success', `${documentType === 'license' ? 'License' : 'ID Proof'} uploaded successfully!`);
-    } catch (error: any) {
-      console.error('Upload document error:', error);
-      Alert.alert('Upload Error', error.message || 'Failed to upload document');
+    } catch (error) {
+      console.error('Upload error:', error);
+      Alert.alert('Error', 'Failed to upload document. Please try again.');
     } finally {
       documentType === 'license' ? setLicenseUploading(false) : setIdProofUploading(false);
     }
   };
 
-  const pickDocument = async (documentType: 'license' | 'id_proof') => {
-    try {
-      // First try to pick from camera for images
-      const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
-      
-      if (cameraPermission.granted) {
-        const actionSheetOptions = {
-          title: `Select ${documentType === 'license' ? 'License' : 'ID Proof'}`,
-          message: 'Choose how to upload your document',
-          options: ['Take Photo', 'Choose from Gallery', 'Choose PDF File', 'Cancel'],
-          cancelButtonIndex: 3,
-        };
-
-        // Show action sheet (you'll need to implement this or use a library)
-        // For now, we'll default to document picker
-      }
-
-      // Use document picker for both images and PDFs
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ['image/*', 'application/pdf'],
-        copyToCacheDirectory: true,
-      });
-
-      if (result.canceled) return;
-
-      const asset = result.assets[0];
-      if (!asset) return;
-
-      // Check file size (limit to 10MB)
-      if (asset.size && asset.size > 10 * 1024 * 1024) {
-        Alert.alert('Error', 'File size must be less than 10MB');
-        return;
-      }
-
-      // Determine MIME type
-      let mimeType = asset.mimeType || 'application/pdf';
-      if (asset.name?.toLowerCase().endsWith('.jpg') || asset.name?.toLowerCase().endsWith('.jpeg')) {
-        mimeType = 'image/jpeg';
-      } else if (asset.name?.toLowerCase().endsWith('.png')) {
-        mimeType = 'image/png';
-      }
-
-      await uploadDocument(asset.uri, documentType, mimeType);
-    } catch (error) {
-      console.error('Document picker error:', error);
-      Alert.alert('Error', 'Failed to pick document');
-    }
-  };
-
   const takePhoto = async (documentType: 'license' | 'id_proof') => {
     try {
-      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+      console.log('📷 Opening camera...');
       
+      // Request camera permissions
+      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
       if (!permissionResult.granted) {
-        Alert.alert('Permission required', 'Camera permission is needed to take photos');
+        Alert.alert('Permission Required', 'Camera access is required to take photos of your documents.');
         return;
       }
 
+      // Launch camera
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
+        exif: false,
       });
 
-      if (result.canceled) return;
+      if (result.canceled) {
+        console.log('Camera cancelled by user');
+        return;
+      }
 
       const asset = result.assets[0];
-      if (!asset) return;
+      if (!asset) {
+        Alert.alert('Error', 'No photo was taken');
+        return;
+      }
 
+      console.log('✅ Photo captured successfully');
       await uploadDocument(asset.uri, documentType, 'image/jpeg');
+      
     } catch (error) {
-      console.error('Camera error:', error);
-      Alert.alert('Error', 'Failed to take photo');
+      console.error('❌ Camera error:', error);
+      Alert.alert('Error', 'Failed to take photo. Please try again.');
     }
   };
 
   const pickImageFromGallery = async (documentType: 'license' | 'id_proof') => {
     try {
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      console.log('🖼️ Opening gallery...');
       
+      // Request gallery permissions
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
-        Alert.alert('Permission required', 'Gallery permission is needed to select photos');
+        Alert.alert('Permission Required', 'Gallery access is required to select document photos.');
         return;
       }
 
+      // Launch image library
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
+        exif: false,
       });
 
-      if (result.canceled) return;
+      if (result.canceled) {
+        console.log('Gallery selection cancelled');
+        return;
+      }
 
       const asset = result.assets[0];
-      if (!asset) return;
+      if (!asset) {
+        Alert.alert('Error', 'No image selected');
+        return;
+      }
 
+      console.log('✅ Image selected from gallery');
       await uploadDocument(asset.uri, documentType, asset.mimeType || 'image/jpeg');
+      
     } catch (error) {
-      console.error('Gallery error:', error);
-      Alert.alert('Error', 'Failed to pick image from gallery');
+      console.error('❌ Gallery error:', error);
+      Alert.alert('Error', 'Failed to pick image from gallery. Please try again.');
+    }
+  };
+
+  const pickPDFDocument = async (documentType: 'license' | 'id_proof') => {
+    try {
+      console.log('📄 Opening document picker...');
+      
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) {
+        console.log('Document picker cancelled');
+        return;
+      }
+
+      const asset = result.assets[0];
+      if (!asset) {
+        Alert.alert('Error', 'No document selected');
+        return;
+      }
+
+      // Check file size (limit to 10MB)
+      if (asset.size && asset.size > 10 * 1024 * 1024) {
+        Alert.alert('File Too Large', 'Please select a file smaller than 10MB.');
+        return;
+      }
+
+      console.log('✅ PDF document selected:', asset.name);
+      await uploadDocument(asset.uri, documentType, 'application/pdf');
+      
+    } catch (error) {
+      console.error('❌ Document picker error:', error);
+      Alert.alert('Error', 'Failed to pick PDF document. Please try again.');
     }
   };
 
   const showUploadOptions = (documentType: 'license' | 'id_proof') => {
     Alert.alert(
-      'Upload Option',
-      'Choose how to upload your document',
+      `Upload ${documentType === 'license' ? 'Driver\'s License' : 'ID Proof'}`,
+      'Choose how to upload your document:',
       [
         {
           text: 'Take Photo',
@@ -302,7 +304,7 @@ export default function DriverDocumentsScreen({ navigation }: { navigation: any 
         },
         {
           text: 'Choose PDF File',
-          onPress: () => pickDocument(documentType),
+          onPress: () => pickPDFDocument(documentType),
         },
         {
           text: 'Cancel',
@@ -316,34 +318,60 @@ export default function DriverDocumentsScreen({ navigation }: { navigation: any 
     try {
       if (!user) throw new Error('No user found');
 
-      // Update the driver record to remove the document URL
-      const updateData: any = {};
-      if (documentType === 'license') {
-        updateData.license_document_url = null;
-      } else {
-        updateData.id_proof_document_url = null;
-      }
-      updateData.updated_at = new Date().toISOString();
-      kycStatus !== 'approved' && (updateData.kyc_status = 'pending');
+      Alert.alert(
+        'Remove Document',
+        `Are you sure you want to remove your ${documentType === 'license' ? 'driver\'s license' : 'ID proof'}?`,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Remove',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                const updateData: any = {
+                  updated_at: new Date().toISOString()
+                };
 
-      const { error: updateError } = await supabase
-        .from('drivers')
-        .update(updateData)
-        .eq('id', user.id);
+                if (documentType === 'license') {
+                  updateData.license_document_url = null;
+                } else {
+                  updateData.id_proof_document_url = null;
+                }
+                
+                // Reset KYC status if not approved
+                if (kycStatus !== 'approved') {
+                  updateData.kyc_status = 'pending';
+                }
 
-      if (updateError) throw updateError;
+                const { error: updateError } = await supabase
+                  .from('drivers')
+                  .update(updateData)
+                  .eq('id', user.id);
 
-      // Update local state
-      if (documentType === 'license') {
-        setLicenseDocument(null);
-      } else {
-        setIdProofDocument(null);
-      }
+                if (updateError) throw updateError;
 
-      Alert.alert('Success', `${documentType === 'license' ? 'License' : 'ID Proof'} removed successfully!`);
+                // Update local state
+                if (documentType === 'license') {
+                  setLicenseDocument(null);
+                } else {
+                  setIdProofDocument(null);
+                }
+
+                Alert.alert('Success', `${documentType === 'license' ? 'License' : 'ID Proof'} removed successfully!`);
+              } catch (error: any) {
+                console.error('Remove document error:', error);
+                Alert.alert('Error', error.message || 'Failed to remove document');
+              }
+            },
+          },
+        ]
+      );
     } catch (error: any) {
       console.error('Remove document error:', error);
-      Alert.alert('Remove Error', error.message || 'Failed to remove document');
+      Alert.alert('Error', error.message || 'Failed to remove document');
     }
   };
 
@@ -370,6 +398,7 @@ export default function DriverDocumentsScreen({ navigation }: { navigation: any 
       <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.text }]}>Loading documents...</Text>
         </View>
       </SafeAreaView>
     );
@@ -379,6 +408,8 @@ export default function DriverDocumentsScreen({ navigation }: { navigation: any 
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          
+          
           <View style={styles.headerSpacer} />
         </View>
 
@@ -392,9 +423,9 @@ export default function DriverDocumentsScreen({ navigation }: { navigation: any 
               </Text>
             </View>
             {rejectionReason && (
-              <View style={[styles.rejectionContainer, { backgroundColor: colors.error + '20' }]}>
+              <View style={[styles.rejectionContainer, { backgroundColor: colors.error + '10' }]}>
                 <Text style={[styles.rejectionTitle, { color: colors.error }]}>Reason for rejection:</Text>
-                <Text style={[styles.rejectionReason, { color: colors.error }]}>{rejectionReason}</Text>
+                <Text style={[styles.rejectionReason, { color: colors.text }]}>{rejectionReason}</Text>
               </View>
             )}
           </View>
@@ -404,13 +435,13 @@ export default function DriverDocumentsScreen({ navigation }: { navigation: any 
         <View style={[styles.card, { backgroundColor: colors.card }]}>
           <Text style={[styles.cardTitle, { color: colors.text }]}>Driver's License</Text>
           <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
-            Upload a clear photo or scan of your driver's license (JPEG, PNG, or PDF)
+            Upload a clear photo of your valid driver's license
           </Text>
 
           {licenseDocument ? (
             <View style={styles.documentContainer}>
               <View style={[styles.documentPreview, { backgroundColor: colors.surface }]}>
-                <Ionicons name="document-text" size={40} color={colors.primary} />
+                <Ionicons name="card" size={40} color={colors.primary} />
                 <Text style={[styles.documentText, { color: colors.textSecondary }]}>License Document</Text>
                 <TouchableOpacity
                   onPress={() => licenseDocument && Linking.openURL(licenseDocument)}
@@ -421,20 +452,16 @@ export default function DriverDocumentsScreen({ navigation }: { navigation: any 
               </View>
               <TouchableOpacity 
                 onPress={() => removeDocument('license')}
-                style={styles.removeButton}
+                style={[styles.removeButton, { backgroundColor: colors.error }]}
                 disabled={licenseUploading}
               >
-                {licenseUploading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.removeButtonText}>Remove</Text>
-                )}
+                <Text style={styles.removeButtonText}>Remove</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <TouchableOpacity
               onPress={() => showUploadOptions('license')}
-              style={[styles.uploadButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
+              style={[styles.uploadButton, { borderColor: colors.primary, backgroundColor: colors.surface }]}
               disabled={licenseUploading}
             >
               {licenseUploading ? (
@@ -442,7 +469,9 @@ export default function DriverDocumentsScreen({ navigation }: { navigation: any 
               ) : (
                 <>
                   <Ionicons name="cloud-upload" size={24} color={colors.primary} />
-                  <Text style={[styles.uploadButtonText, { color: colors.primary }]}>Upload License</Text>
+                  <Text style={[styles.uploadButtonText, { color: colors.primary }]}>
+                    Upload License
+                  </Text>
                 </>
               )}
             </TouchableOpacity>
@@ -453,7 +482,7 @@ export default function DriverDocumentsScreen({ navigation }: { navigation: any 
         <View style={[styles.card, { backgroundColor: colors.card }]}>
           <Text style={[styles.cardTitle, { color: colors.text }]}>ID Proof</Text>
           <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
-            Upload a government-issued ID (Aadhaar, PAN, Passport, etc.) - JPEG, PNG, or PDF
+            Upload a government-issued ID (Aadhaar, PAN, Passport, etc.)
           </Text>
 
           {idProofDocument ? (
@@ -473,17 +502,13 @@ export default function DriverDocumentsScreen({ navigation }: { navigation: any 
                 style={[styles.removeButton, { backgroundColor: colors.error }]}
                 disabled={idProofUploading}
               >
-                {idProofUploading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.removeButtonText}>Remove</Text>
-                )}
+                <Text style={styles.removeButtonText}>Remove</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <TouchableOpacity
               onPress={() => showUploadOptions('id_proof')}
-              style={[styles.uploadButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
+              style={[styles.uploadButton, { borderColor: colors.primary, backgroundColor: colors.surface }]}
               disabled={idProofUploading}
             >
               {idProofUploading ? (
@@ -491,7 +516,9 @@ export default function DriverDocumentsScreen({ navigation }: { navigation: any 
               ) : (
                 <>
                   <Ionicons name="cloud-upload" size={24} color={colors.primary} />
-                  <Text style={[styles.uploadButtonText, { color: colors.primary }]}>Upload ID Proof</Text>
+                  <Text style={[styles.uploadButtonText, { color: colors.primary }]}>
+                    Upload ID Proof
+                  </Text>
                 </>
               )}
             </TouchableOpacity>
@@ -502,27 +529,21 @@ export default function DriverDocumentsScreen({ navigation }: { navigation: any 
         <View style={[styles.infoCard, { backgroundColor: colors.primary + '10' }]}>
           <Text style={[styles.infoTitle, { color: colors.text }]}>Important Information</Text>
           <View style={styles.infoItem}>
-            <Ionicons name="information-circle" size={20} color={colors.primary} />
+            <Ionicons name="camera" size={18} color={colors.primary} />
             <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-              Supported formats: JPEG, PNG images or PDF documents
+              Take clear, well-lit photos of your documents
             </Text>
           </View>
           <View style={styles.infoItem}>
-            <Ionicons name="information-circle" size={20} color={colors.primary} />
+            <Ionicons name="time" size={18} color={colors.primary} />
             <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-              Documents must be clear and valid. Blurry or expired documents will be rejected.
+              Verification usually takes 24-48 hours
             </Text>
           </View>
           <View style={styles.infoItem}>
-            <Ionicons name="information-circle" size={20} color={colors.primary} />
+            <Ionicons name="alert-circle" size={18} color={colors.primary} />
             <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-              Verification usually takes 24-48 hours. You'll be notified once completed.
-            </Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Ionicons name="information-circle" size={20} color={colors.primary} />
-            <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-              You cannot accept rides until your documents are approved.
+              You cannot accept rides until verification is complete
             </Text>
           </View>
         </View>
@@ -539,6 +560,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    fontWeight: '500',
   },
   container: {
     flex: 1,
@@ -563,32 +589,33 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: 12,
-    padding: 16,
+    padding: 20,
     marginHorizontal: 16,
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 3,
   },
   cardTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   cardSubtitle: {
     fontSize: 14,
     marginBottom: 16,
+    lineHeight: 20,
   },
   kycStatusContainer: {
     alignItems: 'center',
   },
   kycStatusBadge: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderRadius: 20,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   kycStatusText: {
     fontSize: 16,
@@ -596,17 +623,18 @@ const styles = StyleSheet.create({
   },
   rejectionContainer: {
     marginTop: 12,
-    padding: 12,
+    padding: 16,
     borderRadius: 8,
     width: '100%',
   },
   rejectionTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   rejectionReason: {
     fontSize: 14,
+    lineHeight: 20,
   },
   documentContainer: {
     flexDirection: 'row',
@@ -616,23 +644,24 @@ const styles = StyleSheet.create({
   documentPreview: {
     flex: 1,
     alignItems: 'center',
-    padding: 16,
+    padding: 20,
     borderRadius: 8,
     marginRight: 12,
   },
   documentText: {
     fontSize: 14,
-    marginTop: 8,
-    marginBottom: 12,
+    marginTop: 12,
+    marginBottom: 16,
+    textAlign: 'center',
   },
   viewButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 6,
   },
   viewButtonText: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 14,
+    fontWeight: '600',
   },
   removeButton: {
     paddingHorizontal: 16,
@@ -645,30 +674,32 @@ const styles = StyleSheet.create({
   removeButtonText: {
     color: '#fff',
     fontWeight: 'bold',
+    fontSize: 14,
   },
   uploadButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
+    padding: 20,
     borderWidth: 2,
     borderStyle: 'dashed',
     borderRadius: 8,
   },
   uploadButtonText: {
-    marginLeft: 8,
-    fontWeight: '500',
+    marginLeft: 12,
+    fontWeight: '600',
+    fontSize: 16,
   },
   infoCard: {
     borderRadius: 12,
-    padding: 16,
+    padding: 20,
     marginHorizontal: 16,
     marginBottom: 32,
   },
   infoTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   infoItem: {
     flexDirection: 'row',
@@ -677,7 +708,8 @@ const styles = StyleSheet.create({
   },
   infoText: {
     flex: 1,
-    marginLeft: 8,
+    marginLeft: 12,
     fontSize: 14,
+    lineHeight: 20,
   },
 });

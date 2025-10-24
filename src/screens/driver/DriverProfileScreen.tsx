@@ -1,31 +1,155 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   ScrollView,
-  StyleSheet,
   Alert,
+  StyleSheet,
   Image,
   ActivityIndicator,
   SafeAreaView,
   Platform,
-} from 'react-native';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+  TextInput,
+  Modal,
+} from "react-native";
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { AuthService } from '../../services/supabase/auth';
+import { useAppStore } from '../../stores/appStore';
+import { supabase } from '../../services/supabase/client';
+import * as Location from 'expo-location';
+import * as FileSystem from 'expo-file-system';
+import { useTheme } from '../../contexts/ThemeContext';
+import { GOOGLE_PLACES_API_KEY } from '../../constants';
 
-// Import services and stores
-import { AuthService } from '@/services/supabase/auth';
-import { useAppStore, useUser } from '@/stores/appStore';
-import { supabase } from '@/services/supabase/client';
-import { uploadWithRestAPI } from '@/utils/storageTest';
-import { useTheme } from '@/contexts/ThemeContext';
+// Enhanced image upload handler with proper format handling for drivers
+const uploadImageToStorage = async (uri: string, userId: string): Promise<string> => {
+  console.log('📤 uploadImageToStorage called with URI:', uri, 'userId:', userId);
+
+  try {
+    // Generate a unique filename with proper extension
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substring(7);
+    const fileName = `${timestamp}_${randomId}.jpg`;
+    const filePath = `${userId}/${fileName}`;
+    console.log('📁 Generated filePath:', filePath);
+
+    // Get file information first
+    console.log('📋 Getting file information...');
+    const fileInfo = await FileSystem.getInfoAsync(uri);
+    console.log('📄 File info:', {
+      exists: fileInfo.exists,
+      uri: fileInfo.uri,
+      isDirectory: fileInfo.isDirectory
+    });
+
+    if (!fileInfo.exists) {
+      throw new Error(`File does not exist at path: ${uri}`);
+    }
+
+    if (fileInfo.isDirectory) {
+      throw new Error('Selected path is a directory, not a file');
+    }
+
+    console.log('📖 Reading file with proper encoding...');
+    let base64Data;
+
+    try {
+      base64Data = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      console.log('✅ File read successfully, base64 length:', base64Data.length);
+    } catch (readError: any) {
+      console.error('❌ File read error:', readError);
+      throw new Error(`Failed to read file: ${readError.message || readError.toString()}`);
+    }
+
+    // Validate base64 data
+    if (!base64Data || base64Data.length === 0) {
+      throw new Error('Base64 data is empty after reading file');
+    }
+
+    // Check if base64 data is valid (basic validation)
+    const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+    if (!base64Regex.test(base64Data)) {
+      console.warn('⚠️ Base64 format validation failed, but continuing with upload');
+    }
+
+    // Calculate expected file size from base64
+    const expectedSize = (base64Data.length * 3) / 4;
+    console.log('📊 Size validation:', {
+      base64Length: base64Data.length,
+      expectedSize: Math.round(expectedSize),
+      actualSize: fileInfo.size
+    });
+
+    // Convert base64 to proper buffer format for upload
+    console.log('🔄 Preparing data for upload...');
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    console.log('🚀 Uploading to Supabase storage...');
+    const { data, error } = await supabase.storage
+      .from('drivers_profile_pictures')
+      .upload(filePath, bytes, {
+        contentType: 'image/jpeg',
+        upsert: true,
+        cacheControl: '31536000', // Cache for 1 year
+      });
+
+    if (error) {
+      console.error('❌ Supabase upload error:', {
+        message: error.message,
+        statusCode: (error as any).statusCode,
+        error: (error as any).error,
+        details: (error as any).details
+      });
+      throw new Error(`Upload failed: ${error.message}`);
+    }
+
+    console.log('✅ Upload successful:', {
+      path: data.path,
+      fullPath: data.fullPath,
+      id: data.id
+    });
+
+    // Verify the upload by getting the public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('drivers_profile_pictures')
+      .getPublicUrl(filePath);
+
+    console.log('🔗 Generated public URL:', publicUrl);
+
+    // Validate the public URL format
+    try {
+      const url = new URL(publicUrl);
+      console.log('✅ Public URL is valid:', {
+        protocol: url.protocol,
+        hostname: url.hostname,
+        pathname: url.pathname,
+        href: url.href
+      });
+    } catch (urlError) {
+      console.error('❌ Invalid public URL format:', urlError);
+      throw new Error(`Invalid public URL generated: ${publicUrl}`);
+    }
+
+    console.log('🎯 Upload process completed successfully');
+    return filePath;
+  } catch (error) {
+    console.error('❌ Error in uploadImageToStorage:', error);
+    throw error;
+  }
+};
 
 export default function DriverProfileScreen({ navigation }: { navigation: any }) {
-  const user = useUser();
-  const { setLoading } = useAppStore();
+  const { user, setUser } = useAppStore();
   const { colors } = useTheme();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -43,7 +167,6 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
   const [rating, setRating] = useState(0.0);
   const [totalTrips, setTotalTrips] = useState(0);
   const [totalEarnings, setTotalEarnings] = useState(0);
-  // const [averageEarnings, setAverageEarnings] = useState(0);
 
   // Editing states
   const [isEditingPersonalInfo, setIsEditingPersonalInfo] = useState(false);
@@ -59,7 +182,6 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
 
   // Upload states
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadAttempts, setUploadAttempts] = useState(0);
 
   // Menu items from the image
   const menuItems = [
@@ -103,7 +225,7 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
       subtitle: 'Get help and contact us',
       icon: 'help',
       iconType: 'MaterialIcons',
-       onPress: () => navigation.navigate('DriverSupport'),
+      onPress: () => navigation.navigate('DriverSupport'),
     },
     {
       title: 'Settings',
@@ -177,51 +299,66 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
 
   const fetchProfileImage = async (userId: string) => {
     try {
-      // First try to get from user profile
-      const { data: userData, error: userError } = await supabase
+      console.log('🔍 fetchProfileImage called for userId:', userId);
+      const { data: userData, error } = await supabase
         .from('users')
         .select('profile_picture_url')
         .eq('id', userId)
         .single();
 
-      if (!userError && userData?.profile_picture_url) {
-        setProfileImage(`${userData.profile_picture_url}?t=${Date.now()}`);
+      if (error) {
+        console.error('❌ Error fetching user data:', error);
         return;
       }
 
-      // Fallback: Check if profile image exists in storage
-      const { data: listData, error: listError } = await supabase
-        .storage
-        .from('drivers_profile_pictures')
-        .list(userId);
+      console.log('📋 userData from database:', userData);
 
-      if (listError) {
-        console.error('Storage list error:', listError);
-        return;
-      }
+      if (userData?.profile_picture_url) {
+        let imageUrl = userData.profile_picture_url;
+        console.log('🔗 Original imageUrl from database:', imageUrl);
 
-      if (listData && listData.length > 0) {
-        // Get the most recent profile image
-        const sortedFiles = listData
-          .filter(file => file.name && !file.name.startsWith('.'))
-          .sort((a: any, b: any) =>
-            new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
-          );
+        // Handle different types of image URLs
+        if (imageUrl.startsWith('file://') || imageUrl.startsWith('content://')) {
+          console.log('📱 Local image URI detected, using directly:', imageUrl);
+          // For local URIs, use them directly
+          setProfileImage(imageUrl);
+        } else if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+          console.log('🌐 Remote URL detected, using directly:', imageUrl);
+          // Already a full remote URL - use directly without cache busting
+          setProfileImage(imageUrl);
+        } else {
+          // It's a Supabase storage path - construct the full URL without cache busting
+          console.log('🏗️ Constructing Supabase URL for storage path:', imageUrl);
+          try {
+            const { data: { publicUrl } } = supabase.storage
+              .from('drivers_profile_pictures')
+              .getPublicUrl(imageUrl);
 
-        if (sortedFiles.length > 0) {
-          const { data: { publicUrl } } = supabase
-            .storage
-            .from('drivers_profile_pictures')
-            .getPublicUrl(`${userId}/${sortedFiles[0].name}`);
+            console.log('✅ Final Supabase URL:', publicUrl);
 
-          if (publicUrl) {
-            // Add a timestamp to avoid caching issues
-            setProfileImage(`${publicUrl}?t=${Date.now()}`);
+            // Validate the constructed URL
+            try {
+              new URL(publicUrl);
+              console.log('✅ Constructed URL format is valid');
+              setProfileImage(publicUrl);
+            } catch (urlValidationError) {
+              console.error('❌ Constructed URL is invalid:', urlValidationError);
+              console.log('🔍 This might indicate an issue with the Supabase project URL or bucket configuration');
+              setProfileImage(null);
+            }
+          } catch (urlError) {
+            console.error('❌ Error constructing Supabase URL:', urlError);
+            console.log('🔍 This might indicate an issue with Supabase client configuration or network');
+            console.log('⚠️ Setting profile image to null due to URL construction failure');
+            setProfileImage(null);
           }
         }
+      } else {
+        console.log('⚠️ No profile_picture_url found in database');
+        setProfileImage(null);
       }
     } catch (error) {
-      console.error('Error fetching profile image:', error);
+      console.error('❌ Error fetching profile image:', error);
     }
   };
 
@@ -235,8 +372,6 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
 
       if (bookingsError) {
         console.error('Error fetching bookings:', bookingsError);
-        // Fallback to mock data if there's an error
-        
         return;
       }
 
@@ -244,10 +379,6 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
         // Calculate statistics from real data
         const completedBookings = bookingsData.filter(booking => 
           booking.status === 'completed'
-        );
-        
-        const cancelledBookings = bookingsData.filter(booking => 
-          booking.status === 'cancelled'
         );
         
         // Calculate average rating
@@ -264,256 +395,111 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
           sum + (booking.fare_amount || 0), 0
         );
 
-        // Calculate average earnings per ride
-        const averageEarningsValue = completedBookings.length > 0
-          ? totalEarningsValue / completedBookings.length
-          : 0;
-
         // Set the calculated values
         setRating(parseFloat(averageRating.toFixed(1)));
         setTotalTrips(bookingsData.length);
         setTotalEarnings(totalEarningsValue);
-        // setAverageEarnings(averageEarningsValue);
-      } else {
-        // No bookings found, use mock data
-       
       }
     } catch (error) {
       console.error('Error fetching user stats:', error);
-      // Fallback to mock data
-      
     }
   };
-  const uploadProfileImage = async (uri: string, retryCount = 0) => {
-    const MAX_RETRIES = 3;
-    const RETRY_DELAY = 1000; // 1 second
 
+  const uploadProfileImage = async (uri: string) => {
     try {
-      setIsUploading(true);
-      setUploadAttempts(retryCount + 1);
+      console.log('🚀 uploadProfileImage called with URI:', uri);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) throw new Error('No user session found');
 
-      console.log(`🚀 Starting driver profile image upload (attempt ${retryCount + 1})...`);
+      console.log('👤 User session found, user ID:', session.user.id);
+      const filePath = await uploadImageToStorage(uri, session.user.id);
+      console.log('💾 File uploaded to path:', filePath);
 
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) {
-        console.error('❌ Session error:', sessionError);
-        throw sessionError;
-      }
-      if (!session?.user) {
-        throw new Error('No user session found');
-      }
-
-      console.log('✅ User session found:', session.user.id);
-
-      // Convert image to blob with timeout
-      console.log('📸 Fetching image from URI:', uri);
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-
-      let blob: Blob;
-      try {
-        const response = await fetch(uri, { signal: controller.signal });
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-        }
-        blob = await response.blob();
-        console.log('📦 Image blob size:', blob.size);
-
-        if (blob.size === 0) throw new Error('Image file is empty');
-      } catch (fetchError: any) {
-        clearTimeout(timeoutId);
-        if (fetchError.name === 'AbortError') {
-          throw new Error('Image fetch timed out. Please try again.');
-        }
-        throw fetchError;
-      }
-
-      // Generate a unique filename
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
-      const filePath = `${session.user.id}/${fileName}`;
-
-      console.log('📁 Uploading to path:', filePath);
-      console.log('📤 Proceeding with upload to drivers_profile_pictures...');
-
-      let uploadData, uploadError;
-
-      // Try multiple upload methods with retry logic
-      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-        if (attempt > 0) {
-          console.log(`🔄 Retry attempt ${attempt}/${MAX_RETRIES}...`);
-          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * attempt));
-        }
-
-        try {
-          console.log(`📤 Upload attempt ${attempt + 1}...`);
-          const result = await supabase.storage
-            .from('drivers_profile_pictures')
-            .upload(filePath, blob, {
-              contentType: 'image/jpeg',
-              upsert: true,
-              cacheControl: '3600'
-            });
-          uploadData = result.data;
-          uploadError = result.error;
-          break; // Success, exit retry loop
-        } catch (methodError: any) {
-          console.error(`❌ Upload attempt ${attempt + 1} failed:`, methodError);
-          uploadError = methodError;
-
-          // If it's the last attempt, try alternative method
-          if (attempt === MAX_RETRIES) {
-            try {
-              console.log('🔄 Trying alternative upload method...');
-              const result = await supabase.storage
-                .from('drivers_profile_pictures')
-                .upload(filePath, blob, {
-                  contentType: 'image/jpeg',
-                  upsert: true,
-                  duplex: 'half'
-                });
-              uploadData = result.data;
-              uploadError = result.error;
-              break;
-            } catch (altError: any) {
-              console.error('❌ Alternative upload also failed:', altError);
-              uploadError = altError;
-            }
-          }
-        }
-      }
-
-      if (uploadError) {
-        console.error('❌ Upload error details:', uploadError);
-        console.error('❌ Upload error message:', uploadError.message);
-
-        // Handle network-related errors with retry
-        if (uploadError.message?.includes('Network request failed') ||
-            uploadError.message?.includes('Failed to fetch') ||
-            uploadError.message?.includes('NetworkError') ||
-            uploadError.message?.includes('StorageUnknownError') ||
-            uploadError.message?.includes('timeout')) {
-
-          if (retryCount < MAX_RETRIES) {
-            console.log(`🔄 Network error detected, retrying... (${retryCount + 1}/${MAX_RETRIES})`);
-            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-            return uploadProfileImage(uri, retryCount + 1);
-          } else {
-            console.log('❌ Max retries reached for network error');
-            // Don't show alert for network errors, just log them
-            console.error('Network upload failed after max retries');
-            return;
-          }
-        }
-
-        // Handle other critical errors that should be shown to user
-        if (uploadError.message?.includes('Bucket not found') ||
-            uploadError.message?.includes('404')) {
-          throw new Error('Storage service unavailable. Please contact support.');
-        } else if (uploadError.message?.includes('row-level security') ||
-                   uploadError.message?.includes('RLS') ||
-                   uploadError.message?.includes('violates row-level security policy')) {
-          throw new Error('Upload permission denied. Please try logging out and back in.');
-        } else if (uploadError.message?.includes('Unauthorized') ||
-                   uploadError.message?.includes('403')) {
-          throw new Error('Upload permission denied. Please try logging out and back in.');
-        } else if (uploadError.message?.includes('Payload too large') ||
-                   uploadError.message?.includes('413')) {
-          throw new Error('Image file is too large. Please choose a smaller image (under 5MB).');
-        } else if (uploadError.message?.includes('CORS')) {
-          throw new Error('Upload blocked by security policy. Please contact support.');
-        } else {
-          // For other errors, don't show to user unless it's critical
-          console.error('Non-critical upload error:', uploadError.message);
-          return;
-        }
-      }
-
-      console.log('✅ Upload successful:', uploadData);
-
-      // Get the public URL
+      // Get the public URL for the uploaded file
       const { data: { publicUrl } } = supabase.storage
         .from('drivers_profile_pictures')
         .getPublicUrl(filePath);
 
-      if (!publicUrl) {
-        throw new Error('Failed to generate image URL');
-      }
+      console.log('🔗 Public URL for storage:', publicUrl);
 
-      console.log('🔗 Public URL generated:', publicUrl);
-
-      // Update the profile image with cache busting
-      const imageUrl = `${publicUrl}?t=${Date.now()}`;
-      setProfileImage(imageUrl);
-
-      // Update user profile with image URL
-      const { error: updateError } = await supabase
+      // Store the file path (not the full URL) in the database
+      console.log('💿 Updating user profile with filePath:', filePath);
+      await supabase
         .from('users')
         .update({
-          profile_picture_url: publicUrl,
+          profile_picture_url: filePath, // Store the path, not the full URL
           updated_at: new Date().toISOString()
         })
         .eq('id', session.user.id);
 
-      if (updateError) {
-        console.error('⚠️ Profile update error:', updateError);
-        // Show warning but don't fail the upload
-        Alert.alert('Warning', 'Image uploaded but profile update failed. Please refresh the page.');
-      }
+      console.log('✅ Profile updated successfully');
 
-      console.log('🎉 Driver profile image upload completed successfully');
+      // Force refresh the profile image with cache busting
+      await fetchProfileImage(session.user.id);
 
-      // Only show success message if it was a retry or took multiple attempts
-      if (retryCount > 0) {
-        Alert.alert('Success', 'Profile image uploaded successfully!');
-      }
-
+      Alert.alert('Success', 'Profile image uploaded successfully!');
     } catch (error: any) {
-      console.error('💥 Upload image error:', error);
-      console.error('💥 Error stack:', error.stack);
+      console.error('❌ Upload error:', error);
 
-      const errorMessage = error.message || 'Failed to upload image';
-
-      // Only show critical errors to user, not network issues
-      if (errorMessage.includes('permission denied') ||
-          errorMessage.includes('too large') ||
-          errorMessage.includes('contact support') ||
-          errorMessage.includes('security policy')) {
-        Alert.alert('Upload Error', errorMessage);
-      } else {
-        // For network or temporary errors, just log them
-        console.error('Upload failed (non-critical):', errorMessage);
+      // Provide more specific error messages based on error type
+      let errorMessage = 'Failed to upload image';
+      if (error.message?.includes('network')) {
+        errorMessage = 'Network error. Please check your internet connection and try again.';
+      } else if (error.message?.includes('storage')) {
+        errorMessage = 'Storage error. Please try again in a few moments.';
+      } else if (error.message?.includes('permission')) {
+        errorMessage = 'Permission denied. Please allow storage permissions and try again.';
+      } else if (error.message?.includes('file')) {
+        errorMessage = 'File error. Please select a valid image file and try again.';
+      } else if (error.message) {
+        errorMessage = error.message;
       }
-    } finally {
-      setIsUploading(false);
-      setUploadAttempts(0);
+
+      Alert.alert('Upload Failed', errorMessage);
     }
   };
 
   const pickImageFromSource = async (source: 'camera' | 'gallery') => {
     try {
-      let result;
-
-      const options: ImagePicker.ImagePickerOptions = {
+      console.log('📸 pickImageFromSource called with source:', source);
+      const options = {
         allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
+        aspect: [1, 1] as [number, number],
+        quality: 0.7, // Reduced quality for better performance
+        base64: false,
       };
 
-      if (source === 'camera') {
-        result = await ImagePicker.launchCameraAsync(options);
-      } else {
-        result = await ImagePicker.launchImageLibraryAsync(options);
-      }
+      const result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync(options)
+        : await ImagePicker.launchImageLibraryAsync(options);
 
-      // Upload image to Supabase bucket
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        await uploadProfileImage(result.assets[0].uri);
+      console.log('📋 Image picker result:', result);
+
+      if (!result.canceled && result.assets?.[0]) {
+        const selectedAsset = result.assets[0];
+        const originalUri = selectedAsset.uri;
+
+        console.log('🖼️ Selected image asset:', {
+          uri: originalUri,
+          width: selectedAsset.width,
+          height: selectedAsset.height,
+          type: selectedAsset.type,
+          fileSize: selectedAsset.fileSize
+        });
+
+        // First, set the local image for immediate display
+        console.log('✅ Setting local image for immediate display:', originalUri);
+        setProfileImage(originalUri);
+
+        // Then start the upload process
+        console.log('🚀 Starting upload process...');
+        await uploadProfileImage(originalUri);
+      } else {
+        console.log('❌ Image picker was canceled or no asset found');
       }
-    } catch (error) {
-      console.error('Image picker error:', error);
-      Alert.alert('Error', 'Failed to pick image');
+    } catch (error: any) {
+      console.error('❌ Image picker error:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
     }
   };
 
@@ -533,7 +519,7 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
         ...(profileImage ? [{
           text: 'Remove Photo',
           onPress: () => removeProfileImage(),
-          style: 'destructive' as 'destructive',
+          style: 'destructive' as const,
         }] : []),
         {
           text: 'Cancel',
@@ -545,61 +531,30 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
 
   const removeProfileImage = async () => {
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
+      const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) throw new Error('No user session found');
 
-      // Update user profile to remove image URL
-      const { error: updateError } = await supabase
+      await supabase
         .from('users')
-        .update({
-          profile_picture_url: null,
-          updated_at: new Date().toISOString()
-        })
+        .update({ profile_picture_url: null })
         .eq('id', session.user.id);
 
-      if (updateError) {
-        console.error('Profile update error:', updateError);
-      }
-
-      // List all files in the user's folder
-      const { data: listData, error: listError } = await supabase
-        .storage
-        .from('drivers_profile_pictures')
-        .list(session.user.id);
-
-      if (listError) {
-        console.error('Storage list error:', listError);
-        // Still clear the image even if listing fails
-        setProfileImage(null);
-        Alert.alert('Success', 'Profile image removed!');
-        return;
-      }
-
-      if (listData && listData.length > 0) {
-        // Create an array of file paths to remove
-        const filesToRemove = listData
-          .filter(file => file.name && !file.name.startsWith('.'))
-          .map(file => `${session.user.id}/${file.name}`);
-
-        if (filesToRemove.length > 0) {
-          // Remove all files
-          const { error: removeError } = await supabase.storage
-            .from('drivers_profile_pictures')
-            .remove(filesToRemove);
-
-          if (removeError) {
-            console.error('Storage remove error:', removeError);
-          }
-        }
-      }
-
       setProfileImage(null);
-      Alert.alert('Success', 'Profile image removed successfully!');
+      Alert.alert('Success', 'Profile image removed!');
     } catch (error: any) {
-      console.error('Remove image error:', error);
-      const errorMessage = error.message || 'Failed to remove image';
-      Alert.alert('Remove Error', errorMessage);
+      console.error('❌ Remove image error:', error);
+
+      // Provide more specific error messages
+      let errorMessage = 'Failed to remove image';
+      if (error.message?.includes('network')) {
+        errorMessage = 'Network error. Please check your internet connection and try again.';
+      } else if (error.message?.includes('permission')) {
+        errorMessage = 'Permission error. Please try again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      Alert.alert('Remove Failed', errorMessage);
     }
   };
 
@@ -740,19 +695,50 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
         <View style={styles(colors).profileSection}>
           <TouchableOpacity onPress={showImagePickerOptions} style={styles(colors).avatarContainer}>
             {profileImage ? (
-              <Image source={{ uri: profileImage }} style={styles(colors).avatar} />
+              <Image
+                source={{
+                  uri: profileImage,
+                  cache: 'reload' // Force reload to avoid caching issues
+                }}
+                style={styles(colors).avatar}
+                resizeMode="cover"
+                key={`profile-${profileImage}-${Date.now()}`} // Add timestamp to force re-render
+                onError={(error) => {
+                  console.error('❌ Image display error:', error.nativeEvent.error);
+                  console.log('🔍 Image URI that failed:', profileImage);
+                  console.log('📋 Full error details:', {
+                    error: error.nativeEvent.error,
+                    uri: profileImage,
+                    isSupabaseUrl: profileImage?.includes('supabase.co'),
+                    uriLength: profileImage?.length
+                  });
+
+                  // Handle different error types
+                  const errorType = error.nativeEvent.error;
+                  if (errorType === 'Network request failed' || errorType?.includes('Network')) {
+                    console.log('🌐 Network error - image might be temporarily unavailable');
+                    // Keep the current image URL but log the issue
+                  } else {
+                    console.log('🚫 Image format or availability issue detected');
+                    // Clear the image on critical errors
+                    setProfileImage(null);
+                  }
+                }}
+                onLoadStart={() => {
+                  console.log('🔄 Image loading started:', profileImage);
+                }}
+                onLoadEnd={() => {
+                  console.log('✅ Image loaded successfully:', profileImage);
+                }}
+              />
             ) : (
               <View style={styles(colors).avatarPlaceholder}>
                 <Ionicons name="person" size={40} color={colors.textSecondary} />
               </View>
             )}
-            <View style={styles(colors).cameraButton}>
-              {isUploading ? (
-                <ActivityIndicator size="small" color={colors.text} />
-              ) : (
-                <Ionicons name="camera" size={20} color={colors.text} />
-              )}
-            </View>
+             <View style={[styles(colors).cameraButton, { backgroundColor: colors.primary }]}>
+              <Ionicons name="camera" size={20} color={colors.surface} />
+             </View>
           </TouchableOpacity>
           <Text style={styles(colors).userName}>{userName || 'Driver'}</Text>
           <View style={styles(colors).ratingContainer}>
@@ -761,6 +747,8 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
               {rating.toFixed(1)} ({totalTrips} rides)
             </Text>
           </View>
+
+         
         </View>
 
         {/* Personal Information Card */}
@@ -873,11 +861,6 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
               <Text style={styles(colors).statValue}>₹{totalEarnings.toLocaleString()}</Text>
               <Text style={styles(colors).statLabel}>Total Earnings</Text>
             </View>
-{/* 
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>₹{averageEarnings.toFixed(0)}</Text>
-              <Text style={styles.statLabel}>Avg per Ride</Text>
-            </View> */}
           </View>
         </View>
 
@@ -892,6 +875,7 @@ export default function DriverProfileScreen({ navigation }: { navigation: any })
               ]}
               onPress={item.onPress}
             >
+              
               <View style={styles(colors).menuItemIcon}>
                 <MaterialIcons name={item.icon as any} size={24} color={colors.primary} />
               </View>
@@ -982,11 +966,11 @@ const styles = (colors: any) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cameraButton: {
+ cameraButton: {
     position: 'absolute',
     right: 0,
     bottom: 0,
-    backgroundColor: colors.text,
+    backgroundColor: '#000',
     borderRadius: 18,
     width: 36,
     height: 36,
@@ -1096,7 +1080,6 @@ const styles = (colors: any) => StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.primaryLight || colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -1128,6 +1111,37 @@ const styles = (colors: any) => StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
+ 
+  refreshButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: colors.primaryLight || colors.primary + '20',
+    borderRadius: 16,
+  },
+  refreshText: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  testConnectionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  testConnectionText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
 });
-
-

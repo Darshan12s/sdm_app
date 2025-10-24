@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   Linking,
+  Animated,
+  Easing,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -42,6 +44,12 @@ export default function DriverHomeScreen({ navigation }: any) {
     rating: 0,
     totalRides: 0,
   });
+
+  // Animation refs
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
 
   // Start real-time subscription for ride requests
   const startRideSubscription = () => {
@@ -387,9 +395,66 @@ export default function DriverHomeScreen({ navigation }: any) {
     }
   };
 
+  // Animation effects
+  useEffect(() => {
+    // Fade in animation
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 800,
+      useNativeDriver: true,
+    }).start();
+
+    // Slide up animation
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  // Pulse animation for online status
+  useEffect(() => {
+    if (isOnline) {
+      const pulseAnimation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.2,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulseAnimation.start();
+
+      return () => pulseAnimation.stop();
+    } else {
+      Animated.timing(pulseAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [isOnline]);
+
   // Fetch driver location and stats on component mount
   useEffect(() => {
     if (user) {
+      console.log('DriverHomeScreen: Initializing with user:', user.id);
+      console.log('DriverHomeScreen: Current UI issues identified:');
+      console.log('1. Basic card designs lacking visual appeal');
+      console.log('2. Monotonous layout with repetitive styling');
+      console.log('3. Limited visual hierarchy in typography');
+      console.log('4. No gradient or modern color schemes');
+      console.log('5. Static interface without animations');
+      console.log('6. Basic button designs');
+      console.log('7. Poor information architecture');
       fetchDriverLocation();
       fetchTodaysSummary();
     }
@@ -489,8 +554,32 @@ export default function DriverHomeScreen({ navigation }: any) {
     }
   };
 
+  // Button press animation
+  const handleButtonPress = (buttonAnimation: Animated.Value) => {
+    Animated.sequence([
+      Animated.timing(buttonAnimation, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(buttonAnimation, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
   return (
-    <ScrollView style={styles(colors).container}>
+    <Animated.ScrollView
+      style={[
+        styles(colors).container,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
       {/* Online Status */}
       <View style={styles(colors).statusCard}>
         <View style={styles(colors).statusHeader}>
@@ -506,12 +595,19 @@ export default function DriverHomeScreen({ navigation }: any) {
           {isOnline ? 'Online - Accepting rides' : 'Offline - Not accepting rides'}
         </Text>
         {isOnline && isLocationTracking && (
-          <View style={styles(colors).locationStatusContainer}>
+          <Animated.View
+            style={[
+              styles(colors).locationStatusContainer,
+              {
+                transform: [{ scale: pulseAnim }],
+              },
+            ]}
+          >
             <MaterialIcons name="location-on" size={16} color={colors.primary} />
             <Text style={styles(colors).locationStatusText}>
               Location tracking active
             </Text>
-          </View>
+          </Animated.View>
         )}
       </View>
 
@@ -657,7 +753,7 @@ export default function DriverHomeScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
       </View>
-    </ScrollView>
+    </Animated.ScrollView>
   );
 }
 
@@ -670,33 +766,36 @@ const styles = (colors: any) => StyleSheet.create({
     backgroundColor: colors.card,
     marginHorizontal: 20,
     marginTop: 20,
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: colors.shadow,
+    padding: 24,
+    borderRadius: 20,
+    borderWidth: 0,
+    shadowColor: colors.primary,
     shadowOffset: {
       width: 0,
-      height: 8,
+      height: 12,
     },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 12,
+    position: 'relative',
+    overflow: 'hidden',
   },
   statusHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   statusTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: colors.text,
+    letterSpacing: 0.5,
   },
   statusText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 4,
   },
   onlineText: {
     color: colors.success,
@@ -708,24 +807,26 @@ const styles = (colors: any) => StyleSheet.create({
     backgroundColor: colors.card,
     marginHorizontal: 20,
     marginVertical: 20,
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: colors.shadow,
+    padding: 24,
+    borderRadius: 20,
+    borderWidth: 0,
+    shadowColor: colors.warning,
     shadowOffset: {
       width: 0,
-      height: 8,
+      height: 10,
     },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOpacity: 0.2,
+    shadowRadius: 18,
+    elevation: 10,
+    position: 'relative',
+    overflow: 'hidden',
   },
   rideTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: colors.text,
-    marginBottom: 12,
+    marginBottom: 16,
+    letterSpacing: 0.3,
   },
   rideDetails: {
     marginBottom: 16,
@@ -742,43 +843,62 @@ const styles = (colors: any) => StyleSheet.create({
   arrivedButton: {
     flex: 1,
     backgroundColor: colors.warning,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: 'center',
+    shadowColor: colors.warning,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   arrivedButtonText: {
     color: colors.text,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
+    letterSpacing: 0.3,
   },
   completeButton: {
     flex: 1,
     backgroundColor: colors.success,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: 'center',
+    shadowColor: colors.success,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   completeButtonText: {
     color: colors.text,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
+    letterSpacing: 0.3,
   },
   requestCard: {
     backgroundColor: colors.card,
     marginHorizontal: 20,
     marginVertical: 20,
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    shadowColor: colors.shadow,
+    padding: 24,
+    borderRadius: 20,
+    borderWidth: 0,
+    shadowColor: colors.success,
     shadowOffset: {
       width: 0,
-      height: 8,
+      height: 10,
     },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    elevation: 10,
+    position: 'relative',
+    overflow: 'hidden',
   },
   requestTitleContainer: {
     flexDirection: 'row',
@@ -787,9 +907,10 @@ const styles = (colors: any) => StyleSheet.create({
     marginBottom: 12,
   },
   requestTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
     color: colors.text,
+    letterSpacing: 0.3,
   },
   requestDetails: {
     marginBottom: 16,
@@ -806,65 +927,87 @@ const styles = (colors: any) => StyleSheet.create({
   rejectButton: {
     flex: 1,
     backgroundColor: colors.error,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: 'center',
+    shadowColor: colors.error,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   rejectButtonText: {
     color: colors.text,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
+    letterSpacing: 0.3,
   },
   acceptButton: {
     flex: 1,
     backgroundColor: colors.success,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: 'center',
+    shadowColor: colors.success,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   acceptButtonText: {
     color: colors.text,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
+    letterSpacing: 0.3,
   },
   statsSection: {
     paddingHorizontal: 20,
-    marginBottom: 20,
+    marginBottom: 28,
   },
   statsTitle: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '700',
     color: colors.text,
-    marginBottom: 16,
+    marginBottom: 20,
+    letterSpacing: 0.4,
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 16,
+    justifyContent: 'space-between',
   },
   statCard: {
     flex: 1,
     minWidth: '45%',
     backgroundColor: colors.card,
-    padding: 16,
-    borderRadius: 12,
+    padding: 20,
+    borderRadius: 16,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: colors.shadow,
+    borderWidth: 0,
+    shadowColor: colors.primary,
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 6,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    position: 'relative',
+    overflow: 'hidden',
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: 6,
+    letterSpacing: 0.5,
   },
   statLabel: {
     fontSize: 12,
@@ -872,64 +1015,84 @@ const styles = (colors: any) => StyleSheet.create({
   },
   actionsSection: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 50,
   },
   actionsTitle: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '700',
     color: colors.text,
-    marginBottom: 16,
+    marginBottom: 20,
+    letterSpacing: 0.4,
   },
   actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 16,
+    justifyContent: 'space-between',
   },
   actionCard: {
     flex: 1,
     minWidth: '45%',
     backgroundColor: colors.card,
-    padding: 16,
-    borderRadius: 12,
+    padding: 20,
+    borderRadius: 16,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: colors.shadow,
+    borderWidth: 0,
+    shadowColor: colors.info,
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 6,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 6,
+    position: 'relative',
+    overflow: 'hidden',
   },
   actionText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '600',
     color: colors.textSecondary,
+    letterSpacing: 0.3,
   },
   locationStatusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-    padding: 8,
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     backgroundColor: colors.primaryLight || colors.primary,
-    borderRadius: 6,
+    borderRadius: 20,
+    shadowColor: colors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   locationStatusText: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
     color: colors.text,
-    marginLeft: 6,
+    marginLeft: 8,
   },
   loadingCard: {
     backgroundColor: colors.card,
     marginHorizontal: 20,
     marginVertical: 20,
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
+    padding: 24,
+    borderRadius: 20,
+    borderWidth: 0,
+    shadowColor: colors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -942,19 +1105,27 @@ const styles = (colors: any) => StyleSheet.create({
     backgroundColor: colors.card,
     marginHorizontal: 20,
     marginVertical: 20,
-    padding: 30,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
+    padding: 36,
+    borderRadius: 20,
+    borderWidth: 0,
+    shadowColor: colors.textMuted,
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    elevation: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   noRequestsTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
-    marginTop: 12,
-    marginBottom: 4,
+    marginTop: 16,
+    marginBottom: 8,
     color: colors.text,
+    letterSpacing: 0.3,
   },
   noRequestsText: {
     fontSize: 14,

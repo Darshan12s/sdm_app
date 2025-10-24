@@ -213,9 +213,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
+    padding: 10,
     borderRadius: 8,
-    marginTop: 16,
+    marginTop: 10,
+    marginVertical:25,
   },
   documentsButtonText: {
     color: '#fff',
