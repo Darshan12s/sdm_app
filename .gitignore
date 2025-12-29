@@ -39,3 +39,6 @@ yarn-error.*
 # Large installer files
 *.exe
 *.msi
+#  env files
+*.env
+*.env.example
